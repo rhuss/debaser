@@ -1,0 +1,16 @@
+{
+  "name": "debaser",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "debaser": "dist/debaser" },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "build": "bun build --compile src/cli/main.ts src/live/worker.ts --outfile dist/debaser"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}

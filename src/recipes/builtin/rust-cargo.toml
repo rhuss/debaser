@@ -1,0 +1,20 @@
+# Generic recipe for Rust projects built with cargo.
+name = "rust-cargo"
+detect = ["Cargo.toml"]
+
+[install]
+step = "fetch"
+triggers = ["Cargo.lock", "Cargo.toml"]
+
+[[steps]]
+name = "fetch"
+run = ["cargo", "fetch", "--locked"]
+
+[[steps]]
+name = "test"
+run = ["cargo", "test"]
+parser = "cargo-test"
+
+[[steps]]
+name = "build"
+run = ["cargo", "build", "--release"]

@@ -1,0 +1,22 @@
+# Generic recipe for Bun and TypeScript projects.
+name = "bun-ts"
+detect = ["bun.lock", "bun.lockb"]
+
+[install]
+step = "install"
+triggers = ["bun.lock", "package.json"]
+marker = "node_modules"
+
+[[steps]]
+name = "install"
+run = ["bun", "install", "--frozen-lockfile"]
+
+[[steps]]
+name = "typecheck"
+run = ["bunx", "tsc", "--noEmit"]
+parser = "tsc"
+
+[[steps]]
+name = "test"
+run = ["bun", "test", "{tests}"]
+parser = "bun-test"

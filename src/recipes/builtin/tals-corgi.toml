@@ -1,0 +1,24 @@
+# Project recipe for tals/corgi (Bun/TypeScript plus Zig).
+name = "tals/corgi"
+extends = "bun-ts"
+project_name = "corgi"
+after_build = ["./dist/corgi-custom", "reload"]
+
+[artifact]
+output = "dist/corgi-debaser"
+install = "dist/corgi-custom"
+
+[[steps]]
+name = "typecheck"
+run = ["bun", "typecheck.ts"]
+parser = "tsc"
+
+# The unit tests need the native layer built first.
+[[steps]]
+name = "native"
+run = ["bun", "build.ts", "--native-only"]
+before = "test"
+
+[[steps]]
+name = "build"
+run = ["bun", "build.ts", "--outfile", "{output}"]

@@ -1,0 +1,18 @@
+# Project recipe for rtk-ai/rtk (Rust, cargo).
+name = "rtk-ai/rtk"
+extends = "rust-cargo"
+project_name = "rtk"
+
+[artifact]
+output = "target/release/rtk"
+install = "dist/rtk-custom"
+
+[[steps]]
+name = "fmt"
+run = ["cargo", "fmt", "--check"]
+before = "test"
+
+[[steps]]
+name = "clippy"
+run = ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"]
+before = "test"
