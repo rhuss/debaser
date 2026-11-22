@@ -4,7 +4,7 @@
 
 **Tests**: Requested. The integration test world (research R9) is central: every story phase starts with its tests, which must fail before the implementation and pass after it.
 
-**Reference implementation**: `REF` = `/Users/rhuss/Development/context-engineering/corgi/.claude/worktrees/custom-build-tool`. Modules are in `REF/scripts/custom_build/`, the behavior suite in `REF/tests/custom_build.test.ts`, and the user docs in `REF/docs/custom-builds.md`. Port **behavior**, not names: no `corgi`, `custom-build` or `CORGI_` strings in `src/` outside `src/recipes/builtin/tals-corgi.toml` (FR-050). Names to use: research.md R10.
+**Reference implementation**: `REF` = a checkout of the frozen [tals/corgi#117](https://github.com/tals/corgi/pull/117) branch. Modules are in `REF/scripts/custom_build/`, the behavior suite in `REF/tests/custom_build.test.ts`, and the user docs in `REF/docs/custom-builds.md`. Port **behavior**, not names: no `corgi`, `custom-build` or `CORGI_` strings in `src/` outside `src/recipes/builtin/tals-corgi.toml` (FR-050). Names to use: research.md R10.
 
 ## Format: `[ID] [P?] [Story] Description`
 

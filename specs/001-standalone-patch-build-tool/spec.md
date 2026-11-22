@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: Brainstorm `corgi-specs/brainstorm/13-standalone-patch-build-tool.md` (the "Revisit: 2026-11-21" section supersedes earlier decisions). debaser keeps a patched build of someone else's GitHub project: upstream plus an ordered patch list of upstream PRs, fork PRs, fork branches and own branches. Every rebuild fetches, rebases own branches, merges in order, verifies with project-wide and per-patch checks, and produces a runnable artifact. Conflicts and failing checks go to an AI agent harness first, whose results debaser verifies, and to the user only when the agent can't fix them. The plugin model (recipes, failure parsers, harness adapters, acceptance checks) is designed first, and the behavior pinned by the existing custom-build tool's integration suite is carried over or dropped on purpose.
+**Input**: The author's design brainstorm for a standalone patch build tool (not published; its 2026-11-21 revisit supersedes earlier decisions). debaser keeps a patched build of someone else's GitHub project: upstream plus an ordered patch list of upstream PRs, fork PRs, fork branches and own branches. Every rebuild fetches, rebases own branches, merges in order, verifies with project-wide and per-patch checks, and produces a runnable artifact. Conflicts and failing checks go to an AI agent harness first, whose results debaser verifies, and to the user only when the agent can't fix them. The plugin model (recipes, failure parsers, harness adapters, acceptance checks) is designed first, and the behavior pinned by the existing custom-build tool's integration suite is carried over or dropped on purpose.
 
 ## Background
 
