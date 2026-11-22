@@ -130,6 +130,17 @@ test("an agent fix that no patch is named for runs nothing to attribute it and h
   expect(read(join(latest(w), "report.md"))).toMatch(/typecheck \(agent\): ok\.txt \(no merged patch .*; no handoff\)/);
 });
 
+test("a stop whose failure names no file says so without mentioning a fix", async () => {
+  const w = world();
+  branch(w, "a", { "a.txt": "BROKEN\n" });
+  // The default typecheck stub fails silently (grep -q), so the log names no file.
+  configure(w, ["a"]);
+  const result = await run(w, "rebuild");
+  expect(result.code).toBe(3);
+  expect(result.err).toContain("no merged patch touches a file the typecheck failure names; not attributed");
+  expect(result.err).not.toContain("fix changed");
+});
+
 test("attribution says which patch it runs alone and how many are left", async () => {
   const w = world();
   branch(w, "fine", { "fine.txt": "fine\n" });

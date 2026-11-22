@@ -28,7 +28,11 @@ export async function attribute(
     ),
     failing: string[] = [];
   if (!implicated.length) {
-    ctx.progress(`no merged patch touches what the ${o.step} fix changed or the failure names; not attributed`);
+    ctx.progress(
+      o.fixFiles.length
+        ? `no merged patch touches what the ${o.step} fix changed or the failure names; not attributed`
+        : `no merged patch touches a file the ${o.step} failure names; not attributed`,
+    );
     return [];
   }
   for (const [i, m] of implicated.entries()) {
