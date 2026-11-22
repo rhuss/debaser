@@ -1,6 +1,6 @@
 # Resolve a merge conflict in a patched {{project}} build
 
-debaser is rebuilding a {{project}} branch from upstream plus a list of
+debaser is building a {{project}} branch from upstream plus a list of
 patches, merged one after another. Merging the next patch conflicted, and the
 merge is in progress in this checkout (the current directory).
 

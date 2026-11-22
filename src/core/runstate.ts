@@ -109,7 +109,7 @@ export type RebaseTarget = {
 export type RebaseStop = { target: RebaseTarget; worktree: string; commit: string; files: string[]; problem?: string };
 
 export type RunState = {
-  kind: "rebuild" | "rebase";
+  kind: "build" | "rebase";
   startedAt: string;
   reportDir: string;
   startTip: string | null;
@@ -163,7 +163,9 @@ export function loadRun(dir: string): RunState | null {
   run.merged ??= [];
   run.plan ??= [];
   run.acceptance ??= [];
-  run.kind ??= "rebuild";
+  // Versions before the rename called a build "rebuild".
+  if ((run.kind as string) === "rebuild") run.kind = "build";
+  run.kind ??= "build";
   return run;
 }
 export function saveRun(dir: string, run: RunState): void {

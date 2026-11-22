@@ -1011,7 +1011,7 @@ export function taskFrame(
   return lines;
 }
 
-/** The line that ends a rebuild that installed its artifact: that it is done,
+/** The line that ends a build that installed its artifact: that it is done,
  * and where the artifact is (a link). Amber when the run still ended badly (a
  * refused push); nothing without an artifact. */
 export function doneLine(e: { ok: boolean; artifact?: string }, o: { width: number; color: boolean }): string[] {
@@ -1020,7 +1020,7 @@ export function doneLine(e: { ok: boolean; artifact?: string }, o: { width: numb
     wrap(
       [
         e.ok ? { text: "✓", hex: green } : { text: "◐", hex: amber },
-        { text: " rebuild done", tone: "bold" },
+        { text: " build done", tone: "bold" },
         { text: " · artifact ", dim: true },
         { text: e.artifact, url: e.artifact.startsWith("/") ? pathToFileURL(e.artifact).href : null },
       ],

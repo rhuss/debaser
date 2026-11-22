@@ -9,7 +9,7 @@ commands:
                         retire a patch
   list [--verbose] [--json]
                         show the patches; --verbose adds the retired ones
-  rebuild [--verbose] [--push] [--rebase all|conflicting|off] [--in-worktree]
+  build [--verbose] [--push] [--rebase all|conflicting|off] [--in-worktree]
           [--trust-recipe] [--json]
                         rebase own branches, merge the patches onto upstream,
                         run the recipe's checks and install the artifact
@@ -30,7 +30,7 @@ options:
                         or DEBASER_DIR)
   --version, --help
 
-On a terminal, rebuild, rebase and continue show a live view; --verbose pins
+On a terminal, build, rebase and continue show a live view; --verbose pins
 it above the full log. rollback shows its steps, and with --verbose the
 install's output instead.
 

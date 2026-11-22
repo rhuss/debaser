@@ -45,22 +45,22 @@ const shown = (text: string) =>
     .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
 const unpainted = (text: string) => Bun.stripANSI(text);
 
-test("a rebuild records its timings and the next one has history", async () => {
+test("a build records its timings and the next one has history", async () => {
   const w = world();
   branch(w, "mine", { "mine.txt": "mine\n" });
   configure(w, ["mine"]);
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   const first = timings.loadHistory(dirOf(w)).runs;
   expect(first.length).toBe(1);
-  expect(first[0]).toMatchObject({ command: "rebuild", partial: false });
+  expect(first[0]).toMatchObject({ command: "build", partial: false });
   expect(Object.keys(first[0].items)).toEqual(
     expect.arrayContaining(["fetch", "merge:mine", "step:typecheck", "step:test", "step:build"]),
   );
   expect(first[0].activeMs).toBeGreaterThan(0);
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   const h = timings.loadHistory(dirOf(w));
   expect(h.runs.length).toBe(2);
-  expect(timings.estimate(h, "rebuild", ["fetch", "merge:mine"], {}, 0).last).toEqual(h.runs[1]);
+  expect(timings.estimate(h, "build", ["fetch", "merge:mine"], {}, 0).last).toEqual(h.runs[1]);
 });
 
 test("a run state without timing loads", async () => {
@@ -68,7 +68,7 @@ test("a run state without timing loads", async () => {
   branch(w, "left", { "base.txt": "one\nLEFT\nthree\n" });
   branch(w, "right", { "base.txt": "one\nRIGHT\nthree\n" });
   configure(w, ["left", "right"]);
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   // A run state an older tool wrote: no timings, no harness usage.
   const old = JSON.parse(read(join(dirOf(w), "run.json")));
   expect(old.timing).toBeDefined();
@@ -89,10 +89,10 @@ test("rollback on a terminal shows its steps and ends in a card", async () => {
   branch(w, "left", { "base.txt": "one\nLEFT\nthree\n" });
   branch(w, "right", { "base.txt": "one\nRIGHT\nthree\n" });
   configure(w, ["left"]);
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   const built = head(w);
   configure(w, ["left", "right"]);
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   const result = await runWith(w, { live: "inline", color: true, columns: 100, rows: 40 }, "rollback");
   expect(result.code).toBe(0);
   expect(head(w)).toBe(built);
@@ -117,14 +117,14 @@ test("an error before the run began ends the live view in a card", async () => {
   expect(shown(result.out)).toContain("✗ debaser continue: there is no stopped run to continue\n");
 });
 
-test("a rebuild signals stages, items and the end", async () => {
+test("a build signals stages, items and the end", async () => {
   const w = world();
   conflicting(w);
   const tried = join(fresh("flaky"), "tried");
   const steps = withStep("typecheck", { run: ["sh", "-c", `test -f "${tried}" || { touch "${tried}"; false; }`] });
   configure(w, ["left", "right"], { steps, harness: { command: stubHarness(takeTheirs).command } });
   const events: LiveEvent[] = [];
-  const result = await runWith(w, { sink: e => void events.push(e) }, "rebuild");
+  const result = await runWith(w, { sink: e => void events.push(e) }, "build");
   expect(result.code).toBe(0);
   const words = eventWords(events);
   expect(
@@ -150,7 +150,7 @@ test("a rebuild signals stages, items and the end", async () => {
   expect(words.at(-1)).toBe("end ok:true");
   const begin = events[0] as Extract<LiveEvent, { t: "begin" }>;
   expect(begin).toMatchObject({
-    command: "rebuild",
+    command: "build",
     branch: "debaser",
     stages: ["fetch", "merge", "verify", "accept"],
     items: { merge: ["left", "right"], verify: ["install", "typecheck", "test", "build"] },
@@ -169,13 +169,13 @@ test("a rebuild signals stages, items and the end", async () => {
   expect(result.out).toContain(`  report: ${end.report}\n`);
 });
 
-test("a rebuild prints the same with and without a sink", async () => {
+test("a build prints the same with and without a sink", async () => {
   const outputs = [];
   for (const sink of [undefined, () => {}]) {
     const w = world();
     conflicting(w);
     configure(w, ["left", "right"], { harness: { command: stubHarness(takeTheirs).command } });
-    const result = await runWith(w, { sink }, "rebuild");
+    const result = await runWith(w, { sink }, "build");
     expect(result.code).toBe(0);
     outputs.push(
       [result.out, result.err].map(text =>
@@ -194,7 +194,7 @@ test("a stopped run signals the stop, and continue replays it first", async () =
   conflicting(w);
   configure(w, ["left", "right"]);
   const events: LiveEvent[] = [];
-  const stopped = await runWith(w, { sink: e => void events.push(e) }, "rebuild");
+  const stopped = await runWith(w, { sink: e => void events.push(e) }, "build");
   expect(stopped.code).toBe(2);
   const words = eventWords(events);
   expect(inOrder(words, ["item merge left done merged", "item merge right failed stopped", "end ok:false"])).toBeNull();
@@ -244,14 +244,14 @@ test("a rebase run signals its branches", async () => {
   expect(events[0]).toMatchObject({ command: "rebase", stages: ["fetch", "rebase"] });
 });
 
-test("a rebuild's rebase phase signals its branches and harness calls", async () => {
+test("a build's rebase phase signals its branches and harness calls", async () => {
   const w = world();
   branch(w, "clean", { "clean.txt": "clean\n" });
   branch(w, "stale", conflictingLine("STALE"));
   upstreamMoves(w, conflictingLine("UPSTREAM"));
   configureOwn(w, ["clean", "stale"], { harness: { command: stubHarness(takeTheirs).command } });
   const events: LiveEvent[] = [];
-  expect((await runWith(w, { sink: e => void events.push(e) }, "rebuild")).code).toBe(0);
+  expect((await runWith(w, { sink: e => void events.push(e) }, "build")).code).toBe(0);
   expect(events[0]).toMatchObject({ stages: ["fetch", "rebase", "merge", "verify", "accept"] });
   expect(
     inOrder(eventWords(events), [
@@ -275,9 +275,9 @@ test("a rebuild's rebase phase signals its branches and harness calls", async ()
   });
 });
 
-test("rebuild --verbose is accepted and plain output is unchanged", async () => {
+test("build --verbose is accepted and plain output is unchanged", async () => {
   const outputs = [];
-  for (const args of [["rebuild"], ["rebuild", "--verbose"]]) {
+  for (const args of [["build"], ["build", "--verbose"]]) {
     const w = world();
     branch(w, "mine", { "mine.txt": "mine\n" });
     configure(w, ["mine"]);
@@ -296,16 +296,16 @@ test("rebuild --verbose is accepted and plain output is unchanged", async () => 
   expect(outputs[0][1]).toContain("debaser: merging mine\n");
 });
 
-test("a live rebuild prints a summary card that points at the report", async () => {
+test("a live build prints a summary card that points at the report", async () => {
   const w = world();
   branch(w, "mine", { "mine.txt": "mine\n" });
   configure(w, ["mine"]);
-  const result = await runWith(w, { live: "inline", color: true, columns: 100, rows: 40 }, "rebuild");
+  const result = await runWith(w, { live: "inline", color: true, columns: 100, rows: 40 }, "build");
   expect(result.code).toBe(0);
   expect(result.err).toBe("");
   const out = unpainted(result.out);
   expect(result.out).toContain("\x1b[?25l");
-  expect(out).toContain("debaser rebuild");
+  expect(out).toContain("debaser build");
   expect(out).toContain("✓ built dist/widget-custom");
   // The card wraps the long report path; without the spaces it reads as one.
   expect(out.replace(/\s+/g, "")).toMatch(/report\/\S+\/\.git\/debaser\/reports\/\d{8}-\d{6}\/report\.md/);
@@ -319,12 +319,12 @@ test("a live command that throws ends its view with the error", async () => {
   const w = world();
   noGh(w);
   configure(w, ["#99"]);
-  const result = await runWith(w, { live: "inline", color: true, columns: 100, rows: 40 }, "rebuild");
+  const result = await runWith(w, { live: "inline", color: true, columns: 100, rows: 40 }, "build");
   expect(result.code).toBe(1);
   expect(result.err).toBe("");
   const out = unpainted(result.out);
   // The run had begun: its frame came first, the card with the error last.
-  expect(out).toContain("debaser rebuild");
+  expect(out).toContain("debaser build");
   expect(out).toMatch(/✗ cannot fetch acme\/widget#99: .* in \d+:\d\d\n/);
   expect(result.out).toEndWith(term.restore());
 });
@@ -336,7 +336,7 @@ test("a timings history that can't be written is a warning, and the run keeps it
     configure(w, ["mine"]);
     // The history is written through a temporary file, which a directory blocks.
     mkdirSync(join(dirOf(w), "timings.json.tmp"), { recursive: true });
-    const result = await runWith(w, live ? { live: "inline", color: true, columns: 100, rows: 40 } : {}, "rebuild");
+    const result = await runWith(w, live ? { live: "inline", color: true, columns: 100, rows: 40 } : {}, "build");
     expect(result.code).toBe(0);
     const out = unpainted(result.out);
     if (live) {
@@ -355,7 +355,7 @@ test("a timings history that can't be written is a warning, and the run keeps it
 test("the usage names --verbose for every command with a live view", async () => {
   let out = "";
   expect(await main(["--help"], { cwd: scratch, env: {}, out: text => void (out += text), err: () => {} })).toBe(0);
-  for (const command of ["rebuild [", "rebase [", "rebase --skip-branch", "continue"])
+  for (const command of ["build [", "rebase [", "rebase --skip-branch", "continue"])
     expect(out.split("\n").find(line => line.startsWith(`  ${command}`))).toContain("[--verbose]");
 });
 
@@ -363,7 +363,7 @@ test("a live run shows its warnings on the card", async () => {
   const w = world();
   conflicting(w);
   configure(w, ["left", "right"], { harness: { command: ["/nonexistent/harness", "{prompt_file}"] } });
-  const result = await runWith(w, { live: "inline", color: true, columns: 100, rows: 40 }, "rebuild");
+  const result = await runWith(w, { live: "inline", color: true, columns: 100, rows: 40 }, "build");
   expect(result.code).toBe(2);
   expect(result.err).toBe("");
   const out = unpainted(result.out),
@@ -399,7 +399,7 @@ test("step names link to their logs, in a run and in its continue", async () => 
   conflicting(w);
   configure(w, ["left", "right"]);
   const events: LiveEvent[] = [];
-  expect((await runWith(w, { sink: e => void events.push(e) }, "rebuild")).code).toBe(2);
+  expect((await runWith(w, { sink: e => void events.push(e) }, "build")).code).toBe(2);
   const steps = state(w)!.reportDir + "/steps";
   git(w.clone, "checkout", "-q", "--theirs", "base.txt");
   git(w.clone, "add", "base.txt");
@@ -418,7 +418,7 @@ test("continue shows the earlier progress", async () => {
   conflicting(w);
   branch(w, "first", { "first.txt": "first\n" });
   configure(w, ["first", "left", "right"]);
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   git(w.clone, "checkout", "-q", "--theirs", "base.txt");
   git(w.clone, "add", "base.txt");
   const events: LiveEvent[] = [];
@@ -441,7 +441,7 @@ test("a continue that stops again before going on ends its item as stopped", asy
   const w = world();
   conflicting(w);
   configure(w, ["left", "right"]);
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   const unmerged: LiveEvent[] = [];
   expect((await runWith(w, { sink: e => void unmerged.push(e) }, "continue")).code).toBe(2);
   expect(stopsOf(unmerged).slice(-3)).toEqual([
@@ -454,7 +454,7 @@ test("a continue that stops again before going on ends its item as stopped", asy
   const fix = world();
   branch(fix, "bad", { "bad.txt": "BROKEN\n" });
   configure(fix, ["bad"]);
-  expect((await run(fix, "rebuild")).code).toBe(3);
+  expect((await run(fix, "build")).code).toBe(3);
   interruptHarness(fix, { kind: "check", step: "typecheck", log: join(state(fix)!.reportDir, "steps", "typecheck.log") });
   const rejected: LiveEvent[] = [];
   expect((await runWith(fix, { sink: e => void rejected.push(e) }, "continue")).code).toBe(3);
@@ -468,7 +468,7 @@ test("a continue that stops again before going on ends its item as stopped", asy
   const conflict = world();
   conflicting(conflict);
   configure(conflict, ["left", "right"]);
-  expect((await run(conflict, "rebuild")).code).toBe(2);
+  expect((await run(conflict, "build")).code).toBe(2);
   interruptHarness(conflict, { kind: "conflict", patch: "right", files: ["base.txt"] });
   const resolution: LiveEvent[] = [];
   expect((await runWith(conflict, { sink: e => void resolution.push(e) }, "continue")).code).toBe(2);

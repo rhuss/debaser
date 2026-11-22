@@ -32,7 +32,7 @@ export type IO = {
 
 export const version = pkg.version;
 /** Verbs that change the checkout or debaser's files take the run lock (contracts/cli.md). */
-const locking = new Set(["add", "remove", "rebuild", "rebase", "continue", "rollback", "trust"]);
+const locking = new Set(["add", "remove", "build", "rebase", "continue", "rollback", "trust"]);
 
 /** Runs one command and returns its exit code (contracts/cli.md). */
 export async function main(argv: string[], io: IO): Promise<number> {

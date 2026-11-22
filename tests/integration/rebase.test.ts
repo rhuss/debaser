@@ -47,13 +47,13 @@ import {
 
 setDefaultTimeout(180_000);
 
-test("rebuild rebases own branches behind upstream, conflicting or not, and merges the rebased tips", async () => {
+test("build rebases own branches behind upstream, conflicting or not, and merges the rebased tips", async () => {
   const w = world();
   const clean = branch(w, "clean", { "clean.txt": "clean\n" }),
     stale = branch(w, "stale", conflictingLine("STALE"));
   upstreamMoves(w, conflictingLine("UPSTREAM"));
   configureOwn(w, ["clean", "stale"], { harness: { command: stubHarness(takeTheirs).command } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   for (const name of ["clean", "stale"]) expect(behindUpstream(w, name)).toBe(false);
   expect([backupOf(w, "clean"), backupOf(w, "stale")]).toEqual([clean, stale] as (string | null)[]);
@@ -75,13 +75,13 @@ test("the rebase mode comes from the config, --rebase overrides it, and conflict
     stale = branch(w, "stale", conflictingLine("STALE"));
   upstreamMoves(w, conflictingLine("UPSTREAM"));
   configureOwn(w, ["clean", "stale"], { rebase: "off", harness: { command: stubHarness(takeTheirs).command } });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect([tip(w, "clean"), tip(w, "stale")]).toEqual([clean, stale]);
   const invalid = await run(w, "rebase", "--rebase=sometimes");
   expect(invalid.code).toBe(1);
   expect(invalid.err).toContain("--rebase must be one of all, conflicting, off");
   expect(state(w)).toBeNull();
-  expect((await run(w, "rebuild", "--rebase=conflicting")).code).toBe(0);
+  expect((await run(w, "build", "--rebase=conflicting")).code).toBe(0);
   expect(tip(w, "clean")).toBe(clean);
   expect(behindUpstream(w, "stale")).toBe(false);
   expect(stamped(w).map(p => p.commit)).toEqual([clean, tip(w, "stale")!]);
@@ -97,7 +97,7 @@ test("other people's branches and PRs are never rebased and keep their rebase ha
   git(w.clone, "push", "-q", "origin", "feature");
   upstreamMoves(w, conflictingLine("UPSTREAM"));
   configureOwn(w, ["other/widget:topic", "#7"], { harness: { command: stubHarness(takeTheirs).command } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(result.out).not.toContain("rebased acme/widget#7");
   expect(git(w.clone, "for-each-ref", "refs/debaser/rebase-backup")).toBe("");
@@ -113,7 +113,7 @@ test("an own PR's head branch is rebased into a new local branch and pushed to t
   stubGh(w, { "acme/widget#5": { state: "OPEN", title: "feature", head: "me/widget:feature" } });
   upstreamMoves(w, { "up.txt": "up\n" });
   configureOwn(w, ["#5"]);
-  const result = await run(w, "rebuild", "--push");
+  const result = await run(w, "build", "--push");
   expect(result.code).toBe(0);
   expect(behindUpstream(w, "feature")).toBe(false);
   expect(onFork(w, "feature")).toBe(tip(w, "feature")!);
@@ -217,12 +217,12 @@ test("a rebased branch whose check passes only when run again moves, with a flak
   expect(read(join(latest(w), "report.md"))).toContain("mine-test-flaky.log");
 });
 
-test("inside rebuild an unresolved rebase conflict keeps the old tip, and the run goes on to merge it", async () => {
+test("inside build an unresolved rebase conflict keeps the old tip, and the run goes on to merge it", async () => {
   const w = world();
   const old = branch(w, "stale", conflictingLine("STALE"));
   upstreamMoves(w, conflictingLine("UPSTREAM"));
   configureOwn(w, ["stale"]);
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(2);
   expect(result.out).toContain("merge conflict in stale");
   expect(tip(w, "stale")).toBe(old);
@@ -231,12 +231,12 @@ test("inside rebuild an unresolved rebase conflict keeps the old tip, and the ru
   expect(read(join(latest(w), "handoffs", "stale.md"))).toContain("- Kind: rebase\n");
   expect(readdirSync(join(dirOf(w), "work")).filter(name => name.startsWith("rebase-"))).toEqual([]);
 
-  // With a harness that keeps failing, the rebuild still goes on with the old tip.
+  // With a harness that keeps failing, the build still goes on with the old tip.
   const u = world();
   const kept = branch(u, "stale", conflictingLine("STALE"));
   upstreamMoves(u, conflictingLine("UPSTREAM"));
   configureOwn(u, ["stale"], { harness: { command: stubHarness("echo junk > junk.txt").command, attempts: 1 } });
-  const done = await run(u, "rebuild");
+  const done = await run(u, "build");
   expect(done.code).toBe(5);
   expect(done.out).toContain("the harness could not resolve the conflict in stale");
   expect(tip(u, "stale")).toBe(kept);
@@ -254,7 +254,7 @@ test("the rebase command stops at a conflict it can't resolve; continue, --skip-
   expect(stopped.out).toMatch(/rebase conflict in first at [0-9a-f]{7} first: change/);
   expect(stopped.out).toContain("files: base.txt");
   const tree = /worktree: (\S+)/.exec(stopped.out)![1];
-  const refused = await run(w, "rebuild");
+  const refused = await run(w, "build");
   expect(refused.code).toBe(1);
   expect(refused.err).toContain("a run is stopped or in progress");
   write(tree, conflictingLine("UPSTREAM FIRST"));
@@ -699,7 +699,7 @@ test("a branch named by two patches is rebased once and both merge its new tip",
   stubGh(w, { "acme/widget#5": { state: "OPEN", title: "feature", head: "me/widget:feature" } });
   upstreamMoves(w, { "up.txt": "up\n" });
   configureOwn(w, ["feature", "#5"]);
-  const result = await runWith(w, { ask: () => "n" }, "rebuild");
+  const result = await runWith(w, { ask: () => "n" }, "build");
   expect(result.code).toBe(0);
   expect(behindUpstream(w, "feature")).toBe(false);
   expect(result.out).toContain("the same branch as feature, handled with it");
@@ -823,7 +823,7 @@ test("a rebased branch not pushed yet is offered again and keeps its backup unti
   expect(gitTool.isAncestor(w.clone, rebased, "mine")).toBe(false);
 });
 
-test("a rebuild merges an own PR's rebased head that is not pushed yet, not the old PR head", async () => {
+test("a build merges an own PR's rebased head that is not pushed yet, not the old PR head", async () => {
   const w = world();
   const old = ownPullRequest(w, 5, "feature", { "feature.txt": "f\n" });
   stubGh(w, { "acme/widget#5": { state: "OPEN", title: "feature", head: "me/widget:feature" } });
@@ -832,7 +832,7 @@ test("a rebuild merges an own PR's rebased head that is not pushed yet, not the 
   expect((await runWith(w, { ask: () => "n" }, "rebase")).code).toBe(0);
   const rebased = tip(w, "feature")!;
   expect(rebased).not.toBe(old);
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect(stamped(w).map(p => p.commit)).toEqual([rebased]);
 });
 
@@ -1016,9 +1016,9 @@ test("a pending push stays offered while its branch is checked out", async () =>
 // Rollback and dependencies (FR-036).
 
 /** Install steps that count their runs in a file and fail while `broken` exists. */
-test("rebase conflicts are recorded as harness calls, in rebuild and in the rebase command", async () => {
+test("rebase conflicts are recorded as harness calls, in build and in the rebase command", async () => {
   const rebaseCall = "- 1 call, 1 accepted, tokens unknown\n- stale rebase conflict try 1: accepted, tokens unknown\n";
-  for (const command of ["rebuild", "rebase"]) {
+  for (const command of ["build", "rebase"]) {
     const w = world();
     branch(w, "stale", { "base.txt": "one\nSTALE\nthree\n" });
     upstreamMoves(w, { "base.txt": "one\nUPSTREAM\nthree\n" });
@@ -1033,7 +1033,7 @@ test("a pinned own branch is never rebased", async () => {
   const old = branch(w, "mine", { "mine.txt": "mine\n" });
   upstreamMoves(w, { "up.txt": "up\n" });
   configureOwn(w, ["mine"], { patchExtra: { mine: { pin: old } } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(tip(w, "mine")).toBe(old);
   expect(backupOf(w, "mine")).toBeNull();
@@ -1048,13 +1048,13 @@ test("a pinned branch keeps its commit when another patch rebases the same branc
   stubGh(w, { "acme/widget#5": { state: "OPEN", title: "feature", head: "me/widget:feature" } });
   upstreamMoves(w, { "up.txt": "up\n" });
   configureOwn(w, ["feature", "#5"], { patchExtra: { feature: { pin: old } } });
-  const result = await runWith(w, { ask: () => "n" }, "rebuild");
+  const result = await runWith(w, { ask: () => "n" }, "build");
   expect(result.code).toBe(0);
   expect(behindUpstream(w, "feature")).toBe(false);
   expect(stamped(w).map(p => p.commit)).toEqual([old, tip(w, "feature")!]);
 });
 
-test("with origin fetching upstream and pushing to the fork, rebuild uses the fork's newer copy of an own branch", async () => {
+test("with origin fetching upstream and pushing to the fork, build uses the fork's newer copy of an own branch", async () => {
   const w = world();
   branch(w, "mine", { "mine.txt": "mine\n" });
   git(w.clone, "checkout", "-q", "mine");
@@ -1067,7 +1067,7 @@ test("with origin fetching upstream and pushing to the fork, rebuild uses the fo
   git(w.clone, "remote", "set-url", "origin", w.upstream);
   git(w.clone, "remote", "set-url", "--push", "origin", fork(w));
   configure(w, ["mine"]);
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(stamped(w).map(p => p.commit)).toEqual([pushed]);
 });

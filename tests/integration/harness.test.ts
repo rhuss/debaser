@@ -46,7 +46,7 @@ test("a harness resolution that passes the checks is committed with a trailer", 
     `cp "$1" "$(dirname "$0")/prompt-file"; echo "$DEBASER_PROMPT" > "$(dirname "$0")/prompt-env"; cat > "$(dirname "$0")/stdin"; echo "$DEBASER_TASK" > "$(dirname "$0")/kind"; cp .git/debaser/run.json "$(dirname "$0")/run.json"\n${takeTheirs}`,
   );
   configure(w, ["left", "right"], { harness: { command: h.command } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(h.calls()).toBe(1);
   expect(read(join(w.clone, "base.txt"))).toBe("one\nRIGHT\nthree\n");
@@ -81,7 +81,7 @@ test("harness resolutions with markers, extra edits, commits or timeouts are rej
     const h = stubHarness(body);
     configure(w, ["left", "right"], { harness: { command: h.command, attempts: 2, ...limits } });
     const started = performance.now();
-    const result = await run(w, "rebuild");
+    const result = await run(w, "build");
     // Rejected for the reason the case is about, not some other one.
     const reasons = (state(w)?.harnessUsage ?? []).map(u => u.reason ?? "");
     expect([name, reasons.length, reasons.every(r => why.test(r))]).toEqual([name, 2, true]);
@@ -101,21 +101,21 @@ test("a harness that can't be run is a warning, and the run stops as without one
   const w = world();
   conflicting(w);
   configure(w, ["left", "right"], { harness: { command: ["/nonexistent/harness", "{prompt_file}"] } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(2);
   expect(result.err).toContain("warning: harness /nonexistent/harness is not executable");
   const v = world();
   branch(v, "bad", { "bad.txt": "BROKEN\n" });
   configure(v, ["bad"], { harness: { command: ["/nonexistent/harness", "{prompt_file}"] } });
-  expect((await run(v, "rebuild")).code).toBe(3);
+  expect((await run(v, "build")).code).toBe(3);
 });
 
-test("a harness build fix becomes its own commit and the steps rerun; the next rebuild drops it", async () => {
+test("a harness build fix becomes its own commit and the steps rerun; the next build drops it", async () => {
   const w = world();
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   const h = stubHarness(`echo "$DEBASER_TASK" > "$(dirname "$0")/kind"; cp "$1" "$(dirname "$0")/prompt-file"\n${fixBroken}`);
   configure(w, ["bad"], { harness: { command: h.command } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(read(join(h.bin, "kind"))).toBe("check\n");
   const prompt = read(join(h.bin, "prompt-file"));
@@ -129,7 +129,7 @@ test("a harness build fix becomes its own commit and the steps rerun; the next r
   expect(result.out).toContain("agent fix");
   expect(git(w.clone, "status", "--porcelain")).toBe("");
   // Rebuilding starts from upstream again: the old fix is gone, a new one is made.
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect(h.calls()).toBe(2);
   expect(git(w.clone, "log", "--first-parent", "--format=%s", "upstream/main..HEAD").split("\n")).toEqual([
     "debaser: fix typecheck (agent)",
@@ -142,7 +142,7 @@ test("a harness that changes nothing exhausts its attempts; upstream breakage ne
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   const idle = stubHarness("true");
   configure(w, ["bad"], { harness: { command: idle.command, attempts: 2 } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(5);
   expect(idle.calls()).toBe(2);
   expect(state(w)?.step).toBe("typecheck");
@@ -153,7 +153,7 @@ test("a harness that changes nothing exhausts its attempts; upstream breakage ne
   branch(u, "fine", { "fine.txt": "fine\n" }, "main");
   const unused = stubHarness(fixBroken);
   configure(u, ["fine"], { harness: { command: unused.command } });
-  expect((await run(u, "rebuild")).code).toBe(4);
+  expect((await run(u, "build")).code).toBe(4);
   expect(unused.calls()).toBe(0);
 });
 
@@ -162,7 +162,7 @@ test("a claude harness logs readable text, keeps the raw stream and records toke
   conflicting(w);
   const h = stubHarness(`${keepArgs}\n${takeTheirs}\n${claudeStream}`);
   configure(w, ["left", "right"], { harness: { command: h.command, kind: "claude" } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   const log = read(join(latest(w), "prompts", "01-conflict.log"));
   expect(log).toContain("Keeping both import blocks.");
@@ -180,7 +180,7 @@ test("plain run with kind claude shows readable text", async () => {
   conflicting(w);
   const h = stubHarness(`${takeTheirs}\n${claudeStream}`);
   configure(w, ["left", "right"], { harness: { command: h.command, kind: "claude" } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(result.err).toContain("Keeping both import blocks.\n");
   expect(result.err).not.toContain('{"type"');
@@ -200,7 +200,7 @@ test("a claude harness's activity reaches the sink, and a sink that throws on it
         if (e.t === "harness" && e.state === "activity") throw Error("broken view");
       },
     },
-    "rebuild",
+    "build",
   );
   expect(result.code).toBe(0);
   expect(events[0]).toMatchObject({ t: "begin", harness: "claude" });
@@ -217,7 +217,7 @@ test("a harness without kind is run and logged as today", async () => {
   conflicting(w);
   const h = stubHarness(`${keepArgs}\n${takeTheirs}\necho plain words`);
   configure(w, ["left", "right"], { harness: { command: h.command } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(argv(h)).not.toContain("--output-format");
   expect(existsSync(join(latest(w), "prompts", "01-conflict.jsonl"))).toBe(false);
@@ -232,7 +232,7 @@ test("rejected fixes are recorded as harness calls", async () => {
   const w = world();
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   configure(w, ["bad"], { harness: { command: stubHarness("true").command, attempts: 2 } });
-  expect((await run(w, "rebuild")).code).toBe(5);
+  expect((await run(w, "build")).code).toBe(5);
   expect(state(w)?.harnessUsage?.map(u => [u.call, u.kind, u.step, u.attempt, u.ok, u.reason])).toEqual([
     [1, "check", "typecheck", 1, false, "it changed nothing"],
     [2, "check", "typecheck", 2, false, "it changed nothing"],
@@ -250,7 +250,7 @@ test("a harness that fails to start is asked once, and the stop says why", async
   branch(w, "b", { "b.txt": "b\n" });
   const h = stubHarness('echo "Failed to authenticate: OAuth session expired" >&2; exit 1');
   configure(w, ["a", "b"], { steps: clashing, harness: { command: h.command, attempts: 3 } });
-  const stopped = await run(w, "rebuild");
+  const stopped = await run(w, "build");
   expect(stopped.code).toBe(5);
   expect(h.calls()).toBe(1);
   expect(stopped.out).toContain("the harness failed to run on typecheck: it exited 1: Failed to authenticate: OAuth session expired");
@@ -270,7 +270,7 @@ test("after a harness fix every step runs again, so a fix can't break a step tha
   // The first fix passes the tests by breaking typecheck; the second fixes typecheck.
   const h = stubHarness("if grep -qs FAILTEST flaky.txt; then echo BROKEN > flaky.txt; else echo fine > flaky.txt; fi");
   configure(w, ["flaky"], { harness: { command: h.command }, steps: withStep("test", { run: ["sh", "-c", "! grep -rqs FAILTEST --include=*.txt ."] }) });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(h.calls()).toBe(2);
   expect(read(join(w.clone, "flaky.txt"))).toBe("fine\n");
@@ -286,7 +286,7 @@ test("a second fix for the same step is recorded against the failure it answered
   branch(w, "bad", { "bad.txt": "BROKEN-ONE\n" });
   const h = stubHarness("if grep -qs BROKEN-ONE bad.txt; then echo BROKEN-TWO > bad.txt; else echo fine > bad.txt; fi");
   configure(w, ["bad"], { harness: { command: h.command }, steps: withStep("typecheck", { run: ["sh", "-c", "! grep -rhs BROKEN --include=*.txt ."] }) });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(h.calls()).toBe(2);
   const first = read(join(latest(w), "steps", "typecheck-failed-1.log")),
@@ -313,7 +313,7 @@ test("a fix for every step within one attempt each still finishes the run", asyn
       { name: "build", run: ["sh", "-c", '! grep -rqs BUILDX --include=*.txt . && mkdir -p "$(dirname "$1")" && touch "$1"', "build", "{output}"] },
     ],
   });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.err).not.toContain("debaser: cannot");
   expect(result.code).toBe(0);
   expect(h.calls()).toBe(4);
@@ -325,7 +325,7 @@ test("fixes that keep breaking each other stop at the fix bound with exit 5", as
   // Each fix trades one failure for the other.
   const h = stubHarness("if grep -qs BROKEN toggle.txt; then echo FAILTEST > toggle.txt; else echo BROKEN > toggle.txt; fi");
   configure(w, ["toggle"], { harness: { command: h.command, attempts: 1 }, steps: withStep("test", { run: ["sh", "-c", "! grep -rqs FAILTEST --include=*.txt ."] }) });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(5);
   // One attempt per problem, four steps, no acceptance checks: four fixes at most.
   expect(h.calls()).toBe(4);
@@ -346,7 +346,7 @@ test("after a fix the earlier steps run again before the failing one is judged",
       { name: "test", run: ["sh", "-c", "! grep -qs BROKEN native.out"] },
     ],
   });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(h.calls()).toBe(1);
   expect(result.err).toContain("running native again before test");
@@ -368,7 +368,7 @@ test("the fix bound holds inside one problem's attempts, not only between proble
       { name: "b", run: ["sh", "-c", `test ! -f patched.txt || { ${count}; [ "$c" -ne 2 ]; }`] },
     ],
   });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(5);
   expect(h.calls()).toBe(4);
   expect(result.out).toContain("a fails again after the harness's 4 fixes");
@@ -384,13 +384,13 @@ test("the harness for each task comes from its own setting, else the default", a
   configure(w, ["left", "right", "bad"], {
     harness: { command: fallback.command, tasks: { conflict: { command: conflictHarness.command }, check: { command: checkHarness.command } } },
   });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect([conflictHarness.calls(), checkHarness.calls(), fallback.calls()]).toEqual([1, 1, 0]);
   const v = world();
   branch(v, "bad", { "bad.txt": "BROKEN\n" });
   const only = stubHarness(fixBroken);
   configure(v, ["bad"], { harness: { command: only.command, tasks: { conflict: { command: ["/nonexistent"] } } } });
-  expect((await run(v, "rebuild")).code).toBe(0);
+  expect((await run(v, "build")).code).toBe(0);
   expect(only.calls()).toBe(1);
 });
 
@@ -398,13 +398,13 @@ test("a recorded resolution replays before any harness is called", async () => {
   const w = world();
   conflicting(w);
   configure(w, ["left", "right"]);
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   write(w.clone, { "base.txt": "one\nBOTH\nthree\n" });
   git(w.clone, "add", "base.txt");
   expect((await run(w, "continue")).code).toBe(0);
   const h = stubHarness(takeTheirs);
   configure(w, ["left", "right"], { harness: { command: h.command } });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect(h.calls()).toBe(0);
   expect(read(join(w.clone, "base.txt"))).toBe("one\nBOTH\nthree\n");
   expect(read(join(latest(w), "report.md"))).toContain("in base.txt (resolved by rerere)");
@@ -414,7 +414,7 @@ test("a harness retry keeps the files rerere replayed staged, so a later attempt
   const w = world();
   conflicting(w);
   configure(w, ["left", "right"]);
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   write(w.clone, { "base.txt": "one\nBOTH\nthree\n" });
   git(w.clone, "add", "base.txt");
   expect((await run(w, "continue")).code).toBe(0);
@@ -430,7 +430,7 @@ test("a harness retry keeps the files rerere replayed staged, so a later attempt
   // The first attempt leaves the markers in; the second resolves.
   const h = stubHarness(`[ "$(wc -l < "$(dirname "$0")/calls")" -ge 2 ] || exit 0\n${takeTheirs}`);
   configure(w, ["left", "right"], { harness: { command: h.command, attempts: 2 } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(h.calls()).toBe(2);
   expect(read(join(w.clone, "base.txt"))).toBe("one\nBOTH\nthree\n");
@@ -444,7 +444,7 @@ test("the conflict prompt for a PR carries its link and description", async () =
   noGh(w);
   const h = stubHarness(`cp "$1" "$(dirname "$0")/prompt-file"\n${takeTheirs}`);
   configure(w, ["left", "#8"], { harness: { command: h.command } });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   const prompt = read(join(h.bin, "prompt-file"));
   expect(prompt).toContain("- Patch: acme/widget#8");
   expect(prompt).toContain("- Description: about #8");
@@ -461,7 +461,7 @@ test("a harness that times out takes its children with it", async () => {
     h = stubHarness(`exec 3>"${fifo}"\n(exec sleep 30) &\nexec sleep 30`);
   configure(w, ["left", "right"], { harness: { command: h.command, attempts: 1, timeoutSeconds: 1 } });
   try {
-    expect((await run(w, "rebuild")).code).toBe(5);
+    expect((await run(w, "build")).code).toBe(5);
     const gone = await Promise.race([reader.exited.then(() => true), new Promise<boolean>(resolve => setTimeout(resolve, 5000, false))]);
     expect(gone).toBe(true);
   } finally {
@@ -474,7 +474,7 @@ test("a fix never commits the temporary files a build leaves", async () => {
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   const h = stubHarness(`${fixBroken}\necho junk > .0123abcd-00000000.bun-build`);
   configure(w, ["bad"], { harness: { command: h.command } });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect(git(w.clone, "show", "--name-only", "--format=", "HEAD")).toBe("bad.txt");
   expect(buildLeftover("dir/.0123abcd-00000000.bun-build")).toBe(true);
   expect(buildLeftover("src/build.ts")).toBe(false);
@@ -484,7 +484,7 @@ test("continue after an interrupted harness conflict call commits leftovers that
   const w = world();
   conflicting(w);
   configure(w, ["left", "right"]);
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   interruptHarness(w, { kind: "conflict", patch: "right", files: ["base.txt"] });
   git(w.clone, "checkout", "-q", "--theirs", "--", "base.txt");
   const resumed = await run(w, "continue");
@@ -499,7 +499,7 @@ test("continue after an interrupted harness conflict call rejects leftovers that
   const w = world();
   conflicting(w);
   configure(w, ["left", "right"]);
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   const before = head(w);
   interruptHarness(w, { kind: "conflict", patch: "right", files: ["base.txt"] });
   git(w.clone, "checkout", "-q", "--theirs", "--", "base.txt");
@@ -518,7 +518,7 @@ test("continue after an interrupted harness build call commits an accepted fix a
   const w = world();
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   configure(w, ["bad"]);
-  expect((await run(w, "rebuild")).code).toBe(3);
+  expect((await run(w, "build")).code).toBe(3);
   const log = join(state(w)!.reportDir, "steps", "typecheck.log");
   interruptHarness(w, { kind: "check", step: "typecheck", log });
   write(w.clone, { "bad.txt": "fixed\n" });
@@ -535,7 +535,7 @@ test("continue after an interrupted harness build call that changed nothing stop
   const w = world();
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   configure(w, ["bad"]);
-  expect((await run(w, "rebuild")).code).toBe(3);
+  expect((await run(w, "build")).code).toBe(3);
   const before = head(w);
   interruptHarness(w, { kind: "check", step: "typecheck", log: join(state(w)!.reportDir, "steps", "typecheck.log") });
   const resumed = await run(w, "continue");
@@ -554,7 +554,7 @@ test("continue after a conflict harness that failed to run asks it again", async
   writeFileSync(flag, "");
   const h = stubHarness(`if [ -f "${flag}" ]; then echo "session expired" >&2; exit 1; fi\n${takeTheirs}`);
   configure(w, ["left", "right"], { harness: { command: h.command, attempts: 3 } });
-  const stopped = await run(w, "rebuild");
+  const stopped = await run(w, "build");
   expect(stopped.code).toBe(5);
   expect(stopped.out).toContain("the harness failed to run on the conflict in right: it exited 1: session expired");
   expect(h.calls()).toBe(1);
@@ -570,6 +570,6 @@ test("a recipe's leftovers are never committed with a fix", async () => {
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   const h = stubHarness(`${fixBroken}\nmkdir -p cache && echo junk > cache/tmp.o`);
   configure(w, ["bad"], { harness: { command: h.command }, raw: 'leftovers = ["cache/**"]\n' });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect(git(w.clone, "show", "--name-only", "--format=", "HEAD")).toBe("bad.txt");
 });

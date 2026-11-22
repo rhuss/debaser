@@ -28,7 +28,7 @@ export function whereStopped(run: RunState): { where: string; next: string } {
         : run.phase === "rollback"
           ? "debaser continue (finishes the rollback)"
           : run.stopped?.code === 4
-            ? "debaser rollback, then rebuild once upstream is fixed"
+            ? "debaser rollback, then build once upstream is fixed"
             : "debaser continue, or debaser rollback";
   return { where, next };
 }

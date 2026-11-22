@@ -2,7 +2,7 @@
 
 debaser keeps a patched build of someone else's GitHub project: upstream plus
 your ordered list of patches (upstream PRs, PRs and branches from other forks,
-and your own branches). Each `debaser rebuild` fetches everything, rebases your
+and your own branches). Each `debaser build` fetches everything, rebases your
 own branches, merges the patches in order, runs the project's checks and each
 patch's acceptance check, and installs a runnable artifact. The previous build
 stays as a fallback.
@@ -37,7 +37,7 @@ debaser add 1234                      # an upstream PR; the first add creates th
 debaser add someone/project#56        # a PR on another repository
 debaser add someone/project:topic     # a branch of another repository
 debaser add my-branch "My change"     # your own branch, with a description
-debaser rebuild                       # build it
+debaser build                       # build it
 debaser status                        # what needs attention, without changing anything
 ```
 
@@ -126,7 +126,7 @@ or a yes on the terminal. Other people's branches are never rewritten.
 | `add <source> [description] [--pin <sha>] [--upstream owner/repo]` | add a patch |
 | `remove <source> --reason <text>` | retire a patch |
 | `list [--json]` | show the patches |
-| `rebuild [--push] [--rebase all\|conflicting\|off] [--in-worktree] [--trust-recipe] [--verbose] [--json]` | rebuild the patched build |
+| `build [--push] [--rebase all\|conflicting\|off] [--in-worktree] [--trust-recipe] [--verbose] [--json]` | merge the patches onto upstream, run the checks and install the artifact |
 | `rebase [--push] [--rebase all\|conflicting] [--in-worktree] [--verbose] [--json]` | only rebase own branches |
 | `continue [--skip-branch] [--verbose]` | resume a stopped run |
 | `rollback [--verbose]` | return to the last good build |
@@ -135,7 +135,7 @@ or a yes on the terminal. Other people's branches are never rewritten.
 | `trust` | trust the project's own recipe |
 
 Only one command that changes things runs per checkout at a time; `status`,
-`list` and `recipe` never wait. On a terminal, `rebuild`, `rebase` and
+`list` and `recipe` never wait. On a terminal, `build`, `rebase` and
 `continue` show a live view; piped, they print plain progress lines.
 
 ## Exit codes

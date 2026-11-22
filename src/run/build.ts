@@ -24,9 +24,9 @@ import * as live from "./live";
 import { configured } from "../harness/select";
 import { inProgress } from "./where";
 
-export type RebuildOptions = { push?: boolean; rebase?: RebaseMode; inWorktree?: boolean };
+export type BuildOptions = { push?: boolean; rebase?: RebaseMode; inWorktree?: boolean };
 
-/** The checks `rebuild` and `rebase` share; returns the upstream remote. */
+/** The checks `build` and `rebase` share; returns the upstream remote. */
 export function preflight(ctx: Context, o: { push?: boolean }): string {
   const { repo } = ctx,
     list = listOf(ctx);
@@ -46,7 +46,7 @@ export function preflight(ctx: Context, o: { push?: boolean }): string {
 
 /** Starts a full run: preflight, fetch everything, reset the integration
  * branch to upstream, merge, verify, accept and finish (FR-005 to FR-011). */
-export async function rebuild(ctx: Context, o: RebuildOptions = {}): Promise<Outcome> {
+export async function build(ctx: Context, o: BuildOptions = {}): Promise<Outcome> {
   const { repo } = ctx,
     list = listOf(ctx);
   git.requireVersion(repo);
@@ -59,7 +59,7 @@ export async function rebuild(ctx: Context, o: RebuildOptions = {}): Promise<Out
   if (elsewhere) throw new Explained(`${list.branch} is checked out in another worktree (${elsewhere}); switch it away first`);
   const remote = preflight(ctx, o);
   const run: RunState = {
-    kind: "rebuild",
+    kind: "build",
     startedAt: ctx.now().toISOString(),
     reportDir: "",
     startTip: git.revParse(repo, `refs/heads/${list.branch}`),
@@ -106,7 +106,7 @@ export async function rebuild(ctx: Context, o: RebuildOptions = {}): Promise<Out
     copyFileSync(installed, run.startArtifact);
   }
   run.reportDir = newReportDir(ctx);
-  await rebasePhase.beforeRebuild(ctx, run, mode, !!o.inWorktree);
+  await rebasePhase.beforeBuild(ctx, run, mode, !!o.inWorktree);
   save(ctx, run);
   ctx.progress(`resetting ${list.branch} to ${remote}/${list.upstream.branch} (${short(run.upstream.tip)})`);
   try {
@@ -139,7 +139,7 @@ export async function proceed(ctx: Context, run: RunState): Promise<Outcome> {
     }
     const accepted = await acceptPhase.acceptLoop(ctx, run);
     if (accepted === "again") {
-      // An acceptance fix reruns every step, rebuilds and reruns the checks.
+      // An acceptance fix reruns every step, builds and reruns the checks.
       run.phase = "verify";
       run.step = null;
       save(ctx, run);

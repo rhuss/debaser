@@ -38,7 +38,7 @@ function ownState(r: RebaseResult): view.Own {
   return { kind: "other", reason: r.reason ?? r.outcome };
 }
 type LastResult = { command?: string; patches?: { display: string; checks?: string; acceptance?: string }[] };
-/** The newest rebuild's result.json, if any: a `rebase` run since then moves
+/** The newest build's result.json, if any: a `rebase` run since then moves
  * `latest` but has no check or acceptance results to show. */
 function lastResult(ctx: Context): LastResult | null {
   const reports = paths.reports(ctx.dir);
@@ -47,7 +47,8 @@ function lastResult(ctx: Context): LastResult | null {
     try {
       if (!existsSync(path)) continue;
       const result = JSON.parse(readFileSync(path, "utf8")) as LastResult;
-      if (result.command === "rebuild") return result;
+      // "rebuild" is what versions before the rename wrote.
+      if (result.command === "build" || result.command === "rebuild") return result;
     } catch {}
   }
   return null;

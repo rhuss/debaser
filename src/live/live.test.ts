@@ -12,7 +12,7 @@ const plain = (text: string) => Bun.stripANSI(text);
 const none = { totalMs: null, leftMs: null, aheadMs: null, last: null };
 const begin = (o: Partial<Extract<LiveEvent, { t: "begin" }>> = {}): LiveEvent => ({
   t: "begin",
-  command: "rebuild",
+  command: "build",
   branch: "integration",
   upstream: { name: "upstream/main", tip: "170454d", newCommits: 7 },
   stages: ["fetch", "merge", "verify"],
@@ -47,7 +47,7 @@ test("inline live renders frames and ends with the card", async () => {
   const hidden = out.indexOf("\x1b[?25l"),
     headline = out.indexOf("built dist/app");
   expect(hidden).toBeGreaterThanOrEqual(0);
-  expect(plain(out)).toContain("debaser rebuild");
+  expect(plain(out)).toContain("debaser build");
   expect(plain(out)).toContain("✓ built dist/app on upstream 170454d with 2 patches");
   expect(plain(out)).toContain("  report: /tmp/reports/1/report.md");
   expect(hidden).toBeLessThan(headline);
@@ -249,7 +249,7 @@ test("restore sequence is written on exit", () => {
   const p = Bun.spawnSync(["bun", "-e", script], { stdout: "pipe", stderr: "pipe" });
   const out = p.stdout.toString();
   expect(p.exitCode).toBe(130);
-  expect(plain(out)).toContain("debaser rebuild");
+  expect(plain(out)).toContain("debaser build");
   expect(out).toEndWith(term.restore());
 });
 
@@ -269,7 +269,7 @@ test("a signal with no other listener restores the terminal and exits like the h
   p.kill("SIGINT");
   const [code, out] = await Promise.all([p.exited, new Response(p.stdout).text()]);
   expect(code).toBe(130);
-  expect(plain(out)).toContain("debaser rebuild");
+  expect(plain(out)).toContain("debaser build");
   expect(out).toEndWith(term.restore());
 });
 
@@ -377,7 +377,7 @@ test("an interrupted git call under a live view stops there and restores the ter
   expect(p.stdout.toString()).toEndWith(term.restore());
 });
 
-test("a rebuild that installed its artifact ends its card with where the artifact is", () => {
+test("a build that installed its artifact ends its card with where the artifact is", () => {
   const show = (e: Partial<Extract<LiveEvent, { t: "end" }>>) => {
     let out = "";
     const view = new View({
@@ -395,13 +395,13 @@ test("a rebuild that installed its artifact ends its card with where the artifac
   };
   const built = show({ artifact: "/repo/dist/app" });
   expect(built).toContain("◐ built");
-  expect(built.trimEnd().split("\n").at(-1)).toBe("✓ rebuild done · artifact /repo/dist/app");
+  expect(built.trimEnd().split("\n").at(-1)).toBe("✓ build done · artifact /repo/dist/app");
   // No animation: the card is written once, in one finish.
   expect(built.split("◐ built").length).toBe(2);
   // A refused push still built it: the done line is amber.
   expect(show({ artifact: "/repo/dist/app", ok: false, code: 1 }).trimEnd().split("\n").at(-1)).toBe(
-    "◐ rebuild done · artifact /repo/dist/app",
+    "◐ build done · artifact /repo/dist/app",
   );
   // Without an artifact (a rebase run), no done line.
-  expect(show({})).not.toContain("rebuild done");
+  expect(show({})).not.toContain("build done");
 });

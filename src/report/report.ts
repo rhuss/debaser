@@ -261,7 +261,7 @@ function result(
     exitCode: r.code,
     upstream: { ref: run.upstream.ref, tip: run.upstream.tip, newCommits: r.pulled.length },
     patches,
-    steps: run.kind === "rebuild" ? stepResults(ctx, run, r.code) : [],
+    steps: run.kind === "build" ? stepResults(ctx, run, r.code) : [],
     harness: harnessTotals(run.harnessUsage ?? []),
     ...(r.artifact ? { artifact: r.artifact } : {}),
     report: join(run.reportDir, "report.md"),

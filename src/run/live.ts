@@ -66,7 +66,7 @@ export function begin(ctx: Context, run: RunState, stages: Stage[]) {
     upstream: upstreamOf(ctx, run, known),
     stages,
     items:
-      run.kind === "rebuild"
+      run.kind === "build"
         ? {
             merge: list.patches.map(p => display(p.source)),
             ...(stepNames(ctx).length ? { verify: stepNames(ctx) } : {}),

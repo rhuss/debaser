@@ -31,7 +31,7 @@ test("a patch that conflicts with upstream is reported for a rebase with a hando
   branch(w, "stale", { "base.txt": "one\nSTALE\nthree\n" });
   upstreamMoves(w, { "base.txt": "one\nUPSTREAM\nthree\n" });
   configure(w, ["stale"], { harness: { command: stubHarness(takeTheirs).command } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   const text = read(join(latest(w), "report.md"));
   expect(text).toContain("## Needs a rebase onto upstream\n\n- stale: base.txt\n");
@@ -52,7 +52,7 @@ test("patches that only clash with each other get a note and no handoff, however
   const byHarness = world();
   conflicting(byHarness);
   configure(byHarness, ["left", "right"], { harness: { command: stubHarness(takeTheirs).command } });
-  expect((await run(byHarness, "rebuild")).code).toBe(0);
+  expect((await run(byHarness, "build")).code).toBe(0);
   expect(read(join(latest(byHarness), "report.md"))).toContain(
     "## Clashes between patches\n\n- right conflicted with left in base.txt (resolved by harness); it merges cleanly onto upstream alone\n",
   );
@@ -61,7 +61,7 @@ test("patches that only clash with each other get a note and no handoff, however
   const byUser = world();
   conflicting(byUser);
   configure(byUser, ["left", "right"]);
-  expect((await run(byUser, "rebuild")).code).toBe(2);
+  expect((await run(byUser, "build")).code).toBe(2);
   expect(read(join(latest(byUser), "report.md"))).toContain("(resolved by nobody yet)");
   write(byUser.clone, { "base.txt": "one\nBOTH\nthree\n" });
   git(byUser.clone, "add", "base.txt");
@@ -75,7 +75,7 @@ test("an agent fix for a patch that fails alone on upstream hands off build drif
   branch(w, "fine", { "fine.txt": "fine\n" });
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   configure(w, ["fine", "bad"], { harness: { command: stubHarness(fixBroken).command } });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect(handoffs(w)).toEqual(["bad.md"]);
   const handoff = read(join(latest(w), "handoffs", "bad.md"));
   expect(handoff).toContain("- Kind: build-drift\n");
@@ -93,7 +93,7 @@ test("an agent fix for patches that only fail together hands off a clash naming 
   branch(w, "a", { "a.txt": "a\n" });
   branch(w, "b", { "b.txt": "b\n" });
   configure(w, ["a", "b"], { steps: clashing, harness: { command: stubHarness("echo ok > ok.txt").command } });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect(handoffs(w)).toEqual(["a.md", "b.md"]);
   const a = read(join(latest(w), "handoffs", "a.md")),
     b = read(join(latest(w), "handoffs", "b.md"));
@@ -110,7 +110,7 @@ test("an agent fix touching a single patch that passes alone names the other mer
   // Fails with both merged; the output names only a.txt, so only a is implicated.
   const steps = withStep("typecheck", { run: ["sh", "-c", 'test -f ok.txt || test "$(ls [ab].txt 2>/dev/null | wc -l)" -lt 2 || { echo "a.txt broke"; false; }'] });
   configure(w, ["a", "b"], { steps, harness: { command: stubHarness("echo ok > ok.txt").command } });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect(handoffs(w)).toEqual(["a.md"]);
   expect(read(join(latest(w), "handoffs", "a.md"))).toContain("clashes with: b");
 });
@@ -122,7 +122,7 @@ test("an agent fix that no patch is named for runs nothing to attribute it and h
   // A test runner's file list names every patch's file; the failure names none.
   const steps = withStep("typecheck", { run: ["sh", "-c", 'printf "a.txt:\\nb.txt:\\n"; test -f ok.txt || ! test -f a.txt'] });
   configure(w, ["a", "b"], { steps, harness: { command: stubHarness("echo ok > ok.txt").command } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(result.err).toContain("the typecheck fix changed or the failure names; not attributed");
   expect(result.err).not.toContain("alone on upstream (");
@@ -135,7 +135,7 @@ test("a stop whose failure names no file says so without mentioning a fix", asyn
   branch(w, "a", { "a.txt": "BROKEN\n" });
   // The default typecheck stub fails silently (grep -q), so the log names no file.
   configure(w, ["a"]);
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(3);
   expect(result.err).toContain("no merged patch touches a file the typecheck failure names; not attributed");
   expect(result.err).not.toContain("fix changed");
@@ -146,7 +146,7 @@ test("attribution says which patch it runs alone and how many are left", async (
   branch(w, "fine", { "fine.txt": "fine\n" });
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   configure(w, ["fine", "bad"], { harness: { command: stubHarness(fixBroken).command } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(result.err).toContain("running typecheck with bad alone on upstream (1 of 1, 0 left)");
 });
@@ -157,7 +157,7 @@ test("a stopped and continued run keeps one set of handoffs", async () => {
   commit(w.seed, { "base.txt": "one\nUPSTREAM\nthree\n" }, "upstream moves on");
   git(w.seed, "push", "-q", "origin", "main");
   configure(w, ["stale"]);
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   expect(handoffs(w)).toEqual(["stale.md"]);
   write(w.clone, { "base.txt": "one\nBOTH\nthree\n" });
   git(w.clone, "add", "base.txt");
@@ -171,7 +171,7 @@ test("a patch gets one handoff per run, holding every problem it has", async () 
   upstreamMoves(w, { "base.txt": "one\nUPSTREAM\nthree\n" });
   const h = stubHarness(`if [ "$DEBASER_TASK" = conflict ]; then\n${takeTheirs}\nelse\n${fixBroken}\nfi`);
   configure(w, ["stale"], { harness: { command: h.command } });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect(handoffs(w)).toEqual(["stale.md"]);
   const handoff = read(join(latest(w), "handoffs", "stale.md"));
   expect(handoff).toContain("- Kind: rebase, build-clash\n");

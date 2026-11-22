@@ -114,7 +114,7 @@ export function render(v: View, o: { color: boolean }): string[] {
   if (v.run) lines.push(`  ${paint("report ", "dim")}  ${shortPath(v.run.report, home)}`);
   if (v.run && !running) lines.push(`  ${paint("next   ", "dim")}  ${v.run.next}`);
   if (!v.upstream.tip) {
-    lines.push("", `${v.upstream.name} not fetched yet; rebuild to check patches`);
+    lines.push("", `${v.upstream.name} not fetched yet; build to check patches`);
     return lines;
   }
   if (!v.rows.length) return lines;

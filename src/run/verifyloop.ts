@@ -86,7 +86,7 @@ export async function verifyLoop(ctx: Context, run: RunState): Promise<Outcome |
         run,
         4,
         [`${step.name} fails on plain upstream ${short(run.upstream.tip)} too: upstream is broken`, `log: ${log}`],
-        ["roll back, then rebuild once upstream is fixed"],
+        ["roll back, then build once upstream is fixed"],
       );
     }
     const fix = await harnessFix.fixStep(ctx, run, step, failure);

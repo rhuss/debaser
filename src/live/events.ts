@@ -7,7 +7,7 @@ export type Upstream = { name: string; tip: string; newCommits: number };
 export type LiveEvent =
   | {
       t: "begin";
-      command: "rebuild" | "rebase" | "continue";
+      command: "build" | "rebase" | "continue";
       /** The run rewrites own branches (a `rebase` kind, even continued): its
        * left-alone results are named on the card. */
       rebaseRun?: boolean;
@@ -76,7 +76,7 @@ export type LiveEvent =
       /** What a finished run's card shows of `lines`; absent, it shows them all. */
       brief?: string[];
       handoffs?: number;
-      /** The artifact a rebuild installed, absolute: the card's last line points to it. */
+      /** The artifact a build installed, absolute: the card's last line points to it. */
       artifact?: string;
     };
 export type Sink = (event: LiveEvent) => void;

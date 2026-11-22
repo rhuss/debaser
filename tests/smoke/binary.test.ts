@@ -34,14 +34,14 @@ test("the compiled binary prints its version and usage", () => {
   expect(debaser(null, "help").out).toContain("usage: debaser");
 });
 
-test("the compiled binary adds, rebuilds and reports status in a test world", () => {
+test("the compiled binary adds, builds and reports status in a test world", () => {
   const w = world();
   branch(w, "mine", { "mine.txt": "mine\n" });
   configure(w, []);
   const added = debaser(w, "add", "mine", "Mine");
   expect(added.code).toBe(0);
   expect(added.out).toBe("added mine: Mine\n");
-  const rebuilt = debaser(w, "rebuild");
+  const rebuilt = debaser(w, "build");
   expect(rebuilt.code).toBe(0);
   expect(rebuilt.out).toContain("debaser: built dist/widget-custom");
   expect(git(w.clone, "branch", "--show-current")).toBe("debaser");
@@ -70,14 +70,14 @@ test("the live view's worker starts from the binary under a pseudo terminal", ()
   const w = world();
   branch(w, "mine", { "mine.txt": "mine\n" });
   configure(w, ["mine"]);
-  const args = process.platform === "darwin" ? ["script", "-q", "/dev/null", binary, "rebuild"] : ["script", "-qec", `${binary} rebuild`, "/dev/null"];
+  const args = process.platform === "darwin" ? ["script", "-q", "/dev/null", binary, "build"] : ["script", "-qec", `${binary} build`, "/dev/null"];
   const p = Bun.spawnSync(args, { cwd: w.clone, env: { ...w.env, TERM: "xterm-256color", NO_COLOR: "" }, stdout: "pipe", stderr: "pipe", stdin: "ignore" });
   const out = Bun.stripANSI(p.stdout.toString());
   expect(p.exitCode).toBe(0);
   // The worker drew the view and ended it in its card, not the plain fallback.
-  expect(out).toContain("debaser rebuild");
+  expect(out).toContain("debaser build");
   expect(out).toContain("✓ built dist/widget-custom");
-  expect(out).toContain("rebuild done · artifact");
+  expect(out).toContain("build done · artifact");
 });
 
 test("off a terminal, the binary refuses an untrusted project recipe with the --trust-recipe hint", () => {
@@ -86,7 +86,7 @@ test("off a terminal, the binary refuses an untrusted project recipe with the --
   git(w.seed, "push", "-q", "origin", "main");
   configure(w, []);
   rmSync(join(dirOf(w), "recipe.toml"));
-  const refused = debaser(w, "rebuild");
+  const refused = debaser(w, "build");
   expect(refused.code).toBe(1);
   expect(refused.err).toContain("not trusted yet");
   expect(refused.err).toContain("or pass --trust-recipe");

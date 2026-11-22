@@ -256,11 +256,11 @@ export function apply(s: LiveState, e: LiveEvent, nowMs: number): LiveState {
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 /** What the run as known so far, beyond its state, means for its estimate:
- * the branches a rebuild's rebase phase is rebasing and items it will skip,
+ * the branches a build's rebase phase is rebasing and items it will skip,
  * and what the effective recipe adds: whether it has an after-build command,
  * and its install step, which runs only when the dependencies changed. */
 export type Planning = { rebasing?: string[]; skipped?: string[]; afterBuild?: boolean; install?: string | null };
-/** The patches a rebuild merges: the fetched plan's, or the list's before the fetch. */
+/** The patches a build merges: the fetched plan's, or the list's before the fetch. */
 const planned = (run: RunState, list: PatchList) =>
   run.plan.length
     ? run.plan.filter(p => !p.skip).map(p => ({ name: p.display, accept: !!p.acceptance }))
@@ -274,12 +274,12 @@ export function plannedKeys(
   history: timings.History,
   o: Planning = {},
 ): string[] {
-  const command = run.kind ?? "rebuild",
+  const command = run.kind ?? "build",
     keys = [
       "fetch",
       ...[...(run.rebaseTargets ?? []).map(t => t.branch), ...(o.rebasing ?? [])].map(b => `rebase:${b}`),
     ];
-  if (command === "rebuild") {
+  if (command === "build") {
     const patches = planned(run, list);
     keys.push(...patches.map(p => `merge:${p.name}`));
     // The install step runs only when the dependencies changed: planned when recent runs had it.
@@ -301,7 +301,7 @@ export function liveEstimate(
   o: Planning = {},
 ): timings.Estimate {
   const t = run.timing ?? { activeMs: 0, items: {}, harnessMs: [] },
-    e = timings.estimate(history, run.kind ?? "rebuild", plannedKeys(run, list, steps, history, o), t.items, t.activeMs);
+    e = timings.estimate(history, run.kind ?? "build", plannedKeys(run, list, steps, history, o), t.items, t.activeMs);
   if (e.totalMs === null) return e;
   const totalMs =
     e.totalMs +
@@ -402,7 +402,7 @@ export function fromRun(
   } = {},
 ): LiveEvent[] {
   const history = o.history ?? { version: 1, runs: [] },
-    command = run.kind ?? "rebuild",
+    command = run.kind ?? "build",
     items = run.timing?.items ?? {},
     ms = (key: string) => items[key],
     stageMs = (stage: string) =>
@@ -429,7 +429,7 @@ export function fromRun(
         stages,
         items: {
           ...(stages.includes("rebase") ? { rebase: branches } : {}),
-          ...(command === "rebuild"
+          ...(command === "build"
             ? { merge: run.plan.map(p => p.display), verify: [...steps], accept: checked }
             : {}),
         },
@@ -473,7 +473,7 @@ export function fromRun(
         ms: stageMs("rebase"),
       });
   }
-  if (command === "rebuild") {
+  if (command === "build") {
     events.push({ t: "stage", stage: "merge", state: "start" });
     run.plan.slice(0, run.cursor).forEach(p => {
       const outcome = run.events.findLast(e => e.patch === p.display && mergeOutcomes.has(e.kind))?.kind ?? "merged",

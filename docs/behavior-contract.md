@@ -14,13 +14,13 @@ Each of that suite's 141 scenarios (one per `test(...)` case, counted from the f
 | a config from a newer tool, or with a broken harness, is refused | carried | a config from a newer tool, or with a broken harness, is refused |
 | harness.kind must be claude or codex | carried | harness.kind must be one of the registered adapters |
 | the test world publishes PR heads and fork branches | carried | the test world publishes PR heads and fork branches |
-| rebuild merges an own branch, an upstream PR, a fork PR and a fork branch in order | carried | rebuild merges an own branch, an upstream PR, a fork PR and a fork branch in order |
-| rebuild refuses a dirty checkout or a stopped run and changes nothing | carried | rebuild refuses a dirty checkout or a stopped run and changes nothing |
+| rebuild merges an own branch, an upstream PR, a fork PR and a fork branch in order | carried | build merges an own branch, an upstream PR, a fork PR and a fork branch in order |
+| rebuild refuses a dirty checkout or a stopped run and changes nothing | carried | build refuses a dirty checkout or a stopped run and changes nothing |
 | a patch that can't be fetched stops the run before anything is reset | carried | a patch that can't be fetched stops the run before anything is reset |
 | merged and contained patches are skipped, closed PRs merged with a warning | carried | merged and contained patches are skipped, closed PRs merged with a warning |
 | the after-build command runs only after a successful run | carried | the after-build command runs only after a successful run |
 | a conflict without a harness stops with the files, then continue finishes and rerere replays it | carried | a conflict without a harness stops with the files, then continue finishes and rerere replays it |
-| a rebuild records its timings and the next one has history | carried | a rebuild records its timings and the next one has history |
+| a rebuild records its timings and the next one has history | carried | a build records its timings and the next one has history |
 | a run state without timing loads | carried | a run state without timing loads |
 | a stopped run is recorded once, when it finishes | carried | a stopped run is recorded once, when it finishes |
 | a successful run keeps the previous build as -prev; a stopped run leaves the backups alone | carried | a successful run keeps the previous build as -prev; a stopped run leaves the backups alone |
@@ -41,13 +41,13 @@ Each of that suite's 141 scenarios (one per `test(...)` case, counted from the f
 | a harness resolution that passes the checks is committed with a trailer | carried | a harness resolution that passes the checks is committed with a trailer |
 | harness resolutions with markers, extra edits, commits or timeouts are rejected until attempts run out | carried | harness resolutions with markers, extra edits, commits or timeouts are rejected until attempts run out |
 | a harness that can't be run is a warning, and the run stops as without one | carried | a harness that can't be run is a warning, and the run stops as without one |
-| a harness build fix becomes its own commit and the steps rerun; the next rebuild drops it | carried | a harness build fix becomes its own commit and the steps rerun; the next rebuild drops it |
+| a harness build fix becomes its own commit and the steps rerun; the next rebuild drops it | carried | a harness build fix becomes its own commit and the steps rerun; the next build drops it |
 | a harness that changes nothing exhausts its attempts; upstream breakage never calls it | carried | a harness that changes nothing exhausts its attempts; upstream breakage never calls it |
 | a claude harness logs readable text, keeps the raw stream and records tokens | carried | a claude harness logs readable text, keeps the raw stream and records tokens |
 | plain run with kind claude shows readable text | carried | plain run with kind claude shows readable text |
 | a claude harness's activity reaches the sink, and a sink that throws on it stops nothing | carried | a claude harness's activity reaches the sink, and a sink that throws on it stops nothing |
 | a harness without kind is run and logged as today | carried | a harness without kind is run and logged as today |
-| rejected fixes and rebase conflicts are recorded as harness calls | carried | rejected fixes are recorded as harness calls + rebase conflicts are recorded as harness calls, in rebuild and in the rebase command |
+| rejected fixes and rebase conflicts are recorded as harness calls | carried | rejected fixes are recorded as harness calls + rebase conflicts are recorded as harness calls, in build and in the rebase command |
 | a patch that conflicts with upstream is reported for a rebase with a handoff | carried | a patch that conflicts with upstream is reported for a rebase with a handoff |
 | patches that only clash with each other get a note and no handoff, however resolved | carried | patches that only clash with each other get a note and no handoff, however resolved |
 | an agent fix for a patch that fails alone on upstream hands off build drift to that patch | carried | an agent fix for a patch that fails alone on upstream hands off build drift to that patch |
@@ -56,8 +56,8 @@ Each of that suite's 141 scenarios (one per `test(...)` case, counted from the f
 | a harness that fails to start is asked once, and the stop says why | carried | a harness that fails to start is asked once, and the stop says why |
 | reports/latest follows the newest run and only ten runs and ten rollback logs are kept | carried | reports/latest follows the newest run and only ten runs and ten rollback logs are kept |
 | the real steps are the repository's checks, the unit tests after a native build | carried | the built-in project recipes resolve to the pilots' step orders |
-| rebuild --push sends the custom branch to origin; a plain rebuild never pushes | carried | rebuild --push sends the custom branch to origin; a plain rebuild never pushes |
-| rebuild refuses a patch named like a branch it resets, and --push to upstream under another name | carried | rebuild refuses a patch named like a branch it resets, and --push to upstream under another name |
+| rebuild --push sends the custom branch to origin; a plain rebuild never pushes | carried | build --push sends the custom branch to origin; a plain build never pushes |
+| rebuild refuses a patch named like a branch it resets, and --push to upstream under another name | carried | build refuses a patch named like a branch it resets, and --push to upstream under another name |
 | an own branch known only from a stale origin copy stops instead of building the old commit | carried | an own branch known only from a stale origin copy stops instead of building the old commit |
 | rollback of a stopped run keeps uncommitted edits on another branch | carried | rollback of a stopped run keeps uncommitted edits on another branch |
 | install runs when nothing is installed yet, even with unchanged manifests | carried | install runs when nothing is installed yet, even with unchanged manifests |
@@ -78,13 +78,13 @@ Each of that suite's 141 scenarios (one per `test(...)` case, counted from the f
 | an agent fix that no patch is named for runs nothing to attribute it and hands off nothing | carried | an agent fix that no patch is named for runs nothing to attribute it and hands off nothing |
 | attribution says which patch it runs alone and how many are left | carried | attribution says which patch it runs alone and how many are left |
 | a step that fails once and passes when run again is reported as flaky, never fixed or blamed | carried | a step that fails once and passes when run again is reported as flaky, never fixed or blamed |
-| a rebuild signals stages, items and the end | carried | a rebuild signals stages, items and the end |
-| a rebuild prints the same with and without a sink | carried | a rebuild prints the same with and without a sink |
+| a rebuild signals stages, items and the end | carried | a build signals stages, items and the end |
+| a rebuild prints the same with and without a sink | carried | a build prints the same with and without a sink |
 | a stopped run signals the stop, and continue replays it first | carried | a stopped run signals the stop, and continue replays it first |
 | a rebase run signals its branches | carried | a rebase run signals its branches |
-| a rebuild's rebase phase signals its branches and harness calls | carried | a rebuild's rebase phase signals its branches and harness calls |
-| rebuild --verbose is accepted and plain output is unchanged | carried | rebuild --verbose is accepted and plain output is unchanged |
-| a live rebuild prints a summary card that points at the report | carried | a live rebuild prints a summary card that points at the report |
+| a rebuild's rebase phase signals its branches and harness calls | carried | a build's rebase phase signals its branches and harness calls |
+| rebuild --verbose is accepted and plain output is unchanged | carried | build --verbose is accepted and plain output is unchanged |
+| a live rebuild prints a summary card that points at the report | carried | a live build prints a summary card that points at the report |
 | a live command that throws ends its view with the error | carried | a live command that throws ends its view with the error |
 | a timings history that can't be written is a warning, and the run keeps its outcome | carried | a timings history that can't be written is a warning, and the run keeps its outcome |
 | the usage names --verbose for every command with a live view | carried | the usage names --verbose for every command with a live view |
@@ -97,7 +97,7 @@ Each of that suite's 141 scenarios (one per `test(...)` case, counted from the f
 | continue after an interrupted harness build call commits an accepted fix as the agent's and hands it off | carried | continue after an interrupted harness build call commits an accepted fix as the agent's and hands it off |
 | continue after an interrupted harness build call that changed nothing stops without committing | carried | continue after an interrupted harness build call that changed nothing stops without committing |
 | a continue that stops again before going on ends its item as stopped | carried | a continue that stops again before going on ends its item as stopped |
-| rebuild rebases own branches behind upstream, conflicting or not, and merges the rebased tips | carried | rebuild rebases own branches behind upstream, conflicting or not, and merges the rebased tips |
+| rebuild rebases own branches behind upstream, conflicting or not, and merges the rebased tips | carried | build rebases own branches behind upstream, conflicting or not, and merges the rebased tips |
 | the rebase mode comes from the config, --rebase overrides it, and conflicting leaves clean branches | carried | the rebase mode comes from the config, --rebase overrides it, and conflicting leaves clean branches |
 | other people's branches and PRs are never rebased and keep their rebase handoffs | carried | other people's branches and PRs are never rebased and keep their rebase handoffs |
 | status reads origin from git's own ref, so a branch force-pushed by hand isn't diverged | carried | status reads origin from git's own ref, so a branch force-pushed by hand isn't diverged |
@@ -107,7 +107,7 @@ Each of that suite's 141 scenarios (one per `test(...)` case, counted from the f
 | the harness adapts a rebased branch whose checks fail, as a fix commit to review before pushing | carried | the harness adapts a rebased branch whose checks fail, as a fix commit to review before pushing |
 | a harness that can't fix a rebased branch's checks leaves it at its old tip after its tries | carried | a harness that can't fix a rebased branch's checks leaves it at its old tip after its tries |
 | a rebased branch whose check passes only when run again moves, with a flaky warning | carried | a rebased branch whose check passes only when run again moves, with a flaky warning |
-| inside rebuild an unresolved rebase conflict keeps the old tip, and the run goes on to merge it | carried | inside rebuild an unresolved rebase conflict keeps the old tip, and the run goes on to merge it |
+| inside rebuild an unresolved rebase conflict keeps the old tip, and the run goes on to merge it | carried | inside build an unresolved rebase conflict keeps the old tip, and the run goes on to merge it |
 | the rebase command stops at a conflict it can't resolve; continue, --skip-branch and rollback end it | carried | the rebase command stops at a conflict it can't resolve; continue, --skip-branch and rollback end it |
 | a rebase run records its timings, without the wait for the push answer | carried | a rebase run records its timings, without the wait for the push answer |
 | rebased branches are pushed with a lease after a yes or with --push, and a moved remote copy is kept | carried | rebased branches are pushed with a lease after a yes or with --push, and a moved remote copy is kept |
@@ -133,7 +133,7 @@ Each of that suite's 141 scenarios (one per `test(...)` case, counted from the f
 | a rebase conflict resolved once replays through rerere the next time | carried | a rebase conflict resolved once replays through rerere the next time |
 | a branch moved or checked out while it is rebased stays where it is | carried | a branch moved or checked out while it is rebased stays where it is |
 | a rebased branch not pushed yet is offered again and keeps its backup until it is rebased again from its new tip | carried | a rebased branch not pushed yet is offered again and keeps its backup until it is rebased again from its new tip |
-| a rebuild merges an own PR's rebased head that is not pushed yet, not the old PR head | carried | a rebuild merges an own PR's rebased head that is not pushed yet, not the old PR head |
+| a rebuild merges an own PR's rebased head that is not pushed yet, not the old PR head | carried | a build merges an own PR's rebased head that is not pushed yet, not the old PR head |
 | a git rebase that fails before stopping is reported as failed, not as rebased | carried | a git rebase that fails before stopping is reported as failed, not as rebased |
 | tips, leases and pushes use the URL origin pushes to | carried | tips, leases and pushes use the URL origin pushes to |
 | without an origin nothing is rebased, and worktrees an interrupted run left are removed | carried | without an origin nothing is rebased, and worktrees an interrupted run left are removed |

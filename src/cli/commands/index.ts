@@ -11,7 +11,7 @@ import { rebaseModes, type RebaseMode } from "../../core/patchlist";
 import * as add from "./add";
 import * as remove from "./remove";
 import * as list from "./list";
-import * as rebuild from "./rebuild";
+import * as build from "./build";
 import * as rebase from "./rebase";
 import * as resume from "./continue";
 import * as rollback from "./rollback";
@@ -76,7 +76,7 @@ export const verbs: Record<string, Verb> = {
   add: { parse: reader(["pin", "upstream", "description"], 2), run: add.run },
   remove: { parse: reader(["reason"], 1), run: remove.run },
   list: { parse: reader(["retired", "verbose", "json"], 0), run: list.run },
-  rebuild: { parse: reader(["push", "rebase", "inWorktree", "trustRecipe", "verbose", "json"], 0), run: rebuild.run },
+  build: { parse: reader(["push", "rebase", "inWorktree", "trustRecipe", "verbose", "json"], 0), run: build.run },
   rebase: { parse: reader(["push", "rebase", "inWorktree", "trustRecipe", "verbose", "json", "skipBranch"], 0), run: rebase.run },
   continue: { parse: reader(["skipBranch", "verbose", "trustRecipe"], 0), run: resume.run },
   rollback: { parse: reader(["verbose"], 0), run: rollback.run },
@@ -107,7 +107,7 @@ export function startView(s: Session, o: Options): void {
     v: Views = { live: null, tasks: null, warnings: [] };
   views.set(s, v);
   if (io.sink || !(io.color || io.live === "inline") || o.json) return;
-  if (["rebuild", "rebase", "continue"].includes(command)) {
+  if (["build", "rebase", "continue"].includes(command)) {
     const started = Live.start({
       verbose: o.verbose,
       color: !!io.color,

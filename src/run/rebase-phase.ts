@@ -46,11 +46,11 @@ function envOf(ctx: Context, run: RunState): rebase.Env {
 }
 
 
-/** Rebuild's rebase phase (FR-031): rebases the own branches before the reset
+/** `build`'s rebase phase (FR-031): rebases the own branches before the reset
  * and merges their new tips; a branch that can't be rebased keeps its old tip
  * and gets a handoff, and the run goes on (FR-035). */
-export async function beforeRebuild(ctx: Context, run: RunState, mode: RebaseMode, inWorktree: boolean): Promise<void> {
-  // A rebase never stops a rebuild, and an interrupted one leaves each branch at a checked tip.
+export async function beforeBuild(ctx: Context, run: RunState, mode: RebaseMode, inWorktree: boolean): Promise<void> {
+  // A rebase never stops a build, and an interrupted one leaves each branch at a checked tip.
   rebase.cleanLeftovers({ repo: ctx.repo, workDir: work(ctx) });
   if (mode === "off") return;
   const e = envOf(ctx, run);
@@ -76,7 +76,7 @@ export async function beforeRebuild(ctx: Context, run: RunState, mode: RebaseMod
       forget();
     }
     endItem(ctx, run, `rebase:${t.branch}`);
-    if (!("result" in r)) throw Error(`the rebase of ${t.branch} stopped inside rebuild, which never stops`);
+    if (!("result" in r)) throw Error(`the rebase of ${t.branch} stopped inside build, which never stops`);
     run.rebased.push(r.result);
     signal(ctx, rebaseItem(r.result));
   }

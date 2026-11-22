@@ -16,7 +16,7 @@ export type PrInfo = {
 export function prInfo(repo: string, number: number, env: Record<string, string | undefined> = process.env): PrInfo | null {
   const gh = Bun.which("gh", { PATH: env.PATH ?? "" });
   if (!gh) return null;
-  // Asked once per command: status and rebuild ask about the same PR from several places.
+  // Asked once per command: status and build ask about the same PR from several places.
   const key = `${gh}\0${repo.toLowerCase()}#${number}`;
   if (answers.has(key)) return answers.get(key)!;
   const info = askGh(gh, repo, number, env);

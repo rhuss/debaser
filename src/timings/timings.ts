@@ -17,7 +17,7 @@ export type Timing = {
    * interrupted takes the active time on both sides of it. */
   open?: Record<string, number>;
 };
-export type Command = "rebuild" | "rebase";
+export type Command = "build" | "rebase";
 export type HistoryRun = {
   command: Command;
   finishedAt: string;
@@ -101,7 +101,7 @@ function wellFormed(r: unknown): r is HistoryRun {
   return (
     typeof run === "object" &&
     run !== null &&
-    (run.command === "rebuild" || run.command === "rebase") &&
+    (run.command === "build" || run.command === "rebase") &&
     typeof run.finishedAt === "string" &&
     typeof run.partial === "boolean" &&
     typeof run.activeMs === "number" &&
@@ -112,6 +112,9 @@ function wellFormed(r: unknown): r is HistoryRun {
     durations(run.harnessMs)
   );
 }
+/** A run recorded before the rename, when a build was called "rebuild". */
+const legacy = (r: unknown) =>
+  r && typeof r === "object" && (r as { command?: unknown }).command === "rebuild" ? { ...r, command: "build" } : r;
 /** The recorded runs, oldest first; a missing or unreadable file is no history,
  * and a run entry an estimate can't read is left out. */
 export function loadHistory(dir: string): History {
@@ -120,7 +123,7 @@ export function loadHistory(dir: string): History {
   if (!existsSync(path)) return empty;
   try {
     const h = JSON.parse(readFileSync(path, "utf8"));
-    return h?.version === 1 && Array.isArray(h.runs) ? { version: 1, runs: h.runs.filter(wellFormed) } : empty;
+    return h?.version === 1 && Array.isArray(h.runs) ? { version: 1, runs: h.runs.map(legacy).filter(wellFormed) } : empty;
   } catch {
     return empty;
   }

@@ -28,6 +28,6 @@ intent. Build the project and run the check above to verify your fix.
 
 - Leave your changes in the working tree. Do not commit, amend or rebase;
   debaser commits your change as a separate fix commit, reruns every check
-  and rebuilds.
+  and builds again.
 - Do not edit any patch branch.
 - When you are done, stop. Say briefly what was wrong and what you changed.

@@ -14,7 +14,7 @@ import * as timings from "../timings/timings";
 import { event, excluded, mergeMessage, ms, save, short, signal } from "./common";
 import { endRun } from "./end";
 import { advance, resolved } from "./mergeloop";
-import { proceed } from "./rebuild";
+import { proceed } from "./build";
 import { rollback } from "./rollback";
 import * as harnessResume from "./harness-resume";
 import { resolveConflict } from "./harness-merge";

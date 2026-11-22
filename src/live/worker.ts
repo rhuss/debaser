@@ -94,14 +94,14 @@ export class View {
     this.draw();
   }
 
-  /** Replaces the view with the card for `e`, a rebuild's done line last, and
+  /** Replaces the view with the card for `e`, a build's done line last, and
    * puts the terminal back. Throws when it couldn't: the caller then restores
    * and prints `plain(e)`. */
   finish(e: End): void {
     const lines = this.end(e);
     if (lines) this.screen.finish([...lines, ...this.closing(e)]);
   }
-  /** The rebuild's done line, last under the card. */
+  /** The build's done line, last under the card. */
   private closing(e: End): string[] {
     return this.s.command === null ? [] : doneLine(e, { width: this.o.cols(), color: this.o.color });
   }

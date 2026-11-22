@@ -20,7 +20,7 @@ export async function run(ctx: Context, _o: Options, io: IO): Promise<Outcome> {
   if (loadTrust(ctx.dir).trusted[list.upstream.repo]?.sha256 === found.sha256)
     return { code: 0, lines: [`debaser: ${repoRecipePath} at ${tip!.slice(0, 7)} is already trusted`] };
   const shown = commandsOf(found.recipe).map(c => `  ${c}`);
-  if (!io.ask) throw new Explained("trusting a recipe needs a terminal to confirm on", ["  or pass --trust-recipe to rebuild"]);
+  if (!io.ask) throw new Explained("trusting a recipe needs a terminal to confirm on", ["  or pass --trust-recipe to build"]);
   const answer = io.ask([`${repoRecipePath} at ${tip!.slice(0, 7)} runs:`, ...shown, "Trust it? [y/N] "].join("\n"));
   if (!/^y(es)?$/i.test(answer?.trim() ?? "")) throw new Explained(`${repoRecipePath} was not trusted`);
   recordTrust(ctx, found.sha256);

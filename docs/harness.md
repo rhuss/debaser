@@ -104,5 +104,5 @@ Its output is logged line by line; tokens are unknown.
   changes kept, and debaser commits them as `debaser: fix <step> (agent)`.
   Every step then runs again from the first.
 - A rejected attempt is undone to the state before it and retried from there.
-- Fixes on the integration branch are never carried into the next rebuild;
+- Fixes on the integration branch are never carried into the next build;
   the patches they point at get handoff prompts in the report instead.

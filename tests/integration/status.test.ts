@@ -29,7 +29,7 @@ test("status reads origin from git's own ref, so a branch force-pushed by hand i
   upstreamMoves(w, { "up.txt": "up\n" });
   configureOwn(w, ["mine"]);
   // A run records origin's tip; then the branch is rebased and force-pushed by hand.
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   git(w.clone, "fetch", "-q", "upstream");
   git(w.clone, "checkout", "-q", "-b", "redo", "upstream/main");
   commit(w.clone, { "mine.txt": "mine again\n" }, "mine: change");
@@ -45,7 +45,7 @@ test("status checks an own PR's rebased branch against upstream, not the PR as l
   stubGh(w, { "acme/widget#5": { state: "OPEN", title: "feature", head: "me/widget:feature" } });
   upstreamMoves(w, conflictingLine("UPSTREAM"));
   configureOwn(w, ["#5"], { harness: { command: stubHarness(takeTheirs).command } });
-  // A rebuild's copy of the PR and of upstream, from before the rebase.
+  // A build's copy of the PR and of upstream, from before the rebase.
   git(w.clone, "fetch", "-q", "upstream");
   git(w.clone, "fetch", "-q", w.upstream, "refs/pull/5/head:refs/debaser/acme/widget/pull/5");
   const before = await run(w, "status");
@@ -82,19 +82,19 @@ test("status shows PR states, pins, the last results and upstream drift as text 
   configure(w, ["mine", "#3", "#4"], {
     patchExtra: { mine: { pin: mine }, "#3": { acceptance: { run: ["true"] } } },
   });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   upstreamMoves(w, { "up1.txt": "1\n" });
   upstreamMoves(w, { "up2.txt": "2\n" });
   git(w.clone, "fetch", "-q", "upstream");
   const refsBefore = git(w.clone, "for-each-ref"),
     statusBefore = git(w.clone, "status", "--porcelain");
   // A held lock doesn't stop status; nothing is fetched without --fetch.
-  writeFileSync(join(dirOf(w), "lock"), JSON.stringify({ pid: process.ppid, command: "rebuild", startedAt: "x" }));
+  writeFileSync(join(dirOf(w), "lock"), JSON.stringify({ pid: process.ppid, command: "build", startedAt: "x" }));
   upstreamMoves(w, { "up3.txt": "3\n" });
   const text = await run(w, "status");
   expect(text.code).toBe(0);
   // The live lock holder is shown as running, with no continue or rollback hint.
-  expect(text.out).toContain(`running: rebuild (pid ${process.ppid})`);
+  expect(text.out).toContain(`running: build (pid ${process.ppid})`);
   expect(text.out).not.toContain("continue");
   expect(text.out).toContain("2 upstream commits since the last build");
   // One table: merge state, own branch, PR and last results on one row per patch.
@@ -119,11 +119,11 @@ test("status shows PR states, pins, the last results and upstream drift as text 
   expect(fetched.out).toContain("3 upstream commits since the last build");
 });
 
-test("status keeps the last rebuild's results after a rebase run", async () => {
+test("status keeps the last build's results after a rebase run", async () => {
   const w = world();
   branch(w, "mine", { "mine.txt": "mine\n" });
   configureOwn(w, ["mine"], { patchExtra: { mine: { acceptance: { run: ["true"] } } } });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   upstreamMoves(w, { "up1.txt": "1\n" });
   expect((await run(w, "rebase")).code).toBe(0);
   const text = await run(w, "status");
@@ -135,8 +135,8 @@ test("a lock left by a process that is gone is not shown as a running command", 
   const w = world();
   configure(w, ["#1"]);
   pullRequest(w, "acme/widget", 1, { "one.txt": "1\n" });
-  expect((await run(w, "rebuild")).code).toBe(0);
-  writeFileSync(join(dirOf(w), "lock"), JSON.stringify({ pid: 2 ** 22 + 12345, command: "rebuild", startedAt: "x" }));
+  expect((await run(w, "build")).code).toBe(0);
+  writeFileSync(join(dirOf(w), "lock"), JSON.stringify({ pid: 2 ** 22 + 12345, command: "build", startedAt: "x" }));
   const shown = await run(w, "status");
   expect(shown.out).toContain("no run in progress");
   expect(shown.out).not.toContain("running:");

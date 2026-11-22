@@ -33,7 +33,7 @@ test("a conflict without a harness stops with the files, then continue finishes 
   const w = world();
   conflicting(w);
   configure(w, ["left", "right"]);
-  const stopped = await run(w, "rebuild");
+  const stopped = await run(w, "build");
   expect(stopped.code).toBe(2);
   expect(stopped.out).toContain("merge conflict in right");
   expect(stopped.out).toContain("files: base.txt");
@@ -54,7 +54,7 @@ test("a conflict without a harness stops with the files, then continue finishes 
   expect(resumed.code).toBe(0);
   expect(state(w)).toBeNull();
   expect(read(join(w.clone, "base.txt"))).toBe("one\nLEFT and RIGHT\nthree\n");
-  const again = await run(w, "rebuild");
+  const again = await run(w, "build");
   expect(again.code).toBe(0);
   expect(read(join(w.clone, "base.txt"))).toBe("one\nLEFT and RIGHT\nthree\n");
   expect(subjects(w, "upstream/main..HEAD")).toEqual(["Merge right: about right", "Merge left: about left"]);
@@ -64,7 +64,7 @@ test("a step failing only on the custom branch stops with 3; failing on upstream
   const w = world();
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   configure(w, ["bad"]);
-  const failed = await run(w, "rebuild");
+  const failed = await run(w, "build");
   expect(failed.code).toBe(3);
   expect(failed.out).toContain("typecheck failed");
   expect(state(w)?.step).toBe("typecheck");
@@ -80,10 +80,10 @@ test("a step failing only on the custom branch stops with 3; failing on upstream
   git(u.seed, "push", "-q", "origin", "main");
   branch(u, "fine", { "fine.txt": "fine\n" }, "main");
   configure(u, ["fine"]);
-  const broken = await run(u, "rebuild");
+  const broken = await run(u, "build");
   expect(broken.code).toBe(4);
   expect(broken.out).toContain("upstream is broken");
-  expect(broken.out).toContain("roll back, then rebuild once upstream is fixed");
+  expect(broken.out).toContain("roll back, then build once upstream is fixed");
   expect(broken.out).not.toContain("continue: ");
 });
 
@@ -96,7 +96,7 @@ test("the plain-upstream rerun runs the earlier steps first, so a step needing t
     { name: "test", run: ["sh", "-c", "test -f native.out && test ! -f bad.flag"] },
   ];
   configure(w, ["bad"], { steps, artifact: null });
-  const failed = await run(w, "rebuild");
+  const failed = await run(w, "build");
   expect(failed.code).toBe(3);
   expect(failed.out).not.toContain("upstream is broken");
   expect(existsSync(join(latest(w), "isolated", "upstream-native.log"))).toBe(true);
@@ -107,7 +107,7 @@ test("a step that fails once and passes when run again is reported as flaky, nev
   branch(w, "a", { "a.txt": "a\n" });
   const tried = join(fresh("flaky"), "tried");
   configure(w, ["a"], { steps: withStep("typecheck", { run: ["sh", "-c", `test -f "${tried}" || { touch "${tried}"; false; }`] }) });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(git(w.clone, "log", "--first-parent", "--format=%s", "upstream/main..HEAD")).toBe("Merge a: about a");
   expect(existsSync(join(latest(w), "isolated", "upstream-typecheck.log"))).toBe(false);
@@ -128,7 +128,7 @@ const conflicted = () => {
 };
 test("a stopped run is recorded once, when it finishes", async () => {
   const w = conflicted();
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   expect(existsSync(timings.historyPath(dirOf(w)))).toBe(false);
   expect(Object.keys(state(w)?.timing?.items ?? {})).toEqual(["fetch", "merge:left"]);
   write(w.clone, { "base.txt": "one\nLEFT and RIGHT\nthree\n" });
@@ -136,11 +136,11 @@ test("a stopped run is recorded once, when it finishes", async () => {
   expect((await run(w, "continue")).code).toBe(0);
   const runs = timings.loadHistory(dirOf(w)).runs;
   expect(runs.length).toBe(1);
-  expect(runs[0]).toMatchObject({ command: "rebuild", partial: false });
+  expect(runs[0]).toMatchObject({ command: "build", partial: false });
   expect(Object.keys(runs[0].items)).toEqual(expect.arrayContaining(["fetch", "merge:left", "merge:right", "step:build"]));
   // Rolled back instead, the run is no history: only finished runs count.
   const v = conflicted();
-  expect((await run(v, "rebuild")).code).toBe(2);
+  expect((await run(v, "build")).code).toBe(2);
   expect((await run(v, "rollback")).code).toBe(0);
   expect(existsSync(timings.historyPath(dirOf(v)))).toBe(false);
 });
@@ -149,13 +149,13 @@ test("a successful run keeps the previous build as -prev; a stopped run leaves t
   const w = world();
   branch(w, "mine", { "mine.txt": "mine\n" });
   configure(w, ["mine"]);
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   const first = head(w),
     firstArtifact = read(installPath(w));
   git(w.clone, "checkout", "-q", "mine");
   commit(w.clone, { "mine.txt": "mine 2\n" });
   git(w.clone, "checkout", "-q", "debaser");
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   const second = head(w),
     secondArtifact = read(installPath(w));
   expect(git(w.clone, "rev-parse", "debaser-prev")).toBe(first);
@@ -163,7 +163,7 @@ test("a successful run keeps the previous build as -prev; a stopped run leaves t
   // A stopped run: the backups still name the first build.
   branch(w, "clash", { "mine.txt": "clash\n" });
   configure(w, ["mine", "clash"]);
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   expect(git(w.clone, "branch", "--show-current")).toBe("debaser");
   expect(git(w.clone, "rev-parse", "debaser-prev")).toBe(first);
   expect(read(`${installPath(w)}.prev`)).toBe(firstArtifact);
@@ -182,7 +182,7 @@ test("a successful run keeps the previous build as -prev; a stopped run leaves t
 
 test("rolling back a stopped first run returns to the branch it started on", async () => {
   const w = conflicted();
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   expect((await run(w, "rollback")).code).toBe(0);
   expect(git(w.clone, "branch", "--show-current")).toBe("main");
   expect(git(w.clone, "branch", "--list", "debaser")).toBe("");
@@ -191,8 +191,8 @@ test("rolling back a stopped first run returns to the branch it started on", asy
 
 test("a run that is stopped refuses another with where it stopped and what to run", async () => {
   const w = conflicted();
-  expect((await run(w, "rebuild")).code).toBe(2);
-  const plain = await run(w, "rebuild");
+  expect((await run(w, "build")).code).toBe(2);
+  const plain = await run(w, "build");
   expect(plain.code).toBe(1);
   expect(plain.err).toContain("debaser: a run is stopped or in progress; resume it with `continue` or undo it with `rollback`\n");
   expect(plain.err).toMatch(/\n {2}stopped: while merging right \(2 of 2\), started \d+s ago\n/);
@@ -203,7 +203,7 @@ test("continue after an interrupted step commits only tracked changes", async ()
   const w = world();
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   configure(w, ["bad"]);
-  expect((await run(w, "rebuild")).code).toBe(3);
+  expect((await run(w, "build")).code).toBe(3);
   runstate.saveRun(dirOf(w), { ...state(w)!, stopped: null });
   write(w.clone, { "scratch-notes.md": "mine\n", "bad.txt": "fixed\n" });
   expect((await run(w, "continue")).code).toBe(0);
@@ -213,7 +213,7 @@ test("continue after an interrupted step commits only tracked changes", async ()
 
 test("continue refuses when the custom branch is no longer checked out", async () => {
   const w = conflicted();
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   git(w.clone, "merge", "--abort");
   git(w.clone, "checkout", "-q", "left");
   const left = head(w),
@@ -232,7 +232,7 @@ test("a reset that fails forgets the run and changes nothing", async () => {
   configure(w, ["mine"]);
   write(w.clone, { "new.txt": "untracked and in the way\n" });
   const start = head(w),
-    result = await run(w, "rebuild");
+    result = await run(w, "build");
   expect(result.code).toBe(1);
   expect(state(w)).toBeNull();
   expect(head(w)).toBe(start);
@@ -242,7 +242,7 @@ test("a reset that fails forgets the run and changes nothing", async () => {
 
 test("rollback of a stopped run keeps uncommitted edits on another branch", async () => {
   const w = conflicted();
-  expect((await run(w, "rebuild")).code).toBe(2);
+  expect((await run(w, "build")).code).toBe(2);
   git(w.clone, "merge", "--abort");
   git(w.clone, "checkout", "-q", "left");
   write(w.clone, { "base.txt": "my edit\n" });
@@ -266,7 +266,7 @@ test("rollback reinstalls dependencies, and continue finishes a rollback whose i
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   const start = head(w),
     install = countedInstall(w);
-  expect((await run(w, "rebuild")).code).toBe(3);
+  expect((await run(w, "build")).code).toBe(3);
   const before = install.runs();
   writeFileSync(install.broken, "");
   const failed = await run(w, "rollback");
@@ -284,7 +284,7 @@ test("a rollback refused for uncommitted changes leaves the stopped run to conti
   const w = world();
   branch(w, "bad", { "bad.txt": "BROKEN\n" });
   countedInstall(w);
-  expect((await run(w, "rebuild")).code).toBe(3);
+  expect((await run(w, "build")).code).toBe(3);
   git(w.clone, "checkout", "-q", "main");
   write(w.clone, { "base.txt": "edited\n" });
   const refused = await run(w, "rollback");
@@ -301,10 +301,10 @@ test("rollback to the previous build reinstalls dependencies", async () => {
   const w = world();
   branch(w, "bad", { "good.txt": "fine\n" });
   const install = countedInstall(w);
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   const first = head(w);
   upstreamMoves(w, { "up.txt": "up\n" });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   const before = install.runs();
   expect((await run(w, "rollback")).code).toBe(0);
   expect(head(w)).toBe(first);
@@ -320,7 +320,7 @@ test("a step stop names the patches behind it and writes a prompt for fixing it 
       run: ["sh", "-c", 'test -f ok.txt || ! { test -f a.txt && test -f b.txt; } || { echo "a.txt clashes with b.txt"; false; }'],
     }),
   });
-  const stopped = await run(w, "rebuild");
+  const stopped = await run(w, "build");
   expect(stopped.code).toBe(3);
   expect(stopped.out).toContain("caused by: a and b only together");
   expect(stopped.out).toMatch(/stopped: typecheck failed\n {2}caused by: /);
@@ -347,7 +347,7 @@ test("a step that runs past its timeout counts as failing: rerun, then on plain 
   branch(w, "slow", { "slow.txt": "slow\n" });
   configure(w, ["slow"], { steps: withStep("typecheck", { run: ["sh", "-c", "test -f slow.txt && sleep 30 || true"], timeout: 1 }) });
   const started = Date.now(),
-    result = await run(w, "rebuild");
+    result = await run(w, "build");
   expect(result.code).toBe(3);
   expect(Date.now() - started).toBeLessThan(20_000);
   expect(readFileSync(join(latest(w), "steps", "typecheck.log"), "utf8")).toContain("timed out");
@@ -363,7 +363,7 @@ test("Ctrl-C, SIGTERM or SIGHUP in a step ends the run with 130, 143 or 129, kee
     configure(w, ["mine"], { steps: withStep("test", { run: ["sh", "-c", `kill -${signal} $(ps -o ppid= -p $$); sleep 5`] }) });
     // Through the real command line, so the signal reaches debaser's own process.
     const main = join(import.meta.dir, "..", "..", "src", "cli", "main.ts"),
-      child = Bun.spawn(["bun", main, "rebuild"], { cwd: w.clone, env: w.env, stdout: "pipe", stderr: "pipe" });
+      child = Bun.spawn(["bun", main, "build"], { cwd: w.clone, env: w.env, stdout: "pipe", stderr: "pipe" });
     expect([signal, await child.exited]).toEqual([signal, code]);
     expect(state(w)?.phase).toBe("verify");
     expect(existsSync(join(dirOf(w), "lock"))).toBe(false);

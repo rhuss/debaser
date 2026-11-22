@@ -44,7 +44,7 @@ test("acceptance checks pass or fail by exit code and output pattern, from the t
       },
     },
   });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   const [cwd, artifact] = read(seen).trim().split("\n");
   expect(realpathSync(cwd)).toBe(realpathSync(w.clone));
@@ -60,7 +60,7 @@ test("a failing acceptance check without a harness stops with 6, blames only its
   const w = world();
   branch(w, "good", { "good.txt": "good\n" });
   configure(w, ["good"]);
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   const installed = read(installPath(w));
   branch(w, "bad", { "bad.txt": "bad\n" });
   branch(w, "other", { "other.txt": "other\n" });
@@ -70,7 +70,7 @@ test("a failing acceptance check without a harness stops with 6, blames only its
       other: { acceptance: check(["sh", "-c", "exit 3"], { exit: 3 }) },
     },
   });
-  const stopped = await run(w, "rebuild");
+  const stopped = await run(w, "build");
   expect(stopped.code).toBe(6);
   expect(stopped.out).toContain("the acceptance check of bad fails");
   expect(handoffs(w)).toEqual(["bad.md"]);
@@ -88,7 +88,7 @@ test("an acceptance check that fails once and passes when run again is flaky", a
   branch(w, "a", { "a.txt": "a\n" });
   const tried = join(fresh("flaky"), "tried");
   configure(w, ["a"], { patchExtra: { a: { acceptance: check(["sh", "-c", `test -f "${tried}" || { touch "${tried}"; false; }`]) } } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(results(w)).toEqual({ a: "flaky" });
   expect(result.out).toContain("warning: the acceptance check of a failed once and passed when run again; it may be flaky");
@@ -99,13 +99,13 @@ test("an acceptance check past its timeout fails", async () => {
   branch(w, "slow", { "slow.txt": "slow\n" });
   configure(w, ["slow"], { patchExtra: { slow: { acceptance: check(["sleep", "30"], { timeout: 1 }) } } });
   const started = Date.now(),
-    result = await run(w, "rebuild");
+    result = await run(w, "build");
   expect(result.code).toBe(6);
   expect(Date.now() - started).toBeLessThan(20_000);
   expect(read(join(latest(w), "acceptance", "slow.log"))).toContain("timed out");
 });
 
-test("a harness fix for an acceptance check reruns every step, rebuilds and reruns the checks", async () => {
+test("a harness fix for an acceptance check reruns every step, builds and reruns the checks", async () => {
   const w = world();
   branch(w, "feature", { "feature.txt": "off\n" });
   const builds = join(fresh("builds"), "count"),
@@ -115,7 +115,7 @@ test("a harness fix for an acceptance check reruns every step, rebuilds and reru
     steps: stubSteps.map(s => (s.name === "build" ? { ...s, run: ["sh", "-c", `echo x >> ${builds}; ${s.run[2]}`, ...s.run.slice(3)] } : s)),
     patchExtra: { feature: { acceptance: check(["sh", "-c", "grep -q on feature.txt"]) } },
   });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(0);
   expect(h.calls()).toBe(1);
   expect(read(join(h.bin, "tasks"))).toBe("acceptance\n");
@@ -131,7 +131,7 @@ test("a harness that can't fix an acceptance check ends with 5, and acceptance f
   branch(w, "feature", { "feature.txt": "off\n" });
   const idle = stubHarness("true");
   configure(w, ["feature"], { harness: { command: idle.command, attempts: 2 }, patchExtra: { feature: { acceptance: check(["false"]) } } });
-  const exhausted = await run(w, "rebuild");
+  const exhausted = await run(w, "build");
   expect(exhausted.code).toBe(5);
   expect(idle.calls()).toBe(2);
   expect(exhausted.out).toContain("the harness could not fix the acceptance check of feature in 2 attempts");
@@ -158,7 +158,7 @@ test("a harness that can't fix an acceptance check ends with 5, and acceptance f
     ],
     patchExtra: { four: { acceptance: check(["test", "-f", "accepted.txt"]) } },
   });
-  const bounded = await run(v, "rebuild");
+  const bounded = await run(v, "build");
   expect(bounded.code).toBe(5);
   expect(busy.calls()).toBe(5);
   expect(bounded.out).toContain("typecheck fails again after the harness's 5 fixes");
@@ -182,7 +182,7 @@ test("a patch skipped as merged or contained runs no acceptance check and is rep
   git(w.seed, "push", "-q", "origin", "main");
   const ran = join(fresh("ran"), "ran");
   configure(w, ["lower"], { patchExtra: { lower: { acceptance: check(["sh", "-c", `touch ${ran}`]) } } });
-  expect((await run(w, "rebuild")).code).toBe(0);
+  expect((await run(w, "build")).code).toBe(0);
   expect(existsSync(ran)).toBe(false);
   expect(results(w)).toEqual({ lower: "skipped" });
 });
@@ -191,7 +191,7 @@ test("continue after an acceptance stop commits the user's fix and checks again"
   const w = world();
   branch(w, "feature", { "feature.txt": "off\n" });
   configure(w, ["feature"], { patchExtra: { feature: { acceptance: check(["sh", "-c", "grep -q on feature.txt"]) } } });
-  expect((await run(w, "rebuild")).code).toBe(6);
+  expect((await run(w, "build")).code).toBe(6);
   writeFileSync(join(w.clone, "feature.txt"), "on\n");
   const resumed = await run(w, "continue");
   expect(resumed.code).toBe(0);
@@ -206,7 +206,7 @@ test("a fix that leaves an acceptance check failing uses up one of its attempts"
   branch(w, "feature", { "feature.txt": "off\n" });
   const h = stubHarness("echo x >> tries.txt");
   configure(w, ["feature"], { harness: { command: h.command, attempts: 2 }, patchExtra: { feature: { acceptance: check(["false"]) } } });
-  const result = await run(w, "rebuild");
+  const result = await run(w, "build");
   expect(result.code).toBe(5);
   expect(h.calls()).toBe(2);
   expect(result.out).toContain("in 2 attempts");

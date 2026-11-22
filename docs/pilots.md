@@ -4,7 +4,7 @@ Three success criteria need real forks, network access and weeks of use. They
 are checked by hand after the merge, not in CI. Record each result in the
 pull request that closes the pilot.
 
-## SC-009: unattended rebuilds of both pilots
+## SC-009: unattended builds of both pilots
 
 ### rtk-ai/rtk
 
@@ -26,10 +26,10 @@ pull request that closes the pilot.
    debaser add <own-branch-2> "second own change"
    ```
 
-3. Run an unattended rebuild:
+3. Run an unattended build:
 
    ```bash
-   debaser rebuild --trust-recipe --json > rebuild.json; echo "exit=$?"
+   debaser build --trust-recipe --json > build.json; echo "exit=$?"
    dist/rtk-custom --version
    ```
 
@@ -42,7 +42,7 @@ pull request that closes the pilot.
 1. In a corgi checkout with `upstream` pointing at `tals/corgi` and `origin` at
    your fork, add the patches from the old tool's patch list by hand
    (`debaser add <source> "<description>"` per entry).
-2. Run `debaser rebuild`.
+2. Run `debaser build`.
 
    Expected: `dist/corgi-custom` runs, and the after-build reload fires.
 
@@ -61,7 +61,7 @@ print the same before and after.
 1. Before switching, record a two-week baseline with the old tool: count the
    runs that stopped and needed a person (conflicts, failing steps, harness
    give-ups) from its reports.
-2. Switch to debaser and run `debaser rebuild` daily (cron or by hand) for a
+2. Switch to debaser and run `debaser build` daily (cron or by hand) for a
    month.
 3. Count the stopped runs:
 

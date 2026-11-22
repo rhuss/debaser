@@ -12,7 +12,7 @@ function begin(
 ): LiveEvent {
   return {
     t: "begin",
-    command: "rebuild",
+    command: "build",
     branch: "integration",
     upstream: { name: "upstream/main", tip: "170454d", newCommits: 7 },
     stages: ["fetch", "merge", "verify"],
@@ -210,7 +210,7 @@ const list: PatchList = {
 const steps = ["install", "typecheck", "test", "build"];
 function stopped(o: Partial<RunState> = {}): RunState {
   return {
-    kind: "rebuild",
+    kind: "build",
     startedAt: "2026-11-11T10:00:00.000Z",
     startTip: null,
     startArtifact: null,

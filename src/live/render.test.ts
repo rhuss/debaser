@@ -18,7 +18,7 @@ const patches = [
 ];
 const steps = ["install", "typecheck", "test", "build"];
 const last: HistoryRun = {
-  command: "rebuild",
+  command: "build",
   finishedAt: "2026-11-10T10:00:00.000Z",
   partial: false,
   activeMs: s(591),
@@ -40,7 +40,7 @@ const none: Estimate = { totalMs: null, leftMs: null, aheadMs: null, last: null 
 function begin(o: Partial<Extract<LiveEvent, { t: "begin" }>> = {}): LiveEvent {
   return {
     t: "begin",
-    command: "rebuild",
+    command: "build",
     branch: "integration",
     upstream: { name: "upstream/main", tip: "170454d", newCommits: 7 },
     stages: ["fetch", "rebase", "merge", "verify"],
@@ -104,7 +104,7 @@ const plain = (text: string) => text.replace(/\x1b\[[0-9;]*m/g, "").replace(/\x1
 
 test("the running frame shows header, timeline, stages and footer", () => {
   const lines = frame(running(), { width: 100, nowMs: now, color: false, verbose: false });
-  expect(lines).toContain("debaser rebuild · integration · upstream/main @ 170454d (+7)");
+  expect(lines).toContain("debaser build · integration · upstream/main @ 170454d (+7)");
   expect(lines.some(l => l.startsWith(" now ") && l.endsWith("4:12 / ~9:30"))).toBe(true);
   expect(lines.some(l => l.startsWith(" last ") && l.includes("▲ 0:21 ahead · ~5m 18s left"))).toBe(true);
   expect(lines.some(l => l.startsWith(" ✓ fetch") && l.includes("7 upstream commits, 8 patches"))).toBe(true);
@@ -372,14 +372,14 @@ test("gradient and rgb color each grapheme and leave the text", () => {
 
 test("the header's title is the same gradient list and status use", () => {
   const lines = frame(running(), { width: 100, nowMs: now, color: true, verbose: false });
-  expect(lines.some(l => l.includes(`${term.title(true)}\x1b[1m rebuild`))).toBe(true);
+  expect(lines.some(l => l.includes(`${term.title(true)}\x1b[1m build`))).toBe(true);
   expect(term.title(true).startsWith("\x1b[38;2;125;207;255md")).toBe(true);
   expect(term.title(true)).toContain("\x1b[38;2;187;154;247mr\x1b[0m");
   expect(term.title(false)).toBe("debaser");
 });
 
 const many = [...patches, "extra-1", "extra-2", "extra-3", "extra-4"];
-/** A rebuild of 12 patches, merging the one at `at` with a harness call on its second try, a retry behind it. */
+/** A build of 12 patches, merging the one at `at` with a harness call on its second try, a retry behind it. */
 function crowded(at: number): LiveState {
   const id = many[at];
   return play([
@@ -412,7 +412,7 @@ test("a frame taller than its rows keeps header, timeline, footer and the runnin
       const lines = frame(crowded(at), { width: 100, nowMs: s(140), color: false, verbose, rows }),
         where = `${rows} rows, item ${at}`;
       expect([where, lines.length <= rows]).toEqual([where, true]);
-      expect(lines[0]).toStartWith("debaser rebuild");
+      expect(lines[0]).toStartWith("debaser build");
       expect(lines.some(l => l.startsWith(" now "))).toBe(true);
       expect(lines.some(l => l.startsWith(" last "))).toBe(true);
       expect(lines.some(l => l.trimStart().startsWith("fetch"))).toBe(true);
@@ -568,10 +568,10 @@ test("an outcome card lines up its labels and wraps under them", () => {
       headline: "a run is stopped or in progress",
       lines: ["  stopped: while verifying (typecheck)", "  report: /tmp/my builds/r", "  a line without a label"],
     },
-    { width: 60, color: false, command: "rebuild" },
+    { width: 60, color: false, command: "build" },
   );
   expect(lines).toEqual([
-    "✗ debaser rebuild: a run is stopped or in progress",
+    "✗ debaser build: a run is stopped or in progress",
     "   stopped  while verifying (typecheck)",
     "   report   /tmp/my builds/r",
     "   a line without a label",
@@ -646,9 +646,9 @@ test("a rebase that left branches undone ends amber, with what happened to each 
   // a rebase kind, even one that finished through `continue`.
   expect(problems(rebaseRun({ leftAlone: true }))).toBe(true);
   expect(problems({ ...rebaseRun({ leftAlone: true }), command: "continue" as const })).toBe(true);
-  const rebuild = { ...rebaseRun({ leftAlone: true }), command: "rebuild" as const, rebaseRun: false };
-  expect(problems(rebuild)).toBe(false);
-  expect(problems({ ...rebuild, ...rebaseRun({ failed: true }), command: "rebuild" as const, rebaseRun: false })).toBe(
+  const build = { ...rebaseRun({ leftAlone: true }), command: "build" as const, rebaseRun: false };
+  expect(problems(build)).toBe(false);
+  expect(problems({ ...build, ...rebaseRun({ failed: true }), command: "build" as const, rebaseRun: false })).toBe(
     true,
   );
 });

@@ -23,7 +23,7 @@ const s = 1000;
 let at = Date.parse("2026-11-01T10:00:00Z");
 function past(items: Record<string, number>, o: Partial<HistoryRun> = {}): HistoryRun {
   return {
-    command: "rebuild",
+    command: "build",
     finishedAt: new Date((at += 60 * s)).toISOString(),
     partial: false,
     activeMs: Object.values(items).reduce((a, b) => a + b, 0),
@@ -36,27 +36,27 @@ const history = (runs: HistoryRun[]): History => ({ version: 1, runs });
 const merges = [10, 20, 30, 40, 50, 60].map(n => past({ fetch: 5 * s, "merge:a": n * s }));
 
 test("estimate uses the median of the last 5 runs per item", () => {
-  const e = estimate(history(merges), "rebuild", ["fetch", "merge:a"], {}, 0);
+  const e = estimate(history(merges), "build", ["fetch", "merge:a"], {}, 0);
   expect(e.totalMs).toBe(5000 + 40000);
   expect(e.leftMs).toBe(45000);
 });
 
 test("an unseen item takes its stage's median", () => {
   const runs = [past({ "merge:a": 10 * s, "merge:b": 30 * s }), past({ "merge:a": 20 * s, "merge:c": 90 * s })],
-    e = estimate(history(runs), "rebuild", ["merge:a", "merge:new", "step:test"], {}, 0);
+    e = estimate(history(runs), "build", ["merge:a", "merge:new", "step:test"], {}, 0);
   // merge:a: median(10, 20) = 15; merge:new: median(10, 30, 20, 90) = 25; step: never seen, nothing.
   expect(e.totalMs).toBe(15 * s + 25 * s);
 });
 
 test("done items count as they took, and left is what remains of the total", () => {
-  const e = estimate(history(merges), "rebuild", ["fetch", "merge:a"], { fetch: 7 * s }, 9 * s);
+  const e = estimate(history(merges), "build", ["fetch", "merge:a"], { fetch: 7 * s }, 9 * s);
   expect(e.totalMs).toBe(7 * s + 40 * s);
   expect(e.leftMs).toBe(38 * s);
-  expect(estimate(history(merges), "rebuild", ["fetch"], { fetch: 7 * s }, 99 * s).leftMs).toBe(0);
+  expect(estimate(history(merges), "build", ["fetch"], { fetch: 7 * s }, 99 * s).leftMs).toBe(0);
 });
 
 test("no history means no estimate", () => {
-  expect(estimate(history([]), "rebuild", ["fetch", "merge:a"], { fetch: 1000 }, 1000)).toEqual({
+  expect(estimate(history([]), "build", ["fetch", "merge:a"], { fetch: 1000 }, 1000)).toEqual({
     totalMs: null,
     leftMs: null,
     aheadMs: null,
@@ -74,17 +74,17 @@ test("ahead compares with the last finished run of the same command", () => {
       past({ fetch: 1, "merge:a": 1 }, { partial: true }),
       past({ fetch: 2, "merge:a": 2 }, { command: "rebase" }),
     ],
-    e = estimate(history(runs), "rebuild", ["fetch", "merge:a", "merge:b"], { fetch: 4000, "merge:a": 18000 }, 22000);
+    e = estimate(history(runs), "build", ["fetch", "merge:a", "merge:b"], { fetch: 4000, "merge:a": 18000 }, 22000);
   expect(e.last).toEqual(last);
   expect(e.aheadMs).toBe(4000);
   // A done item the last run lacked doesn't count either way.
-  expect(estimate(history(runs), "rebuild", [], { fetch: 4000, "merge:new": 50000 }, 0).aheadMs).toBe(2000);
+  expect(estimate(history(runs), "build", [], { fetch: 4000, "merge:new": 50000 }, 0).aheadMs).toBe(2000);
 });
 
 test("rolled-back runs an older tool recorded are no history", () => {
-  const e = estimate(history([past({ fetch: 3 * s }, { partial: true })]), "rebuild", ["fetch"], {}, 0);
+  const e = estimate(history([past({ fetch: 3 * s }, { partial: true })]), "build", ["fetch"], {}, 0);
   expect(e).toEqual({ totalMs: null, leftMs: null, aheadMs: null, last: null });
-  expect(harnessMedian(history([past({}, { partial: true, harnessMs: [3 * s] })]), "rebuild")).toBeNull();
+  expect(harnessMedian(history([past({}, { partial: true, harnessMs: [3 * s] })]), "build")).toBeNull();
 });
 
 const min = 60 * s;
@@ -104,7 +104,7 @@ test("estimates leave out outliers, and the last run is the latest without one",
     slept = past({ fetch: 1 * min, "step:test": 120 * min }),
     e = estimate(
       history([usual, past({ fetch: 1 * min, "step:test": 5 * min }), slept]),
-      "rebuild",
+      "build",
       ["step:test"],
       {},
       0,
@@ -112,8 +112,8 @@ test("estimates leave out outliers, and the last run is the latest without one",
   expect(e.totalMs).toBe(4.5 * min);
   expect(e.last?.items["step:test"]).toBe(5 * min);
   // The stage median for an unseen item, and the harness median, likewise.
-  expect(estimate(history([usual, slept]), "rebuild", ["step:new"], {}, 0).totalMs).toBe(4 * min);
-  expect(harnessMedian(history([past({}, { harnessMs: [2 * min, 3 * min, 200 * min] })]), "rebuild")).toBe(2.5 * min);
+  expect(estimate(history([usual, slept]), "build", ["step:new"], {}, 0).totalMs).toBe(4 * min);
+  expect(harnessMedian(history([past({}, { harnessMs: [2 * min, 3 * min, 200 * min] })]), "build")).toBe(2.5 * min);
 });
 
 test("history keeps the last 20 runs and survives a corrupt file", () => {
@@ -137,7 +137,7 @@ test("malformed history entries are left out, the rest kept", () => {
     JSON.stringify({
       version: 1,
       runs: [
-        { command: "rebuild", finishedAt: "x", partial: false, activeMs: 1, harnessMs: [] },
+        { command: "build", finishedAt: "x", partial: false, activeMs: 1, harnessMs: [] },
         good,
         { ...good, items: { fetch: "slow" } },
         { ...good, command: "deploy" },
@@ -147,18 +147,25 @@ test("malformed history entries are left out, the rest kept", () => {
     }),
   );
   expect(loadHistory(dir).runs).toEqual([good]);
-  expect(estimate(loadHistory(dir), "rebuild", ["fetch"], {}, 0).totalMs).toBe(7);
+  expect(estimate(loadHistory(dir), "build", ["fetch"], {}, 0).totalMs).toBe(7);
+});
+
+test("runs recorded as rebuild, before the rename, count as builds", () => {
+  const dir = mkdtempSync(join(tmpdir(), "timings-"));
+  writeFileSync(historyPath(dir), JSON.stringify({ version: 1, runs: [{ ...past({ fetch: 7 }), command: "rebuild" }] }));
+  expect(loadHistory(dir).runs.map(r => r.command)).toEqual(["build"]);
+  expect(estimate(loadHistory(dir), "build", ["fetch"], {}, 0).totalMs).toBe(7);
 });
 
 test("the median harness call takes the last 5 calls of the command", () => {
-  expect(harnessMedian(history([]), "rebuild")).toBeNull();
+  expect(harnessMedian(history([]), "build")).toBeNull();
   const h = history([
     past({}, { harnessMs: [100 * s, 1 * s] }),
     past({}, { command: "rebase", harnessMs: [500 * s] }),
     past({}, { harnessMs: [2 * s, 3 * s, 4 * s] }),
     past({}, { harnessMs: [5 * s] }),
   ]);
-  expect(harnessMedian(h, "rebuild")).toBe(3 * s);
+  expect(harnessMedian(h, "build")).toBe(3 * s);
   expect(harnessMedian(h, "rebase")).toBe(500 * s);
 });
 

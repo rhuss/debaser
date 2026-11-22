@@ -23,7 +23,7 @@ export function fetchPatch(ctx: Context, patch: Patch, run: RunState): Planned {
   } catch (error) {
     // A pinned patch needs only its commit (FR-053): a source that is gone
     // (a deleted branch, an unreachable PR) doesn't stop it.
-    if (!patch.pin) throw new Explained((error as Error).message, ["  nothing was reset; fix the source or remove the patch, then rebuild"]);
+    if (!patch.pin) throw new Explained((error as Error).message, ["  nothing was reset; fix the source or remove the patch, then build"]);
     fetched = { commit: patch.pin, ref: patch.pin, notes: [`warning: ${(error as Error).message}; using the pinned commit`] };
   }
   for (const note of fetched.notes)
