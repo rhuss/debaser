@@ -19,6 +19,12 @@ name = "native"
 run = ["bun", "build.ts", "--native-only"]
 before = "test"
 
+# Some unit tests take longer than bun's default per-test timeout.
+[[steps]]
+name = "test"
+run = ["bun", "test", "{tests}", "--timeout", "60000"]
+parser = "bun-test"
+
 [[steps]]
 name = "build"
 run = ["bun", "build.ts", "--outfile", "{output}"]

@@ -92,6 +92,8 @@ test("the built-in project recipes resolve to the pilots' step orders", () => {
   expect(corgi.generic).toBe("bun-ts");
   expect(names(corgi)).toEqual(["install", "typecheck", "native", "test", "build"]);
   expect(corgi.steps.find(s => s.name === "typecheck")?.run).toEqual(["bun", "typecheck.ts"]);
+  // corgi's unit tests need a longer per-test timeout than bun's default.
+  expect(corgi.steps.find(s => s.name === "test")).toMatchObject({ run: ["bun", "test", "{tests}", "--timeout", "60000"], parser: "bun-test" });
   expect(corgi.artifact?.install).toBe("dist/corgi-custom");
   expect(corgi.afterBuild).toEqual(["./dist/corgi-custom", "reload"]);
   expect(corgi.projectName).toBe("corgi");
