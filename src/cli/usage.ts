@@ -7,7 +7,8 @@ commands:
                         or a local branch name
   remove <source> --reason <text>
                         retire a patch
-  list [--json]         show the live and retired patches
+  list [--verbose] [--json]
+                        show the patches; --verbose adds the retired ones
   rebuild [--verbose] [--push] [--rebase all|conflicting|off] [--in-worktree]
           [--trust-recipe] [--json]
                         rebase own branches, merge the patches onto upstream,

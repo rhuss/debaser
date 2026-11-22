@@ -75,7 +75,7 @@ function reader(accepts: (keyof Options)[], positionals: number): Verb["parse"] 
 export const verbs: Record<string, Verb> = {
   add: { parse: reader(["pin", "upstream", "description"], 2), run: add.run },
   remove: { parse: reader(["reason"], 1), run: remove.run },
-  list: { parse: reader(["retired", "json"], 0), run: list.run },
+  list: { parse: reader(["retired", "verbose", "json"], 0), run: list.run },
   rebuild: { parse: reader(["push", "rebase", "inWorktree", "trustRecipe", "verbose", "json"], 0), run: rebuild.run },
   rebase: { parse: reader(["push", "rebase", "inWorktree", "trustRecipe", "verbose", "json", "skipBranch"], 0), run: rebase.run },
   continue: { parse: reader(["skipBranch", "verbose", "trustRecipe"], 0), run: resume.run },

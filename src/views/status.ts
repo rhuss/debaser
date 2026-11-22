@@ -1,5 +1,6 @@
-/** Renders `status` as one table row per patch: how it merges onto upstream and
- * where its own branch stands, with conflicting files and hints below. */
+/** Renders `status` as one table row per patch: how it merges onto upstream,
+ * where its own branch stands, its PR and the last build's results, with
+ * conflicting files and hints below. */
 import { type Cell, link, paint as termPaint, type Tone, table, title, width as cells } from "../live/term";
 
 /** Where an own branch stands; null for patches that aren't own branches. */
@@ -28,8 +29,10 @@ export type Row = {
   behind?: number | null;
 };
 export type View = {
-  /** Set while a run is stopped. */
+  /** Set while a run is stopped or in progress. */
   run: { where: string; startedAt: string; report: string; next: string } | null;
+  /** The command holding the lock right now, when its process is alive. */
+  running?: { command: string; pid: number; startedAt: string } | null;
   /** The upstream ref's name and its tip; tip null when not fetched yet. */
   upstream: { name: string; tip: string | null };
   rows: Row[];
@@ -98,15 +101,18 @@ export function render(v: View, o: { color: boolean }): string[] {
     home = v.home ?? "",
     lines: string[] = [];
 
-  const state = v.run ? `stopped while ${v.run.where}` : "no run in progress",
+  // A live lock holder means the run is still going: no continue or rollback hint.
+  const running = v.running ?? null,
+    state = running
+      ? `running: ${running.command} (pid ${running.pid})${v.run ? ` while ${v.run.where}` : ""}`
+      : v.run
+        ? `stopped while ${v.run.where}`
+        : "no run in progress",
     upstream = v.upstream.tip ? `upstream ${v.upstream.name} @ ${v.upstream.tip.slice(0, 7)}` : null;
-  lines.push([title(o.color), paint(state, v.run ? "yellow" : null), ...(upstream ? [upstream] : [])].join(" · "));
-  if (v.run)
-    lines.push(
-      `  ${paint("started", "dim")}  ${v.run.startedAt}`,
-      `  ${paint("report ", "dim")}  ${shortPath(v.run.report, home)}`,
-      `  ${paint("next   ", "dim")}  ${v.run.next}`,
-    );
+  lines.push([title(o.color), paint(state, running ? "cyan" : v.run ? "yellow" : null), ...(upstream ? [upstream] : [])].join(" · "));
+  if (running || v.run) lines.push(`  ${paint("started", "dim")}  ${running?.startedAt ?? v.run!.startedAt}`);
+  if (v.run) lines.push(`  ${paint("report ", "dim")}  ${shortPath(v.run.report, home)}`);
+  if (v.run && !running) lines.push(`  ${paint("next   ", "dim")}  ${v.run.next}`);
   if (!v.upstream.tip) {
     lines.push("", `${v.upstream.name} not fetched yet; rebuild to check patches`);
     return lines;
@@ -115,18 +121,22 @@ export function render(v: View, o: { color: boolean }): string[] {
 
   if (v.sinceBuild !== undefined)
     lines.push(v.sinceBuild === null ? "no build yet" : `${v.sinceBuild} upstream commit${v.sinceBuild === 1 ? "" : "s"} since the last build`);
-  const rows = v.rows.map((r): Cell[] => [{ text: r.patch, url: r.url }, upstreamCell(r), ownCell(r.own, home)]);
-  lines.push("", ...table(["PATCH", "UPSTREAM", "OWN BRANCH"], rows, { color: o.color }));
-  // The pull requests and the last build's results, one row per patch.
-  const facts = v.rows.map((r): Cell[] => [
-    { text: r.patch, url: r.url },
-    { text: r.pr ? r.pr.toLowerCase() : "not a PR", tone: r.pr === "MERGED" ? "green" : r.pr === "CLOSED" ? "red" : r.pr ? null : "dim" },
-    { text: r.behind === null || r.behind === undefined ? "?" : String(r.behind), tone: "dim" },
-    { text: r.checks ?? "-", tone: r.checks === "pass" ? "green" : r.checks === "fail" ? "red" : "dim" },
-    { text: r.acceptance ?? "-", tone: r.acceptance === "pass" || r.acceptance === "fixed" ? "green" : r.acceptance === "fail" ? "red" : "dim" },
-    { text: r.pinned ? `pinned ${r.pinned.slice(0, 7)}` : "", tone: "dim" },
-  ]);
-  lines.push("", ...table(["PATCH", "PR", "BEHIND", "CHECKS", "ACCEPTANCE", ""], facts, { color: o.color }));
+  // One row per patch: how it merges, its own branch, its PR and the last build's results.
+  const pinned = v.rows.some(r => r.pinned),
+    rows = v.rows.map((r): Cell[] => [
+      { text: r.patch, url: r.url },
+      upstreamCell(r),
+      ownCell(r.own, home),
+      { text: r.pr ? r.pr.toLowerCase() : "not a PR", tone: r.pr === "MERGED" ? "green" : r.pr === "CLOSED" ? "red" : r.pr ? null : "dim" },
+      { text: r.behind === null || r.behind === undefined ? "?" : String(r.behind), tone: "dim" },
+      { text: r.checks ?? "-", tone: r.checks === "pass" ? "green" : r.checks === "fail" ? "red" : "dim" },
+      { text: r.acceptance ?? "-", tone: r.acceptance === "pass" || r.acceptance === "fixed" ? "green" : r.acceptance === "fail" ? "red" : "dim" },
+      ...(pinned ? [{ text: r.pinned ? `pinned ${r.pinned.slice(0, 7)}` : "", tone: "dim" as Tone }] : []),
+    ]);
+  lines.push(
+    "",
+    ...table(["PATCH", "UPSTREAM", "OWN BRANCH", "PR", "BEHIND", "CHECKS", "ACCEPTANCE", ...(pinned ? [""] : [])], rows, { color: o.color }),
+  );
 
   const conflicting = v.rows.filter(r => r.clean === false && r.files.length);
   if (conflicting.length) {

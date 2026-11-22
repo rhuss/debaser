@@ -67,3 +67,9 @@ export function release(dir: string, pid: number = process.pid): void {
 export function holder(dir: string): LockInfo | null {
   return readLock(paths.lock(dir));
 }
+
+/** The lock's holder when that process is still alive, else null (a stale lock). */
+export function liveHolder(dir: string): LockInfo | null {
+  const held = holder(dir);
+  return held && alive(held.pid) ? held : null;
+}

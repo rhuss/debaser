@@ -4,7 +4,7 @@ import type { PatchList } from "../core/patchlist";
 import { branchPath } from "../plugins/sources/github";
 import { display, link } from "../plugins/sources/parse";
 import type { Source } from "../plugins/sources/types";
-import { type Cell, type Tone, table, title as toolTitle } from "../live/term";
+import { type Cell, paint, type Tone, table, title as toolTitle } from "../live/term";
 
 /** Where a patch can be looked at: a PR's page, or a branch on GitHub. Own
  * branches link into the fork `origin` pushes to (`host/owner/repo`), when
@@ -20,7 +20,7 @@ const kindTone: Record<Source["kind"], Tone> = { pr: "cyan", branch: "blue", "fo
 
 export function render(
   config: Pick<PatchList, "patches" | "retired">,
-  o: { retired: boolean; upstream: string; fork: string | null; color: boolean; columns?: number },
+  o: { retired: boolean; verbose?: boolean; upstream: string; fork: string | null; color: boolean; columns?: number },
 ): string[] {
   const title = toolTitle(o.color),
     name = (s: Source): Cell => ({
@@ -60,15 +60,16 @@ export function render(
     ...retiredSection(config, o, name, dim),
   ];
 }
-/** The retired patches below the live ones, when there are any. */
+/** The retired patches below the live ones: listed with `--verbose`, else only counted. */
 function retiredSection(
   config: Pick<PatchList, "retired">,
-  o: { color: boolean; columns?: number },
+  o: { color: boolean; columns?: number; verbose?: boolean },
   name: (s: Source) => Cell,
   dim: (text: string) => Cell,
 ): string[] {
   if (!config.retired.length) return [];
   const n = config.retired.length;
+  if (!o.verbose) return ["", paint(`${n} retired patch${n === 1 ? "" : "es"}; list --verbose shows them`, "dim", o.color)];
   return [
     "",
     `${n} retired patch${n === 1 ? "" : "es"}`,

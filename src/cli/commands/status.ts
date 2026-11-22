@@ -1,3 +1,4 @@
+import * as lock from "../../core/lock";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Context } from "../../core/context";
@@ -52,6 +53,12 @@ function lastResult(ctx: Context): LastResult | null {
   return null;
 }
 
+/** The command running in this checkout right now, from a lock whose process is alive. */
+function liveRunning(ctx: Context): view.View["running"] {
+  const held = lock.liveHolder(ctx.dir);
+  return held ? { command: held.command, pid: held.pid, startedAt: held.startedAt } : null;
+}
+
 /** `debaser status` (FR-036, FR-037): read only, no lock, no fetch unless `--fetch`. */
 export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
   const list = listOf(ctx),
@@ -67,6 +74,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
     last = lastResult(ctx),
     v: view.View = {
       run: run ? { ...whereStopped(run), startedAt: run.startedAt, report: run.reportDir } : null,
+      running: liveRunning(ctx),
       upstream: { name, tip: upstream },
       rows: [],
       note: null,
@@ -122,6 +130,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
     lines: view.render(v, { color: !!io.color }),
     json: {
       run: v.run,
+      running: v.running ?? null,
       upstream: { name, tip: upstream, newCommitsSinceBuild: v.sinceBuild ?? null },
       patches: v.rows.map(r => ({
         display: r.patch,

@@ -65,9 +65,9 @@ test("status lists own branches behind, conflicting with or left alone by upstre
   git(w.clone, "fetch", "-q", "upstream");
   configureOwn(w, ["clean", "stale", "busy"]);
   const shown = await run(w, "status");
-  expect(shown.out).toMatch(/^clean +✓ clean +! behind upstream$/m);
-  expect(shown.out).toMatch(/^stale +✗ 1 conflict +✗ behind, conflicts$/m);
-  expect(shown.out).toMatch(/^busy +✓ clean +· in worktree \S*tree$/m);
+  expect(shown.out).toMatch(/^clean +✓ clean +! behind upstream +not a PR /m);
+  expect(shown.out).toMatch(/^stale +✗ 1 conflict +✗ behind, conflicts +not a PR /m);
+  expect(shown.out).toMatch(/^busy +✓ clean +· in worktree \S*tree +not a PR /m);
   expect(shown.out).toContain("Branches behind upstream: `rebase` updates them.");
   expect(shown.out).toContain("Branches in a worktree: `rebase --in-worktree` rebases them there.");
   expect(shown.out).not.toContain("\x1b[");
@@ -93,10 +93,16 @@ test("status shows PR states, pins, the last results and upstream drift as text 
   upstreamMoves(w, { "up3.txt": "3\n" });
   const text = await run(w, "status");
   expect(text.code).toBe(0);
+  // The live lock holder is shown as running, with no continue or rollback hint.
+  expect(text.out).toContain(`running: rebuild (pid ${process.ppid})`);
+  expect(text.out).not.toContain("continue");
   expect(text.out).toContain("2 upstream commits since the last build");
-  expect(text.out).toMatch(/^mine +not a PR +2 +pass +unverified +pinned [0-9a-f]{7}$/m);
-  expect(text.out).toMatch(/^acme\/widget#3 +open +2 +pass +pass/m);
-  expect(text.out).toMatch(/^acme\/widget#4 +closed/m);
+  // One table: merge state, own branch, PR and last results on one row per patch.
+  expect(text.out).toMatch(/^PATCH +UPSTREAM +OWN BRANCH +PR +BEHIND +CHECKS +ACCEPTANCE/m);
+  expect(text.out.match(/^PATCH /gm)).toHaveLength(1);
+  expect(text.out).toMatch(/^mine +✓ clean +.* not a PR +2 +pass +unverified +pinned [0-9a-f]{7}$/m);
+  expect(text.out).toMatch(/^acme\/widget#3 +✓ clean +.* open +2 +pass +pass/m);
+  expect(text.out).toMatch(/^acme\/widget#4 +.* closed/m);
   const json = await run(w, "status", "--json");
   const parsed = JSON.parse(json.out);
   expect(parsed.upstream.newCommitsSinceBuild).toBe(2);
@@ -122,5 +128,17 @@ test("status keeps the last rebuild's results after a rebase run", async () => {
   expect((await run(w, "rebase")).code).toBe(0);
   const text = await run(w, "status");
   expect(text.code).toBe(0);
-  expect(text.out).toMatch(/^mine +not a PR +\S+ +pass +pass/m);
+  expect(text.out).toMatch(/^mine +.* not a PR +\S+ +pass +pass/m);
+});
+
+test("a lock left by a process that is gone is not shown as a running command", async () => {
+  const w = world();
+  configure(w, ["#1"]);
+  pullRequest(w, "acme/widget", 1, { "one.txt": "1\n" });
+  expect((await run(w, "rebuild")).code).toBe(0);
+  writeFileSync(join(dirOf(w), "lock"), JSON.stringify({ pid: 2 ** 22 + 12345, command: "rebuild", startedAt: "x" }));
+  const shown = await run(w, "status");
+  expect(shown.out).toContain("no run in progress");
+  expect(shown.out).not.toContain("running:");
+  expect(JSON.parse((await run(w, "status", "--json")).out).running).toBeNull();
 });

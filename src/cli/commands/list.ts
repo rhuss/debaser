@@ -14,7 +14,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
     fork = io.color && git.hasRemote(ctx.repo, "origin") ? remoteTarget(ctx.repo, "origin", "push") : null;
   return {
     code: 0,
-    lines: render(list, { retired: o.retired, upstream: `${upstreamRemote(ctx)}/${list.upstream.branch}`, fork, color: !!io.color, columns: io.columns }),
+    lines: render(list, { retired: o.retired, verbose: o.verbose, upstream: `${upstreamRemote(ctx)}/${list.upstream.branch}`, fork, color: !!io.color, columns: io.columns }),
     json: {
       upstream: list.upstream,
       branch: list.branch,

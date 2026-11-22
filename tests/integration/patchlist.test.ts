@@ -65,10 +65,10 @@ test("add creates an ignored config, dates entries, refuses duplicates and takes
       "2  my-branch           2026-11-04  My change (unverified)\n" +
       "3  other/widget:topic  2026-11-04  Topic (unverified)\n" +
       "\n" +
-      "1 retired patch\n" +
-      "\n" +
-      "PATCH               RETIRED     REASON\n" +
-      "other/widget:named  2026-11-04  x\n",
+      "1 retired patch; list --verbose shows them\n",
+  );
+  expect((await run(w, "list", "--verbose")).out).toEndWith(
+    "\n" + "1 retired patch\n" + "\n" + "PATCH               RETIRED     REASON\n" + "other/widget:named  2026-11-04  x\n",
   );
 });
 
@@ -85,7 +85,8 @@ test("remove retires a patch with its reason, which it needs off a terminal", as
   expect(saved.retired).toHaveLength(1);
   expect(saved.retired[0]).toMatchObject({ reason: "merged upstream", description: "about my-branch" });
   expect(saved.retired[0].retired).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  const listed = (await run(w, "list")).out;
+  expect((await run(w, "list")).out).toContain("1 retired patch; list --verbose shows them");
+  const listed = (await run(w, "list", "--verbose")).out;
   expect(listed).toContain("acme/widget#5");
   expect(listed).toContain("1 retired patch\n");
   expect(listed).toMatch(/^my-branch  \d{4}-\d{2}-\d{2}  merged upstream$/m);
