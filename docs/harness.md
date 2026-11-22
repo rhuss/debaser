@@ -11,7 +11,7 @@ The harness lives in the `harness` section of `patches.json`:
 
 ```json
 "harness": {
-  "command": ["claude", "-p", "--allowedTools", "Read,Edit,Bash(bun test:*)", "@{prompt_file}"],
+  "command": ["claude", "-p", "Follow the instructions in {prompt_file}", "--allowedTools", "Read,Edit,Bash(bun test:*)"],
   "kind": "claude",
   "timeoutSeconds": 900,
   "attempts": 3,
@@ -52,10 +52,13 @@ debaser adds streaming flags only. Grant each agent what it needs and no more.
 ### claude
 
 ```json
-{ "command": ["claude", "-p", "--allowedTools", "Read,Edit,Grep,Glob,Bash(bun test:*),Bash(bunx tsc:*)", "@{prompt_file}"], "kind": "claude" }
+{ "command": ["claude", "-p", "Follow the instructions in {prompt_file}", "--allowedTools", "Read,Edit,Grep,Glob,Bash(bun test:*),Bash(bunx tsc:*)"], "kind": "claude" }
 ```
 
-debaser adds `--output-format stream-json --verbose`.
+debaser adds `--output-format stream-json --verbose`. Put the prompt before
+`--allowedTools`: that option takes several values, so a prompt after it is read
+as one more tool name and claude gets no prompt ("Input must be provided either
+through stdin or as a prompt argument").
 
 ### codex
 
