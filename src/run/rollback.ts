@@ -25,7 +25,7 @@ async function restoreDependencies(ctx: Context, log: string) {
   }
   ctx.progress("restoring dependencies after rollback");
   ctx.task?.("install", "running", "restoring dependencies");
-  const ok = await runStep(expand(step.run, stepVars(ctx, ctx.repo)), { cwd: ctx.repo, log, env: ctx.env, echo: ctx.echo, timeout: step.timeout });
+  const ok = await runStep(expand(step.run, stepVars(ctx, ctx.repo), step.tests), { cwd: ctx.repo, log, env: ctx.env, echo: ctx.echo, timeout: step.timeout });
   if (!ok) {
     ctx.task?.("install", "failed", `failed; see ${log}`);
     throw new Explained(`dependency restore failed after rollback; see ${log}`, ["  fix it, then run `debaser continue` to finish the rollback"]);

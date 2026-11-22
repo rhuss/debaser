@@ -1,7 +1,8 @@
 export const promptNames = ["conflict", "check", "acceptance", "rebase_conflict", "rebase_check", "handoff"] as const;
 export type PromptName = (typeof promptNames)[number];
 
-export type Step = { name: string; run: string[]; parser?: string; timeout?: number; before?: string; after?: string };
+/** `tests`: what `{tests}` stands for on a full run (all tests when absent). */
+export type Step = { name: string; run: string[]; parser?: string; timeout?: number; before?: string; after?: string; tests?: string[] };
 /** One layer's recipe as written (data-model.md "Recipe"). */
 export type RecipeFile = {
   name?: string;

@@ -37,7 +37,7 @@ export async function runIsolated(ctx: Context, run: RunState, name: string, bas
     const env = stepEnv(ctx, run, path),
       once = (s: string) => {
         const step = recipe.steps.find(x => x.name === s)!;
-        return runStep(expand(step.run, stepVars(ctx, path)), {
+        return runStep(expand(step.run, stepVars(ctx, path), step.tests), {
           cwd: path,
           log: join(logDir, `${name}-${s}.log`),
           env,

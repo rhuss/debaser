@@ -19,11 +19,13 @@ name = "native"
 run = ["bun", "build.ts", "--native-only"]
 before = "test"
 
-# Some unit tests take longer than bun's default per-test timeout.
+# The unit tests (src/), not the end-to-end tests in tests/, which need a
+# built test binary. Some take longer than bun's default per-test timeout.
 [[steps]]
 name = "test"
 run = ["bun", "test", "{tests}", "--timeout", "60000"]
 parser = "bun-test"
+tests = ["src"]
 
 [[steps]]
 name = "build"

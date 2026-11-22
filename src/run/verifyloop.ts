@@ -16,7 +16,7 @@ import { sendEstimate, stepLinks } from "./live";
 import { stop, type StepFailure } from "./stop";
 
 /** The commands a step runs in the checkout, with the tests to rerun when narrowed. */
-export const stepCommand = (ctx: Context, step: Step, tests?: string[]) => expand(step.run, stepVars(ctx, ctx.repo, tests));
+export const stepCommand = (ctx: Context, step: Step, tests?: string[]) => expand(step.run, stepVars(ctx, ctx.repo, tests), step.tests);
 export const stepLog = (run: RunState, step: string) => join(run.reportDir, "steps", `${step}.log`);
 
 /** Runs the recipe's steps in order on the merged tree (FR-008, FR-012): a

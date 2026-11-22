@@ -2,7 +2,7 @@ import { Explained } from "../core/errors";
 import { promptNames, type RecipeFile, type Step } from "./types";
 import { names as parserNames } from "../plugins/parsers/registry";
 
-const stepKeys = ["name", "run", "parser", "timeout", "before", "after"];
+const stepKeys = ["name", "run", "parser", "timeout", "before", "after", "tests"];
 const topKeys = ["name", "recipe", "extends", "detect", "install", "artifact", "steps", "steps_replace", "after_build", "prompts", "project_name", "leftovers"];
 const strings = (v: unknown): v is string[] => Array.isArray(v) && v.every(x => typeof x === "string");
 const isTable = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -78,6 +78,7 @@ export function validateRecipe(raw: unknown, file: string): RecipeFile {
       }
       if (s.before !== undefined) step.before = str(s.before, `${where}.before`);
       if (s.after !== undefined) step.after = str(s.after, `${where}.after`);
+      if (s.tests !== undefined) step.tests = command(s.tests, `${where}.tests`);
       return step;
     });
     const seen = new Set<string>();

@@ -95,7 +95,7 @@ The total fix bound is `attempts × (steps + acceptance checks)` (FR-021).
 | `detect` | `string[]` | Generic recipes only: files whose presence selects the recipe. |
 | `[install]` | `{step, triggers: string[], marker?: string}` | `step` names a step; it runs when a trigger changed since the run's start head or `marker` is missing. |
 | `[artifact]` | `{output?: string, install?: string}` | Build output path (relative to the tree) and installed copy path (relative to the checkout). |
-| `[[steps]]` | `{name, run: string[], parser?, timeout?, before?, after?}` | Merged by `name`. |
+| `[[steps]]` | `{name, run: string[], parser?, timeout?, before?, after?, tests?: string[]}` | Merged by `name`. `tests` is what `{tests}` stands for on a full run (all tests when absent). |
 | `steps_replace` | bool | Replaces the inherited step list. |
 | `after_build` | string[]? | Runs after a fully successful run (FR-010). |
 | `[prompts]` | `{conflict?, check?, acceptance?, rebase_conflict?, rebase_check?, handoff?}` | Paths (project-repo and local layers) or inline text replacing the shipped templates. |

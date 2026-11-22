@@ -23,6 +23,14 @@ test("placeholders fill the output, the root and the tests to rerun", () => {
   ]);
 });
 
+test("a step's full-run scope fills {tests} on a full run, and a narrowed rerun replaces it", () => {
+  const vars = { output: "/t/out/build", root: "/t" };
+  const run = ["bun", "test", "{tests}", "--timeout", "60000"];
+  expect(expand(run, vars, ["src"])).toEqual(["bun", "test", "src", "--timeout", "60000"]);
+  expect(expand(run, { ...vars, tests: ["src/a.test.ts"] }, ["src"])).toEqual(["bun", "test", "src/a.test.ts", "--timeout", "60000"]);
+  expect(expand(["sh", "-c", "bun test {tests}"], vars, ["src", "lib"])).toEqual(["sh", "-c", "bun test src lib"]);
+});
+
 test("install runs when nothing is installed yet, even with unchanged manifests", () => {
   const tree = mkdtempSync(join(tmpdir(), "debaser-install-")),
     git = (...args: string[]) => Bun.spawnSync(["git", ...args], { cwd: tree });

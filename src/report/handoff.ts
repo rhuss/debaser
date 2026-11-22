@@ -71,7 +71,7 @@ function base(ctx: Context, run: RunState, shown: string, upstream: string) {
 }
 const commandOf = (ctx: Context, step: string) => {
   const s = recipeOf(ctx).steps.find(x => x.name === step);
-  return s ? expand(s.run, stepVars(ctx, ctx.repo)).join(" ") : step;
+  return s ? expand(s.run, stepVars(ctx, ctx.repo), s.tests).join(" ") : step;
 };
 const excerpt = (log: string | undefined, n = 40) => (log && existsSync(log) ? readFileSync(log, "utf8").trimEnd().split("\n").slice(-n) : []);
 

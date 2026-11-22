@@ -62,6 +62,14 @@ test("steps merge by name, before and after place new ones, and steps_replace dr
   );
 });
 
+test("a step's tests scope must be a non-empty list of strings", () => {
+  const base = { id: "generic:x", recipe: parseRecipe('[[steps]]\nname = "t"\nrun = ["t"]\n', "x") };
+  const top = (text: string) => ({ id: "local", recipe: parseRecipe(text, "recipe.toml") });
+  expect(mergeLayers([base, top('[[steps]]\nname = "t"\nrun = ["t", "{tests}"]\ntests = ["src"]\n')]).steps[0].tests).toEqual(["src"]);
+  expect(() => top('[[steps]]\nname = "t"\nrun = ["t"]\ntests = "src"\n')).toThrow("tests");
+  expect(() => top('[[steps]]\nname = "t"\nrun = ["t"]\ntests = []\n')).toThrow("tests");
+});
+
 test("a higher layer's scalar and table values override the lower ones, and provenance names each layer", () => {
   const r = resolve({
     checkout: project({ "Cargo.toml": "" }),
@@ -93,7 +101,12 @@ test("the built-in project recipes resolve to the pilots' step orders", () => {
   expect(names(corgi)).toEqual(["install", "typecheck", "native", "test", "build"]);
   expect(corgi.steps.find(s => s.name === "typecheck")?.run).toEqual(["bun", "typecheck.ts"]);
   // corgi's unit tests need a longer per-test timeout than bun's default.
-  expect(corgi.steps.find(s => s.name === "test")).toMatchObject({ run: ["bun", "test", "{tests}", "--timeout", "60000"], parser: "bun-test" });
+  // Only the unit tests in src/ on a full run: the end-to-end tests in tests/ need a built test binary.
+  expect(corgi.steps.find(s => s.name === "test")).toMatchObject({
+    run: ["bun", "test", "{tests}", "--timeout", "60000"],
+    parser: "bun-test",
+    tests: ["src"],
+  });
   expect(corgi.artifact?.install).toBe("dist/corgi-custom");
   expect(corgi.afterBuild).toEqual(["./dist/corgi-custom", "reload"]);
   expect(corgi.projectName).toBe("corgi");

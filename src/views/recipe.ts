@@ -11,7 +11,7 @@ export function render(r: EffectiveRecipe, o: { color: boolean; note?: string | 
       ["STEP", "COMMAND", "PARSER", "LAYER"],
       r.steps.map(s => [
         { text: s.name },
-        { text: `${s.run.join(" ")}${s.timeout ? ` (timeout ${s.timeout}s)` : ""}` },
+        { text: `${s.run.join(" ")}${s.tests ? ` ({tests} = ${s.tests.join(" ")})` : ""}${s.timeout ? ` (timeout ${s.timeout}s)` : ""}` },
         { text: s.parser ?? "-", tone: "dim" as const },
         { text: from(`steps.${s.name}`), tone: "dim" as const },
       ]),

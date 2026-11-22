@@ -5,10 +5,11 @@ export type Vars = { output: string; root: string; tests?: string[] };
 export const word = (text: string) => (/^[\w./@+:=,-]+$/.test(text) ? text : `'${text.replaceAll("'", "'\\''")}'`);
 
 /** A command with `{output}`, `{root}` and `{tests}` filled. `{tests}` as a
- * whole argument becomes one argument per file, and nothing on a full run;
- * inside a longer argument it becomes shell words. */
-export function expand(run: string[], vars: Vars): string[] {
-  const tests = vars.tests ?? [];
+ * whole argument becomes one argument per file, and on a full run the step's
+ * `fullRun` scope (nothing, so all tests, when the step names none); inside a
+ * longer argument it becomes shell words. */
+export function expand(run: string[], vars: Vars, fullRun: string[] = []): string[] {
+  const tests = vars.tests ?? fullRun;
   return run.flatMap(arg =>
     arg === "{tests}"
       ? tests

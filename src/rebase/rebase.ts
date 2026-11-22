@@ -585,7 +585,7 @@ async function finish(e: Env, t: RebaseTarget, tree: string, how: How): Promise<
     e.progress(`running ${step} on ${t.branch} rebased`);
     const log = join(logs, `${slug(t.branch)}-${step}.log`),
       keep = join(logs, `${slug(t.branch)}-${step}-flaky.log`),
-      tried = await runWithRetry(expand(check.run, vars()), {
+      tried = await runWithRetry(expand(check.run, vars(), check.tests), {
         cwd: tree,
         log,
         env,
@@ -594,7 +594,7 @@ async function finish(e: Env, t: RebaseTarget, tree: string, how: How): Promise<
         keep,
         again: failed => {
           const narrowed = parser.parse(failed, tree).narrowedArgs;
-          return narrowed?.length && check.run.includes("{tests}") ? expand(check.run, vars(narrowed)) : null;
+          return narrowed?.length && check.run.includes("{tests}") ? expand(check.run, vars(narrowed), check.tests) : null;
         },
         onRetry: () => {
           e.progress(`${step} failed on ${t.branch}; running what failed once more in case it is flaky`);
@@ -615,7 +615,7 @@ async function finish(e: Env, t: RebaseTarget, tree: string, how: How): Promise<
     let fixed: string | null = null;
     while (e.harness && !down && !fixed && tries < limit && !dirty) {
       tries++;
-      const r = await fixBranch(e, t, tree, { step, command: expand(check.run, vars()).join(" "), log, failing, attempt: tries, limit });
+      const r = await fixBranch(e, t, tree, { step, command: expand(check.run, vars(), check.tests).join(" "), log, failing, attempt: tries, limit });
       if (r.ok) fixed = r.commit;
       else if (r.broken) down = r.reason;
     }

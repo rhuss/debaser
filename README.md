@@ -81,7 +81,8 @@ effective recipe with the layer of every value.
 Steps get `DEBASER_PATCHES`, `DEBASER_FORK_URL`, `DEBASER_COMMIT` and
 `DEBASER_MANIFEST` (a JSON manifest with the same data), so a project can stamp
 its build. Placeholders in step commands: `{output}` (the build output path),
-`{root}` (the tree) and `{tests}` (the failing test files on a flaky rerun).
+`{root}` (the tree) and `{tests}` (the failing test files on a flaky rerun; on a
+full run, the step's `tests` list, or nothing when it has none).
 
 ## Acceptance checks
 
