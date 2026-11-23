@@ -98,3 +98,9 @@ rules:
       - '--rebase'
       - 'conflicting'
       - '--skip-branch'
+  - glob: content/modules/ROOT/pages/user/headless.adoc
+    require:
+      - '--json'
+      - '--trust-recipe'
+      - '--push'
+      - 'result\.json'

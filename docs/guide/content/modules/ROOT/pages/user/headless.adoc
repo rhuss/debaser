@@ -1,0 +1,320 @@
+= Running headless
+
+// Sources:
+// debaser:src/cli/main.ts:34-35
+// debaser:src/cli/main.ts:61-88
+// debaser:src/cli/main.ts:92-98
+// debaser:src/cli/main.ts:110-130
+// debaser:src/git/git.ts:16-25
+// debaser:src/cli/commands/index.ts:75-84
+// debaser:src/cli/commands/index.ts:101-144
+// debaser:src/cli/commands/index.ts:145-161
+// debaser:src/cli/commands/index.ts:162-182
+// debaser:src/cli/commands/build.ts:8-12
+// debaser:src/cli/commands/rebase.ts:10-17
+// debaser:src/cli/commands/remove.ts:19-21
+// debaser:src/cli/commands/trust.ts:12-28
+// debaser:src/cli/usage.ts:8,12-17,40-43
+// debaser:src/recipes/trust.ts:12
+// debaser:src/recipes/trust.ts:63-67
+// debaser:src/recipes/trust.ts:69-107
+// debaser:src/run/common.ts:22-24
+// debaser:src/run/common.ts:47-54
+// debaser:src/run/common.ts:87-95
+// debaser:src/run/resume.ts:29-44
+// debaser:src/cli/commands/continue.ts:8-12
+// debaser:src/run/build.ts:31-46
+// debaser:src/run/preflight.ts:8-21
+// debaser:src/run/build.ts:50-57
+// debaser:src/run/build.ts:86
+// debaser:src/run/build.ts:95-112
+// debaser:src/run/rebase-phase.ts:104-124
+// debaser:src/run/rebase-phase.ts:130-174
+// debaser:src/run/rebase-phase.ts:201-203
+// debaser:src/run/finish.ts:38-61
+// debaser:src/run/finish.ts:72-94
+// debaser:src/run/stop.ts:24-40
+// debaser:src/run/end.ts:10-18
+// debaser:src/run/where.ts:35-45
+// debaser:src/run/rollback.ts:161-164
+// debaser:src/core/runstate.ts:110-114,142
+// debaser:src/core/lock.ts:25-58
+// debaser:src/core/paths.ts:4-16
+// debaser:src/core/paths.ts:32,36-37
+// debaser:src/report/report.ts:64-70
+// debaser:src/report/report.ts:72-97
+// debaser:src/report/report.ts:99-137
+// debaser:src/report/report.ts:139-147,173
+// debaser:src/report/report.ts:226-273
+// debaser:src/report/report.ts:281-306
+
+A build that runs on a schedule or from a CI job keeps the patched tool current without you starting it by hand.
+Such a run has no terminal: nobody reads the live view, and nobody answers a question.
+debaser detects this and takes the headless path.
+It asks nothing, and flags on the command line give the answers a terminal would.
+With `--json`, it prints the run's result as JSON on stdout, so a script can read the outcome.
+
+The sections below cover the flags, the JSON result, the exit codes, the reports, and the lock that a scheduled job depends on.
+
+== What changes without a terminal
+
+debaser checks two things when it starts.
+
+* It asks questions only when its standard input is a terminal.
+* It shows the live view for `debaser build`, `debaser rebase`, and `debaser continue` only when standard output is a terminal and the command has no `--json`.
+The variable `NO_COLOR`, or `TERM` set to `dumb`, turns the live view off as well.
+
+Without the live view, debaser prints plain output.
+Progress lines that start with `debaser:` and the output of the recipe's steps go to stderr.
+The summary at the end goes to stdout, or to stderr with `--json`.
+
+`--json` turns off the live view, not the questions.
+A `--json` run started on a terminal still asks, because its standard input is a terminal.
+
+=== Questions and the flags that replace them
+
+Three questions need an answer from you.
+Off a terminal, each one falls back to a fixed behavior, and a flag gives the answer up front.
+
+[cols="2,2,3,2",options="header"]
+|===
+|Question |Asked by |Without a terminal |Flag
+
+|Trust the project's committed recipe `.debaser/recipe.toml`, when it is not trusted yet or changed since you trusted it: `Trust it? [y/N]`
+|`debaser build`, `debaser rebase`
+|The run refuses with exit 1, before it writes a report: `the project's recipe .debaser/recipe.toml at <commit> is not trusted yet` (or `changed since you trusted it`), followed by `+review it, then run `debaser trust`, or pass --trust-recipe+`.
+|`--trust-recipe`
+
+|Push the rebased own branches: `Force-push <n> rebased branches to origin (<branches>)? [y/N]`
+|`debaser build`, `debaser rebase`, and `debaser continue` at the end of a run
+|Nothing is pushed.
+The summary holds a `push:` line with the push command for each branch, the push stays pending, and the run ends as it would otherwise.
+|`--push`
+
+|The reason for retiring a patch: `Why is <name> retired?`
+|`debaser remove`
+|The command refuses with exit 1: `removing <name> needs --reason`.
+|`--reason <text>`
+|===
+
+`debaser trust` has no flag in place of its question.
+Without a terminal, it refuses with `trusting a recipe needs a terminal to confirm on`, followed by `or pass --trust-recipe to build`.
+
+=== Trust the project's recipe
+
+The project's own recipe runs commands on your machine, so debaser uses it only once you trust it.
+Trust is recorded per upstream repository, together with a fingerprint of the recipe.
+A recipe whose fingerprint matches the recorded one runs without a question and without a flag.
+
+`--trust-recipe` trusts the recipe at the fetched upstream commit and records it, as a yes on the terminal would.
+The run prints `trusting .debaser/recipe.toml at <commit> (--trust-recipe)` as a progress line.
+`debaser build`, `debaser rebase`, and `debaser continue` accept the flag; `debaser continue` loads the recipe again when it resumes a build.
+
+You have two ways to set up a scheduled job:
+
+* Trust the recipe once on a terminal with `debaser trust`, and leave `--trust-recipe` out of the job.
+When the recipe later changes upstream, the scheduled run refuses with exit 1 until you trust the new version.
+* Pass `--trust-recipe` in the job.
+The run then also takes a recipe that changed since you trusted it, without showing it to you first.
+
+[CAUTION]
+====
+With `--trust-recipe` in a scheduled job, a change to the project's recipe upstream runs on your machine at the next scheduled build, and nobody reviews it first.
+====
+
+xref:user/first-build.adoc[Your first build] shows the question on a terminal.
+
+=== Push without a question
+
+`--push` answers the push question with yes for the rebased own branches.
+`debaser build --push` also pushes the integration branch to `origin`, with a force push guarded by a lease.
+Without `--push`, debaser does not push the integration branch, on a terminal or off it.
+
+`debaser build --push` refuses to start when `origin` is missing or pushes to upstream itself: `--push needs an origin remote of your own, apart from upstream; nothing was changed`.
+A run keeps its `--push` setting while it is stopped, so `debaser continue` pushes at the end of a run started with `--push`.
+
+xref:user/own-branches.adoc#push[Push rebased branches] explains the lease and what happens to a branch whose push is refused.
+
+== Run a build from a script
+
+A script runs debaser the same way a scheduler does: in your clone, with no terminal on standard input.
+These steps set up the clone once and then run a build as the job would, so you see its output before you schedule it.
+
+. In your clone, on a terminal, trust the project's recipe.
+Skip this step when you plan to pass `--trust-recipe` in the job.
++
+Check: debaser reports the recipe as trusted, or says the project has no recipe to trust.
++
+[source,bash]
+----
+debaser trust
+----
+// expect: matches /trusted|nothing to trust/
+
+. Run the build with its standard input taken from `/dev/null`, as a job without a terminal would.
+Add `--push` when the job should push to `origin`, and `--trust-recipe` when you skipped the first step.
++
+Check: stdout holds one JSON object with the keys `outcome` and `exitCode`; the progress and summary lines appear on stderr.
++
+[source,bash]
+----
+debaser build --json < /dev/null
+----
+// expect: contains "\"exitCode\""
+
+. Read the result of the newest run from the reports directory.
+This command assumes the default data directory; with `--dir` or `DEBASER_DIR`, use `<data directory>/reports/latest/result.json` instead.
++
+Check: the file is the same JSON object that the build printed.
++
+[source,bash]
+----
+cat "$(git rev-parse --git-common-dir)/debaser/reports/latest/result.json"
+----
+// expect: contains "\"version\": 1"
+
+[#json]
+== The JSON result
+
+`debaser build --json` and `debaser rebase --json` print the run's `result.json` on stdout, the same content the run writes to its report directory.
+debaser writes the summary lines to stderr, so stdout holds only the JSON.
+
+When debaser refuses to start or fails before the run writes its report, stdout stays empty.
+The error message goes to stderr, and the exit code is 1.
+An interrupted run prints no JSON either.
+
+`debaser status`, `debaser list`, and `debaser recipe` take `--json` as well and print their own objects.
+xref:user/status.adoc#json[Reading status] describes the object of `debaser status --json`, which a script can read before it starts a build.
+`debaser continue` has no `--json`; after it, read `result.json` in the reports directory, as <<reports>> describes.
+
+The `result.json` of a build or rebase run has these top-level keys:
+
+[cols="1,4",options="header"]
+|===
+|Key |Content
+
+|`version`
+|`1`
+
+|`command`
+|`build` or `rebase`
+
+|`tree`
+|The build directory (build runs only)
+
+|`outcome`
+|`success` for exit 0, `failed` for exit 1, `stopped` for every other code
+
+|`exitCode`
+|The run's exit code, including a failed push
+
+|`upstream`
+|`ref` and `tip` of the fetched upstream branch, and `newCommits`, the number of upstream commits (merges not counted) between the integration branch at the start of the run and the fetched tip
+
+|`patches`
+|One entry per patch, retired patches included; `state` is `merged`, `not-merged`, `skipped-merged`, `skipped-contained`, or `retired`
+
+|`steps`
+|One entry per recipe step with `name`, `result`, and `log` (empty in a rebase run)
+
+|`harness`
+|`calls`, the number of harness calls, and `tokens` with `input` and `output`, or `null` when no call reported its token use
+
+|`artifact`
+|`installed` and `previous` paths, present when a build finished
+
+|`report`
+|The path of the run's `report.md`
+|===
+
+xref:reference/files-and-codes.adoc[Files, exit codes, and environment] lists the fields of each patch entry.
+
+== Branch on the exit code
+
+The exit code says how the run ended, and it decides what the JSON on stdout holds.
+xref:user/stops.adoc[When a build stops] explains each stop code and what to do about it.
+
+[cols="1,3,3",options="header"]
+|===
+|Exit code |Meaning |stdout with `--json`
+
+|0
+|The run finished.
+|The result, with `"outcome": "success"`
+
+|1
+|debaser refused to start, failed before the run wrote its report, or a push at the end of a finished run failed or was refused.
+|The result with `"outcome": "failed"` after a failed or refused push; otherwise nothing
+
+|2 to 6
+|The run stopped.
+It keeps its state for `debaser continue` or `debaser rollback`.
+|The result, with `"outcome": "stopped"`
+
+|129, 130, 143
+|The run was interrupted by SIGHUP, SIGINT, or SIGTERM.
+It keeps its state as well.
+|Nothing
+|===
+
+A failed push of the integration branch comes after the install, so the build stays in place.
+The summary line reads `push to origin failed: <reason>`.
+`report.md` gives the result line `Result: stopped (exit 1): the push of <branch> to origin failed`, while `result.json` has `"outcome": "failed"`.
+
+A script that runs the build and reports how it ended could look like this:
+
+[source,bash]
+----
+#!/bin/sh
+cd <clone> || exit 1
+debaser build --json --push < /dev/null > <result file> 2> <log file>
+code=$?
+case $code in
+  0) ;;
+  1) echo "debaser refused or failed, see <log file>" >&2 ;;
+  129|130|143) echo "debaser was interrupted" >&2 ;;
+  *) echo "debaser stopped with exit $code, see <result file>" >&2 ;;
+esac
+exit $code
+----
+
+`<clone>` is your clone, `<result file>` the file that receives the JSON, and `<log file>` the file that receives the progress and summary lines.
+
+[#reports]
+== Reports and `latest`
+
+A build or rebase run creates its report directory after it has fetched upstream and loaded the recipe.
+The directory sits under `reports` in debaser's data directory and is named after the time in UTC, as `<YYYYMMDD>-<HHMMSS>`, with `-2` and up added when that name is taken.
+When the run finishes or stops, debaser writes `report.md` and `result.json` into it and points the symbolic link `reports/latest` at it.
+A run that you continue keeps its report directory and writes the files there again.
+
+A refusal before that point writes no report, so `reports/latest` still points at the previous run.
+An interrupted run does not move `latest` either.
+Read `latest` after exit 0, after exits 2 to 6, and after a failed or refused push, not after other exits 1 or an interruption.
+
+debaser keeps the ten newest run directories and deletes older ones each time it writes a report.
+A rollback without a stopped run writes its log into a `rollback-<YYYYMMDD>-<HHMMSS>` directory, and debaser keeps the ten newest of those as well.
+
+The data directory is `debaser` inside the clone's shared Git directory, unless `--dir` or `DEBASER_DIR` moves it.
+xref:user/patch-list.adoc#where[Where the patch list lives] explains both settings.
+
+== One run at a time
+
+debaser takes a lock in its data directory for the commands that change something: `add`, `remove`, `build`, `rebase`, `continue`, `rollback`, and `trust`.
+A second such command refuses with exit 1 while the first one runs:
+
+[source,text]
+----
+debaser: another debaser command is running in this checkout: <command> (pid <pid>, since <time>)
+  wait for it to finish, or end that process
+----
+
+A scheduled build that starts while you run a build by hand ends this way, and it writes no report.
+A lock left by a process that no longer runs is taken over by the next command.
+`debaser status` takes no lock, so a script can call it at any time; the `running` key of `debaser status --json` names the command that holds the lock.
+
+A stopped run blocks the next one, too.
+While a build or rebase run is stopped, `debaser build` and `debaser rebase` refuse with exit 1 and the message `+a run is stopped or in progress; resume it with `continue` or undo it with `rollback`+`.
+A scheduled build therefore keeps failing until someone continues or rolls back the stopped run.
+The `run` key of `debaser status --json` shows the stopped run, with its `next` commands.
+xref:user/stops.adoc#one-command-at-a-time[When a build stops] covers the lock and the refusal in plain output.
