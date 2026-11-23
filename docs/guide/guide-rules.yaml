@@ -121,3 +121,9 @@ rules:
       - '\{tests\}'
       - 'after_build'
       - 'DEBASER_PATCHES'
+  - glob: content/modules/ROOT/pages/recipe-author/acceptance-checks.adoc
+    require:
+      - 'DEBASER_ARTIFACT'
+      - '"match"'
+      - '"timeout"'
+      - 'PATCH CHECK'
