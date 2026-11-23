@@ -92,3 +92,9 @@ rules:
       - 'visuals/status\.svg'
       - '--fetch'
       - 'PATCH CHECK'
+  - glob: content/modules/ROOT/pages/user/own-branches.adoc
+    require:
+      - '--in-worktree'
+      - '--rebase'
+      - 'conflicting'
+      - '--skip-branch'

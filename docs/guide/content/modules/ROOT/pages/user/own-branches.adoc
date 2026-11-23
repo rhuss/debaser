@@ -1,0 +1,378 @@
+= Rebasing your own branches
+
+// Sources:
+// debaser:src/rebase/rebase.ts:50-62
+// debaser:src/rebase/rebase.ts:64-74
+// debaser:src/rebase/rebase.ts:76-89
+// debaser:src/rebase/rebase.ts:91-175
+// debaser:src/rebase/rebase.ts:177-253
+// debaser:src/rebase/rebase.ts:255-303
+// debaser:src/rebase/rebase.ts:305-317
+// debaser:src/rebase/rebase.ts:393-408
+// debaser:src/rebase/rebase.ts:410-525
+// debaser:src/rebase/rebase.ts:539-680
+// debaser:src/rebase/rebase.ts:684-756
+// debaser:src/rebase/rebase.ts:758-842
+// debaser:src/run/rebase-phase.ts:49-101
+// debaser:src/run/rebase-phase.ts:104-124
+// debaser:src/run/rebase-phase.ts:128-187
+// debaser:src/run/rebase-phase.ts:189-257
+// debaser:src/run/rebase-phase.ts:259-308
+// debaser:src/run/rebase-phase.ts:310-333
+// debaser:src/run/build.ts:88
+// debaser:src/run/build.ts:95-123
+// debaser:src/run/build.ts:126-157
+// debaser:src/run/mergeloop.ts:35-80
+// debaser:src/git/git.ts:5
+// debaser:src/git/git.ts:56-60
+// debaser:src/git/git.ts:149-153
+// debaser:src/git/rebase.ts:19-21
+// debaser:src/run/finish.ts:38
+// debaser:src/run/finish.ts:55-86
+// debaser:src/run/common.ts:87-95
+// debaser:src/run/fetch.ts:23-26
+// debaser:src/run/resume.ts:33-38
+// debaser:src/git/refs.ts:3-15
+// debaser:src/git/worktree.ts:29-36
+// debaser:src/git/git.ts:99-101
+// debaser:src/git/remotes.ts:48-50
+// debaser:src/plugins/sources/branch.ts:7-53
+// debaser:src/cli/commands/rebase.ts:10-17
+// debaser:src/cli/commands/index.ts:45-67
+// debaser:src/cli/commands/index.ts:79-81
+// debaser:src/cli/usage.ts:12-19
+// debaser:src/cli/main.ts:124-126
+// debaser:src/core/patchlist.ts:9-10
+// debaser:src/core/patchlist.ts:136-139
+// debaser:src/core/patchlist.ts:188
+// debaser:src/core/paths.ts:35
+// debaser:src/core/runstate.ts:78-95
+// debaser:src/harness/select.ts:7
+// debaser:src/harness/select.ts:13-22
+// debaser:src/report/handoff.ts:72-73
+// debaser:src/report/handoff.ts:84-125
+// debaser:src/views/status.ts:76-92
+
+Upstream keeps moving, and your own branches fall behind it.
+A branch that is behind can stop merging cleanly onto upstream, which `debaser status` shows as `✗ behind, conflicts`.
+debaser rebases your own branches onto the new upstream, checks each one on its own, and can push the result back to your fork.
+It merges other people's patches as fetched and never rewrites them.
+
+This page explains which patches debaser treats as yours, what the rebase does, and how to run it without a build.
+It uses the terms from xref:overview/concepts.adoc[Key concepts], above all own patch, `origin`, and pin.
+The harness is the configured integration that runs a coding agent, and the rebase uses it for conflicts and failing checks when you set one up.
+
+== Which patches count as yours
+
+An own patch is a patch whose branch debaser may rebase and push to `origin`.
+Three kinds of patch qualify:
+
+* An own branch (`branch`), a local branch of your clone.
+* A pull request whose head repository is the repository `origin` pushes to.
+debaser considers a pull request only when `origin` pushes to GitHub (the host in `GH_HOST`, default `github.com`) or to a local path.
+It asks the GitHub CLI (`gh`) for the pull request's head repository.
+Without an answer, the summary carries a note that starts with `gh could not tell whose branch`, and debaser does not rebase that pull request.
+* A branch of another repository (`fork-branch`), when that repository is the one `origin` pushes to.
+
+These patches are never rebased, even when they are yours:
+
+* A pinned patch, which debaser merges at its pinned commit.
+* A branch named like the integration branch (default `debaser`), its `-prev` branch, or the upstream branch, and a name Git does not accept as a branch.
+The summary reports such a patch as `the branch name "<branch>" can't be rebased`.
+
+When two patches name the same branch, for example a branch and the pull request opened from it, debaser rebases the branch once.
+The second patch is reported as `the same branch as <patch>, handled with it`, and the build merges the new tip for both.
+
+Rebasing needs a fork to push to.
+Without an `origin` remote, or when `origin` pushes to upstream itself, debaser rebases nothing and adds a note such as `rebasing is off: there is no origin remote to push rebased branches to`.
+
+== What the rebase phase of a build does
+
+`debaser build` rebases your own branches after it fetches upstream and the patches, and before it resets the integration branch.
+xref:overview/how-it-works.adoc[How a build works] shows where this phase sits among the others.
+
+For each own branch, debaser first picks the tip to start from.
+It reads the branch's copy on `origin`, then compares it with your local branch:
+
+* When the local branch is behind the copy on `origin`, or there is no local branch, the rebase starts from the copy on `origin`.
+* When the copy on `origin` is behind the local branch, or there is none, the rebase starts from the local branch.
+* When both have commits the other lacks, the branch has diverged, and debaser leaves it alone.
+
+A branch that needs a rebase then goes through these steps:
+
+. debaser adds a throwaway worktree for the branch in the `work` directory inside the data directory and runs `git rebase` there onto the fetched upstream commit.
+The build directory takes no part in this.
+. When a replayed commit conflicts, Git's recorded resolutions (rerere) are replayed first.
+With a harness configured, debaser then asks it to resolve the conflict, up to the harness's `attempts` (default 3) for each conflicting commit.
+An accepted resolution goes into the replayed commit itself, without a trailer.
+. debaser runs the recipe's steps on the rebased branch alone, in that worktree.
+A step that fails runs once more, in case it is flaky.
+. When a step still fails and a harness is configured, debaser asks it to fix the branch.
+An accepted fix becomes its own commit on the branch, with the subject `fix: pass <step> on upstream <commit>` and the trailer `Fixed-By: harness`, and all steps run again from the first.
+. When every step passes, debaser moves the branch to the rebased tip and keeps its old tip as `refs/debaser/rebase-backup/<branch>`.
+It removes the throwaway worktree.
+
+The build then merges the new tip of each rebased branch, also for every other patch that names the same branch.
+A branch that cannot be rebased keeps its old tip, and the report carries a handoff for it.
+The build goes on in any case.
+
+A rebase that leaves no commits on top of upstream changes nothing.
+The summary then reads `no commits left on top of upstream; remove the patch`.
+
+The build summary has a line for each own branch the rebase acted on:
+
+* `rebased <patch>: <old> to <new> (<how>)` for a rebased branch, where `<how>` is `clean`, `rerere`, `harness`, or `user`.
+While the backup exists, the line ends with `; undo: <command>`.
+When the harness fixed the branch's checks, the line names the fix commits and asks you to review them before pushing.
+* `<patch>: not rebased: <reason>` when the rebase failed, for example `rebase conflict at <commit> in <files>`.
+* `<patch>: skipped: <reason>` when debaser left the branch alone.
+
+When debaser fetches an own branch for the merge, it compares the local branch with the copy on `origin` in the same way.
+It merges the copy on `origin` when the local branch is behind it or missing, and the local branch otherwise.
+When the two have diverged, the build merges the local branch and warns.
+A branch with a local copy whose copy on `origin` cannot be fetched is merged from the local branch.
+A branch without a local copy stops the build with exit 1, before anything is reset, when its copy on `origin` cannot be fetched or does not exist.
+
+[#modes]
+=== Rebase modes
+
+The rebase mode decides which own branches the rebase touches.
+
+[cols="1,3",options="header"]
+|===
+|Mode |Effect
+
+|`all`
+|Every own branch that is behind upstream is rebased.
+This is the default.
+
+|`conflicting`
+|Only own branches that no longer merge cleanly onto upstream are rebased.
+A branch that is behind but merges cleanly stays as it is, reported as `behind upstream, but merges cleanly`.
+
+|`off`
+|Nothing is rebased.
+|===
+
+Set the mode for every run with the `rebase` key in the patch list, for example `"rebase": "conflicting"`.
+The `--rebase` option overrides it for one run, as in `debaser build --rebase off`.
+`debaser rebase` accepts only `--rebase all` and `--rebase conflicting`; `--rebase off` is a usage error there, because that command would then do nothing.
+
+== Rebase without a build
+
+`debaser rebase` rebases your own branches onto upstream and does nothing else.
+It fetches upstream, rebases the own branches as described above, and offers to push them.
+It does not reset or build the integration branch, and it does not use the build directory.
+It works from the checkout you start it in.
+Your own branches move onto the new upstream while the integration branch stays as the last build left it.
+
+`debaser rebase` refuses to start while a build or rebase run is stopped or in progress.
+It ends with exit 1 when the upstream remote is missing.
+
+. See which of your branches are behind upstream.
++
+Check: the OWN BRANCH column reads `! behind upstream` or `✗ behind, conflicts` for each branch a rebase would update.
++
+[source,bash]
+----
+debaser status --fetch
+----
+// expect: contains "OWN BRANCH"
++
+xref:user/status.adoc[Reading status] explains every value of the OWN BRANCH column.
+
+. Run the rebase.
++
+[source,bash]
+----
+debaser rebase
+----
++
+Add `--rebase conflicting` to rebase only the branches that conflict with upstream.
+On a terminal, debaser asks whether to push the rebased branches, as <<push>> describes.
+Answer `n` when you want to look at the branches first.
+
+. Look at a rebased branch before you push it.
++
+[source,bash]
+----
+git log --oneline <upstream remote>/<upstream branch>..<branch>
+----
++
+`<branch>` is your branch, and `<upstream remote>/<upstream branch>` is the upstream branch debaser fetched, `upstream/main` by default.
+A commit with the subject `fix: pass <step> on upstream <commit>` came from the harness and needs your review.
+
+. Check the result.
++
+Check: the OWN BRANCH column reads `! rebased, push pending` for a rebased branch you have not pushed yet, and `✓ up to date` once it is pushed.
++
+[source,bash]
+----
+debaser status
+----
+// expect: matches /rebased, push pending|up to date/
+
+[#push]
+== Push rebased branches
+
+A rebase rewrites the branch, so debaser pushes it to `origin` with a force push guarded by a lease.
+The lease is the tip of the branch on `origin` that debaser read before it rebased.
+When someone pushed to the branch on `origin` since then, Git refuses the push and the commits on `origin` stay.
+
+debaser pushes the rebased branches in either of two cases:
+
+* You pass `--push`.
+* On a terminal, you answer yes to the question `Force-push <n> rebased branches to origin (<branches>)? [y/N]` (`branch` for one).
+
+Without either, debaser pushes nothing and prints a `push:` line with the command for each branch:
+
+[source,bash]
+----
+git push --force-with-lease=refs/heads/<branch>:<lease> origin <new tip>:refs/heads/<branch>
+----
+
+Off a terminal there is no question, so only `--push` pushes.
+In a build, debaser asks after all steps and acceptance checks pass, before it installs the artifact.
+`debaser build --push` also pushes the integration branch to `origin`.
+
+A refused push ends the run with exit 1.
+The summary names the branch with `push of <branch> refused: <reason>`, followed by a `retry:` line with the push command.
+Git's output goes to `rebase/<branch>-push.log` in the run's report directory.
+
+A rebased branch that you did not push keeps its push pending.
+The next `debaser build` or `debaser rebase` offers it again, and a build merges its rebased tip.
+A successful push removes the backup ref of the branch.
+
+[#undo]
+=== Undo a rebase
+
+Until you push a rebased branch, its old tip stays in `refs/debaser/rebase-backup/<branch>`.
+The summary line of the branch ends with the undo command.
+
+. Put the branch back at its old tip.
++
+[source,bash]
+----
+git branch -f <branch> refs/debaser/rebase-backup/<branch>
+----
++
+When the rebase created the local branch from the copy on `origin`, the undo command is `git branch -D <branch>` instead.
+
+== Branches debaser leaves alone
+
+debaser leaves an own branch as it is in these cases and gives the reason in the run's report, and in `debaser status` for most of them:
+
+* The branch already sits on top of upstream.
+* The mode is `conflicting`, and the branch merges cleanly.
+* The branch is checked out in a worktree, for example your main checkout.
+The reason reads `+checked out in <path>; `rebase --in-worktree` rebases it there+` when the checkout holds the tip the rebase would start from.
+* The local branch and its copy on `origin` have diverged: `the local branch and origin/<branch> have diverged`.
+* There is no branch of that name, locally or on `origin`: `no branch <branch> here or on origin`.
+* debaser cannot read or fetch the branch on `origin`, for example `cannot read origin: <error>`.
+
+A branch that becomes checked out somewhere while its checks run is left alone too, reported as `checked out in <path>`.
+
+[#in-worktree]
+=== Rebase a branch in its own worktree
+
+A branch you are working on is checked out in a worktree, so a plain rebase skips it.
+With `--in-worktree`, debaser rebases such a branch right in the worktree that has it checked out, so the branch and your checkout move together.
+Both `debaser build` and `debaser rebase` take the option.
+
+The worktree must meet two conditions:
+
+* Its tracked files are committed.
+Otherwise debaser skips the branch with `uncommitted changes in <path>; commit or stash them first`.
+Untracked files do not count, and the rebase leaves them where they are.
+* It holds the tip the rebase would start from.
+When the copy on `origin` is ahead of your checkout, `debaser status` shows `(origin is ahead)` after the worktree, and debaser leaves the branch alone.
+
+The checks run in that worktree as well.
+When the rebase or a check fails, or the rebase leaves no commits, debaser puts the branch back at the tip it started from.
+The exception is a worktree in which you committed or changed tracked files while the checks ran.
+There the branch stays where it is, and the reason names the backup ref.
+While the worktree has such edits, debaser does not ask the harness to fix a failing check, so your edits are not touched.
+
+. Commit your work in the worktree that has the branch checked out.
+. Rebase the branch there.
++
+[source,bash]
+----
+debaser rebase --in-worktree
+----
+
+[#conflicts]
+== Conflicts inside a build and in a rebase run
+
+A conflict that neither rerere nor the harness resolves ends differently in the two commands.
+
+`debaser build` never stops for a rebase.
+The branch keeps its old tip, the throwaway worktree goes away, and the build merges the old tip as if no rebase had run.
+The summary shows `<patch>: not rebased: rebase conflict at <commit> in <files>`, and the report holds a handoff for the patch.
+When the old tip then conflicts during the merge, the build stops there, as xref:user/stops.adoc[When a build stops] describes.
+
+`debaser rebase` stops at the conflict instead and keeps the rebase in progress for you.
+It ends with exit 2 without a harness, and with exit 5 when a harness tried and gave up or failed to run.
+In plain output, the stop prints these lines:
+
+[source,text]
+----
+debaser stopped: rebase conflict in <branch> at <commit>
+  files: <files>
+  worktree: <path>
+  report: <report directory>/report.md
+  resolve the conflicts in the worktree and `git add` the files, then: debaser continue
+  skip this branch: debaser continue --skip-branch
+  end the rebase run: debaser rollback
+----
+
+With a harness, the first line reads `debaser stopped: the harness could not resolve the rebase conflict in <branch> at <commit>`, and a `problem:` line can follow it.
+The worktree is the throwaway worktree in the data directory, or the branch's own worktree with `--in-worktree`.
+You have three ways to go on.
+
+To finish the rebase yourself:
+
+. Resolve the conflicts in the files the stop lists, inside the worktree it names.
+. Stage the resolved files.
++
+[source,bash]
+----
+git -C <path> add <files>
+----
+. Continue the run.
++
+[source,bash]
+----
+debaser continue
+----
++
+debaser continues the rebase, runs the branch's checks, and goes on with the next branch.
+A replayed commit that ends up empty, because upstream already has its change, is dropped.
+A file still unmerged makes `debaser continue` stop again with exit 2.
+
+To give up this branch and go on with the next one:
+
+. Skip the branch.
++
+[source,bash]
+----
+debaser continue --skip-branch
+----
++
+debaser aborts the branch's rebase and removes the throwaway worktree; a branch rebased in its own worktree goes back to its old tip there.
+`debaser rebase --skip-branch` does the same.
+`--skip-branch` works only for a rebase run stopped at a branch.
+
+To end the whole rebase run:
+
+. Roll the run back.
++
+[source,bash]
+----
+debaser rollback
+----
++
+The branch the run stopped at goes back to its old tip.
+Branches the run rebased before the stop keep their new tips and their backups, and the output lists a push command for each of them.
+
+xref:user/stops.adoc[When a build stops] covers the exit codes of all stops.
