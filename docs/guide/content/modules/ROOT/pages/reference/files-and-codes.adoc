@@ -57,13 +57,15 @@
 // debaser:src/views/status.ts:49-56
 // debaser:src/cli/commands/index.ts:101-110
 // debaser:src/run/verifyloop.ts:78-93
+// debaser:src/run/harness-fix.ts:33-40
 
 This page lists the files debaser keeps, what a run's report holds, the Git refs debaser writes, the exit codes, and the environment variables debaser reads and sets.
 
 [#data-directory]
 == Data directory
 
-`--dir <path>` sets the data directory; without it, `DEBASER_DIR`; without both, `debaser` in the clone's shared Git directory (`<git-common-dir>/debaser`).
+The xref:overview/concepts.adoc[data directory] holds debaser's files for one clone.
+debaser uses the path `--dir <path>` gives, else the path in `DEBASER_DIR`, else `debaser` in the clone's shared Git directory (`<git-common-dir>/debaser`).
 A relative path counts from the current directory.
 xref:user/patch-list.adoc#where[Where the patch list lives] explains both settings.
 
@@ -103,6 +105,14 @@ A lock whose process no longer runs is taken over by the next command.
 |One directory per run and the link `latest`, see <<reports>>.
 |===
 
+[#names]
+=== Names in paths
+
+In file and directory names, `<branch>` and `<patch>` stand for the branch name or the patch's display name in lowercase.
+Every run of other characters than letters and digits is replaced by `-`, and a leading or trailing `-` is dropped.
+When nothing is left, the name is `patch`.
+The ref of a branch that the patch list names by Git URL holds the URL in the same form, see <<refs>>.
+
 [#work]
 === `work/`
 
@@ -112,28 +122,25 @@ A lock whose process no longer runs is taken over by the next command.
 
 |`artifact.start`
 |A copy of the installed artifact as the build found it.
-A finished build copies it to `<installed artifact>.prev` and deletes it.
+A finished build copies this file to `<installed artifact>.prev` and then deletes `artifact.start`.
 A rollback of a stopped run restores the installed artifact from it.
 
 |`isolated-upstream`
 |A throwaway worktree in which debaser runs a failing step on plain upstream, the fetched upstream commit without any patches merged.
+debaser removes it after use.
 
 |`isolated-attribute-<commit>`
 |A throwaway worktree in which debaser runs a failing step on upstream plus one patch, to find the patches a failure belongs to.
 `<commit>` is the first seven characters of the patch's merge commit.
+debaser removes it after use.
 
 |`rebase-<branch>`
 |A throwaway worktree for rebasing one of your own branches.
-At the start of a rebase phase, in a build or in `debaser rebase`, debaser removes `rebase-*` directories that an interrupted run left behind.
+At the start of a rebase phase (the part of a build or of `debaser rebase` that rebases your own branches onto upstream), debaser removes `rebase-*` directories that an interrupted run left behind.
 
 |`todo-editor.sh`
 |The script debaser gives Git as `GIT_SEQUENCE_EDITOR`, see <<set>>.
 |===
-
-debaser removes each `isolated-*` worktree after use.
-In file and directory names, `<branch>` and `<patch>` stand for the branch name or the patch's display name in lowercase.
-Every run of other characters than letters and digits is replaced by `-`, and a leading or trailing `-` is dropped.
-When nothing is left, the name is `patch`.
 
 [#reports]
 == Reports
@@ -149,11 +156,12 @@ When nothing is left, the name is `patch`.
 |A symbolic link to the run directory that debaser wrote a report into last.
 
 |`rollback-<YYYYMMDD>-<HHMMSS>`
-|A rollback without a stopped run that reset the integration branch to `<branch>-prev`, with the install step's log in `steps/install.log`.
+|The directory of a rollback that had no stopped run to undo and reset the integration branch to the previous build (`debaser-prev` by default).
+It holds the install step's log in `steps/install.log` when the recipe has an install step.
 |===
 
 Each time debaser writes a report, it keeps the ten newest run directories and the ten newest `rollback-*` directories and deletes older ones.
-Such a rollback prunes them as well.
+A rollback that writes a `rollback-*` directory prunes both kinds of directory in the same way.
 xref:user/headless.adoc#reports[Reports and `latest`] says which exits write a report.
 
 === Run directory
@@ -212,7 +220,10 @@ xref:user/headless.adoc#reports[Reports and `latest`] says which exits write a r
 === `report.md`
 
 The first line is `# debaser report, <start time>`, or `# debaser rebase report, <start time>` for a rebase run.
-The result line follows: `Result: built <installed artifact or branch> with <n> patches.` (or `Result: rebased own branches onto upstream <commit>.`), or `Result: stopped (exit <code>): <reason>`.
+The result line follows.
+After a build that exits 0, it reads `Result: built <installed artifact or branch> with <n> patches.`
+After a rebase run that exits 0, it reads `Result: rebased own branches onto upstream <commit>.`
+After any other exit, it reads `Result: stopped (exit <code>): <reason>`.
 A section without entries shows `none`; `Rebased branches` shows `no own branch needed a rebase` instead.
 
 [cols="2,4,1,1",options="header"]
@@ -299,7 +310,7 @@ A section without entries shows `none`; `Rebased branches` shows `no own branch 
 === `result.json`
 
 xref:user/headless.adoc#json[The JSON result] lists the top-level keys.
-`patches` holds one entry per patch of the run, then one per retired patch.
+`patches` holds one entry per patch of the run, then one per xref:reference/patches-json.adoc#retired-entries[retired patch].
 
 [cols="1,4",options="header"]
 |===
@@ -317,7 +328,7 @@ xref:user/headless.adoc#json[The JSON result] lists the top-level keys.
 |`pr`
 |Present when the source has a GitHub link: `url` and `state`.
 For a pull request, `state` is `OPEN`, `CLOSED`, or `MERGED`, or `UNKNOWN` when `gh` could not tell.
-For a branch of another GitHub repository given other than by Git URL, `url` is the branch URL and `state` is `UNKNOWN`.
+For a branch of another repository that the patch list names by `owner/repo` instead of a Git URL, `url` is the branch URL and `state` is `UNKNOWN`.
 
 |`rebase`
 |For an own branch of the rebase phase: `rebased`, `current`, `skipped`, or `failed`
@@ -326,7 +337,7 @@ For a branch of another GitHub repository given other than by Git URL, `url` is 
 |`true` when the patch's commit merges cleanly onto the fetched upstream tip alone, `false` when it conflicts; absent when debaser could not check it
 
 |`checks`
-|Merged patches only: `fail` when the stop blames the patch, `pass` after exit 0 or a stop at an acceptance check, `unknown` otherwise
+|Merged patches only, for the recipe steps: `fail` when the stop blames the patch, `pass` after exit 0 or when the recipe steps passed and an acceptance check stopped the run, `unknown` otherwise
 
 |`acceptance`
 |`pass`, `fail`, `flaky`, `fixed`, `none` (no acceptance check), `not run`, or `skipped` (patches skipped as merged upstream or already contained, and every retired patch)
@@ -376,16 +387,16 @@ Each entry of `steps` has `name`, `log` (the path of `steps/<name>.log`), and `r
 |The fetched head of a pull request patch
 
 |`refs/debaser/<repository>/heads/<branch>`
-|The fetched branch of another repository; `<repository>` is `owner/repo`, or the Git URL in the lowercase form described under <<work>>
+|The fetched branch of another repository; `<repository>` is `owner/repo`, or the Git URL in the lowercase form described under <<names>>
 
 |`refs/debaser/fork/<branch>`
 |debaser's record of an own branch on the fork that `origin` pushes to
 
 |`refs/debaser/rebase-backup/<branch>`
-|The tip an own branch had before debaser rebased it, until the push
+|The tip an own branch had before debaser rebased it
 
 |`refs/debaser/rebased/<branch>`
-|The tip the rebase produced, until the push
+|The tip the rebase produced
 
 |`refs/debaser/rebase-lease/<branch>`
 |The fork's tip at the time of the rebase, which the push uses as its lease; absent when the fork had no such branch
@@ -425,24 +436,24 @@ Also a finished build or rebase whose push of a rebased branch was refused, and 
 |xref:user/stops.adoc#exit-2[2]
 |A merge conflict.
 `debaser continue` with unmerged files left.
-A rejected resolution that an interrupted agent call left.
+`debaser continue` rejects a conflict resolution that an interrupted agent call left behind.
 In `debaser rebase`: a rebase conflict, unmerged files left at `continue`, or a gone worktree of the stopped branch.
 
 |xref:user/stops.adoc#exit-3[3]
 |A recipe step fails with the patches, passes on plain upstream, and no agent fixed it.
-A rejected step fix that an interrupted agent call left.
+`debaser continue` rejects a step fix that an interrupted agent call left behind.
 
 |xref:user/stops.adoc#exit-4[4]
 |A recipe step fails on plain upstream too; debaser checks this before any agent attempt.
 
 |xref:user/stops.adoc#exit-5[5]
 |The agent could not resolve a conflict or fix a step or acceptance check in its attempts, or the harness failed to run.
-A step or acceptance check fails again after the agent's fixes reached their bound.
+A recipe step or acceptance check fails again after the agent has made as many fixes as a run allows: the harness's `attempts` times the number of recipe steps and acceptance checks.
 In `debaser rebase`: the agent could not resolve a rebase conflict.
 
 |xref:user/stops.adoc#exit-6[6]
 |An acceptance check fails and no agent fixed it.
-A rejected acceptance fix that an interrupted agent call left.
+`debaser continue` rejects an acceptance fix that an interrupted agent call left behind.
 
 |xref:user/stops.adoc#interrupted[129, 130, 143]
 |debaser received SIGHUP, SIGINT, or SIGTERM, or a Git command it runs ended by one of these signals or with exit 130 or 143.
@@ -471,7 +482,7 @@ The run keeps its state, and debaser releases the lock.
 |
 
 |`PATH`
-|Finds the harness command when it contains no `/`, and `gh`
+|Locates `gh`, and locates the harness command when the command contains no `/`
 |
 
 |`GH_HOST`
@@ -500,7 +511,8 @@ The run keeps its state, and debaser releases the lock.
 
 |`DEBASER_ARTIFACT`
 |Acceptance checks
-|`artifact.output` resolved against the build directory; removed when the recipe has none, see xref:recipe-author/acceptance-checks.adoc[Acceptance checks]
+|The build output path (`artifact.output`) resolved against the build directory.
+Unset when the recipe has no `artifact.output`, see xref:recipe-author/acceptance-checks.adoc[Acceptance checks].
 
 |`DEBASER_PROMPT`, `DEBASER_TASK`
 |The harness command

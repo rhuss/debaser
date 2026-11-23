@@ -37,6 +37,8 @@
 // debaser:src/report/report.ts:240-254
 // debaser:src/run/finish.ts:60-61,80-85
 // debaser:src/git/merge.ts:18-24
+// debaser:src/git/git.ts:144-147
+// debaser:src/run/fetch.ts:10-21
 // debaser:src/github/gh.ts:3-25
 // debaser:src/github/gh.ts:31-37
 // debaser:src/rebase/rebase.ts:61-62
@@ -47,26 +49,22 @@
 // debaser:README.md:177
 // visual:status
 
-`debaser status` tells you how each patch stands against the latest upstream you have, without changing anything.
+`debaser status` tells you how each patch stands against the latest upstream you have, without touching your branches or the build directory.
 Run it before a build to see which patches will merge cleanly, after a stop to see where the run is, or any time you wonder how far upstream has moved.
-It takes no lock, so it also runs while a build is going on.
 
 This page explains every line and column that `debaser status` prints, the `--fetch` and `--json` options, and when it asks the GitHub CLI (`gh`).
 xref:overview/concepts.adoc[Key concepts] defines the terms, and xref:user/first-build.adoc[Your first build] runs `debaser status` for the first time.
 
 == What status reads and what it leaves alone
 
-`debaser status` is read only.
-Without `--fetch`, it fetches nothing and works from what Git already has.
-The upstream branch counts as last fetched.
-Pull requests and branches of other repositories count at the commit debaser last fetched them to, and pinned patches at their pinned commit.
-Branches of your clone count at the local branch, or at Git's copy on `origin` when there is no local branch.
+`debaser status` never changes your clone, the build directory, or debaser's files.
+Only `--fetch` writes anything, and it updates nothing but Git's copy of the upstream branch.
+Without `--fetch`, it fetches nothing and works from what Git already has (see <<fetch>>).
 
 Commands that change your clone or debaser's files take a lock in the data directory: `add`, `remove`, `build`, `rebase`, `continue`, `rollback`, and `trust`.
-`status` is not one of them, so it never waits for another command and never blocks one.
+`debaser status` takes no lock, so it never waits for these commands, never blocks them, and runs during a build.
 
-`debaser status` describes the build directory, but it never checks or creates it.
-The trial merges behind the UPSTREAM column use `git merge-tree`, which computes a merge without touching any working tree.
+`debaser status` reports on the build directory but never creates it.
 
 When it can show the status, `debaser status` ends with exit 0.
 Without a patch list, it refuses with exit 1 and the message `+there is no patch list yet; add a patch first with `debaser add <source>`+`.
@@ -78,12 +76,12 @@ The patch list holds two patches, a build has run, and upstream has gained a com
 
 image::visuals/status.svg["Output of debaser status for the widget project: the data, config, and build lines, a status line with no run in progress and the upstream ref, one upstream commit since the last build, a table with the patches fast-start and helper-colors that both merge cleanly and are one commit behind, with passing checks, and a hint that rebase updates branches behind upstream",role=expand]
 
-The first three lines name the data directory, the patch list with the local recipe, and the build directory `/work/widget-debaser`.
+The first three lines name the data directory, the patch list and local recipe, and the build directory `/work/widget-debaser`.
 The status line says that no run is in progress and names the upstream ref `upstream/main`, followed by its short commit id (masked in the capture).
 The line below it counts `1 upstream commit since the last build`.
 
 In the table, both patches read `✓ clean` under UPSTREAM, `1` under BEHIND, and `pass` under CHECKS.
-The OWN BRANCH cell of `fast-start` reads `! behind upstream`, so `fast-start` is one of your own branches.
+`fast-start` is a branch in your clone, one of your own branches, and its OWN BRANCH cell reads `! behind upstream`.
 The second patch, `/srv/forks/helper/widget.git:helper-colors`, names a branch by Git URL and branch name; its OWN BRANCH cell is `-`.
 Neither patch is a pull request, so both PR cells read `not a PR`.
 Neither has an acceptance check, so PATCH CHECK shows `-`.
@@ -95,7 +93,8 @@ The sections below explain each part in the order `debaser status` prints it.
 
 === Where debaser keeps its files
 
-The output starts with the same three lines as `debaser list`: `data` for the data directory, `config` for the patch list with the local recipe in parentheses (`none` without one), and `build` for the build directory.
+The output starts with the same three lines as `debaser list`: `data` for the data directory, `config` for the patch list, and `build` for the build directory.
+The `config` line ends with your xref:recipe-author/recipes.adoc[local recipe] in parentheses, as `(local recipe: <path>)`, or `(local recipe: none)` when there is none.
 When the build directory needs attention, the `build` line adds a note in parentheses, such as `not created yet` or `on <branch>, not <integration branch>`.
 xref:user/build-directory.adoc#what-list-and-status-show[The build directory] lists every note and its meaning.
 
@@ -124,15 +123,15 @@ The state takes one of these forms:
 
 |`running: <command> (pid <pid>)`
 |Another debaser command holds the lock, and its process is alive.
-When it works on a run, the state adds `while <where>`.
+When that command is in the middle of a run, the state adds `while <where>`.
 |===
 
 `<where>` names the point the run reached, for example `merging <patch> (2 of 3)`, `verifying (<step>)`, `running acceptance checks`, or `rebasing <branch>` for a rebase run.
 
-For a stopped or running run, indented lines below the status line add detail:
+When a run is stopped, or another command holds the lock, indented lines below the status line add detail:
 
 * `started` gives the time the run started.
-* `report` gives the run's report directory, for a stopped run and for a running command that works on one.
+* `report` gives the run's report directory, for a stopped run and for a locking command that is in the middle of a run.
 * `next` gives the commands that go on from a stopped run, for example `debaser continue, or debaser rollback`.
 It is left out while the command still runs.
 
@@ -140,7 +139,7 @@ xref:user/stops.adoc[When a build stops] explains what to do with a stopped run.
 
 When the upstream branch has not been fetched yet, the status line has no upstream part, and a single line follows: `<remote>/<branch> not fetched yet; build to check patches`.
 `debaser status` then prints no patch table.
-It also prints none for an empty patch list.
+It also prints no table when the patch list exists but holds no patches.
 
 === Upstream commits since the last build
 
@@ -164,7 +163,7 @@ On a terminal that takes colors and hyperlinks, the name links to the patch's pa
 
 |UPSTREAM
 a|Whether the patch merges onto the upstream tip.
-debaser runs a trial merge of the patch's commit with `git merge-tree`.
+debaser runs a trial merge of the patch's commit with `git merge-tree`, which computes the merge without touching any working tree.
 For your own branches, the commit is the tip a rebase would start from.
 
 * `✓ clean`: the merge has no conflicts.
@@ -173,7 +172,8 @@ For your own branches, the commit is the tip a rebase would start from.
 
 |OWN BRANCH
 a|What `debaser rebase` would do with the patch's branch.
-Own branches are your branches in this clone, pull requests opened from the fork that `origin` pushes to, and branches of another repository when that repository is the fork.
+Own branches are the branches debaser may rebase and push for you: branches in this clone, and pull requests or branches that live in your fork, the repository `origin` pushes to.
+xref:user/own-branches.adoc#modes[Rebase modes] explains the modes, such as `conflicting`, and the mode `off`, which turns rebasing off.
 
 * `-`: the patch is not one of your own branches, it is pinned, rebasing is off, or there is no fork to push to.
 * `✓ up to date`: the branch already sits on top of upstream.
@@ -205,7 +205,7 @@ a|The result of the recipe steps in the last build, for this patch.
 
 * `pass`: the build ended with exit 0, or it stopped only on an acceptance check after every step had passed.
 * `fail`: the build stopped on a failing step and blamed this patch.
-* `unknown`: any other end that did not blame this patch, such as a stop that blamed another patch or a finished build whose push failed (exit 1).
+* `unknown`: the build ended some other way without blaming this patch, for example a stop on another patch, or a finished build whose push failed (exit 1).
 * `-`: there is no build result yet, or the last build did not merge the patch.
 
 |PATCH CHECK
@@ -246,22 +246,31 @@ The note reads, for example, `rebasing is off: there is no origin remote to push
 
 xref:user/own-branches.adoc[Rebasing your own branches] explains the rebase modes and how to act on these states.
 
+[#own-branches-origin]
 == How status sees your own branches
 
 `debaser status` does not ask `origin` where your branches stand.
-When `origin` fetches from the same URL it pushes to, debaser takes the branch's tip on `origin` from Git's `origin/<branch>`, which every fetch and push updates, also ones you run by hand.
-Otherwise, it uses the copy debaser fetched itself.
-In that setup, a branch you force-push by hand shows at its new tip rather than as diverged.
+When `origin` fetches from the same URL it pushes to, debaser reads the branch's tip on `origin` from Git's `origin/<branch>`.
+Every fetch and push updates that ref, including ones you run by hand, so a branch you force-push by hand shows at its new tip rather than as diverged.
+Otherwise, debaser uses the copy it fetched itself.
 
 [#fetch]
 == Check against the latest upstream
 
-The table compares against the upstream branch as Git last fetched it.
+Without `--fetch`, the table compares against the upstream branch as Git last fetched it, and it takes each patch at these commits:
+
+* Pull requests and branches of other repositories: the commit the last build fetched for them.
+* Pinned patches: their pinned commit.
+* Branches of your clone: the local branch, or the branch's tip on `origin` when there is no local branch.
+
+Your own branches, including pull requests from your fork, count at the tip a rebase would start from.
+<<own-branches-origin,How status sees your own branches>> explains how debaser reads their tip on `origin`.
+
 To compare against what upstream has now, fetch it first with `--fetch`.
 
 `--fetch` fetches only the upstream branch, from the patch list's `upstream.remote`.
 The default name is `upstream`; when the name is `upstream` and the clone has no such remote, debaser uses `origin`.
-It does not fetch the patches or your branches on `origin`, so debaser compares them at the commits it last fetched.
+It does not fetch the patches or your branches on `origin`, so debaser keeps comparing them at the commits listed above.
 If the fetch fails, debaser prints `debaser: warning: cannot fetch <remote>/<branch>: <error>` on stderr and goes on with the tip it had.
 
 . Fetch upstream and show the status.
@@ -370,7 +379,7 @@ It asks in two cases:
 debaser asks this only when rebasing is not off, the patch is not pinned, `origin` is a fork, and the fork is on GitHub.
 
 Without `gh` on the `PATH`, or when `gh` cannot answer (not signed in, offline, or no such pull request), the PR cell of a pull request reads `not a PR`.
-When debaser asks about ownership (the second case above), it also cannot tell whose branch the pull request is from, and the hints end with a note like this:
+If that failed question was about ownership (the second case above), debaser cannot tell whose branch the pull request is from, and the hints end with a note like this:
 
 [source,text]
 ----
