@@ -20,8 +20,8 @@
 // debaser:src/core/errors.ts:3-5
 // debaser:src/recipes/load.ts:9-21
 // debaser:src/recipes/resolve.ts:98-129
-// debaser:src/recipes/builtin/bun-ts.toml:3
-// debaser:src/recipes/builtin/rust-cargo.toml:3
+// debaser:src/recipes/builtin/bun-ts.toml:1-22
+// debaser:src/recipes/builtin/rust-cargo.toml:1-20
 // debaser:src/cli/commands/recipe.ts:12-25
 // debaser:src/views/recipe.ts:27-44
 // debaser:src/recipes/trust.ts:11-12
@@ -248,7 +248,7 @@ At its start, the build names the build directory and the patch list it uses.
 That line appears in the plain progress lines, and in the live view only with `--verbose`.
 When the recipe installs nothing, the summary at the end names the integration branch where it otherwise names the installed artifact.
 +
-Check: the build finishes with exit 0, and its summary starts with `built`, followed by the installed artifact's path relative to the build directory.
+Check: the build finishes with exit 0, and its summary names what was `built`: the installed artifact's path relative to the build directory, or the integration branch when the recipe installs nothing.
 +
 [source,bash]
 ----
@@ -268,6 +268,7 @@ git worktree list
 
 . Confirm that the installed artifact is in the build directory.
 `<install>` is the `artifact.install` value that `debaser recipe` shows, when it is a relative path.
+Skip this step when `debaser recipe` shows no `artifact.install`, as with the generic recipes, and run `ls` on the path itself when it is absolute.
 +
 Check: the file exists.
 +
