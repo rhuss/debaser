@@ -18,6 +18,10 @@
 // debaser:src/plugins/parsers/generic.ts:25-31
 // debaser:src/plugins/parsers/bun-test.ts:21-48
 // debaser:src/plugins/parsers/cargo-test.ts:5-8
+// debaser:src/plugins/parsers/tsc.ts:4-16
+// debaser:src/live/render.ts:880-891
+// debaser:src/live/render.ts:1014-1028
+// debaser:src/live/worker.ts:103-107
 // debaser:src/steps/attribute.ts:11-28
 // debaser:src/recipes/builtin/tals-corgi.toml:5
 // debaser:src/run/finish.ts:109-128
@@ -27,13 +31,16 @@
 // debaser:src/run/rollback.ts:23-40
 // debaser:src/run/common.ts:40-45
 // debaser:src/run/common.ts:66-74
-// debaser:src/run/finish.ts:28-71
+// debaser:src/run/finish.ts:28-94
 // debaser:src/report/manifest.ts:9-64
 // debaser:src/run/leftover.ts:1-11
 // debaser:src/harness/verify.ts:36-39
 // debaser:src/run/resume.ts:104-130
 // debaser:src/prompts/check.md:1
 // debaser:src/prompts/conflict.md:1-3
+// debaser:src/run/harness-fix.ts:104-106
+// debaser:src/run/harness-merge.ts:38-40
+// debaser:src/cli/commands/list.ts:15-24
 // debaser:src/views/recipe.ts:45
 // debaser:src/core/paths.ts:4-16
 // debaser:src/core/paths.ts:27-29
@@ -44,7 +51,8 @@
 The steps of a recipe are the checks and the build that debaser runs on the merged result.
 This page covers the keys of a step and where a new step goes among the inherited ones.
 It explains the placeholders and environment a step gets, and how failure parsers shape the rerun of a failing step.
-It also covers the rest of a recipe's keys except the prompts: the install step, the build output and its installed copy, the after-build command, `leftovers`, and `project_name`.
+It also covers the other keys of a recipe, except the prompts and the keys that choose layers.
+These are the install step, the build output and its installed copy, the after-build command, `leftovers`, and `project_name`.
 It ends with a local recipe for a small project, written from start to finish.
 
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains the layers a recipe comes from and how they merge.
@@ -153,7 +161,7 @@ The tree a step runs in is usually the build directory.
 When debaser reruns a step on plain upstream, it runs the step in a throwaway worktree, and when it checks one of your own branches after a rebase, in that branch's worktree.
 `+{root}+` and `+{output}+` follow the tree.
 
-`+{tests}+` as an argument of its own becomes one argument per file, and no argument at all when the list is empty.
+`+{tests}+` as an argument of its own becomes one argument per entry, and no argument at all when the list is empty.
 Inside a longer argument, such as `+--filter={tests}+`, it becomes the files as words separated by spaces, with quotes around any file name that needs them.
 
 == Failure parsers and the flaky rerun
@@ -191,7 +199,9 @@ Only `bun-test` does, and only when every failure names its file and bun reports
 Otherwise the rerun runs the whole command again.
 
 When the rerun passes, the step counts as passed.
-The build summary adds `warning: <step> failed once and passed when run again; it may be flaky (<log>)`, and the log of the first failure stays in the report directory as `steps/<step>-flaky-<n>.log`.
+In plain output, the build summary adds `warning: <step> failed once and passed when run again; it may be flaky (<log>)`.
+On a color terminal, the live view's card shows `↻ retried <step> failed once, passed on retry: may be flaky` instead.
+The log of the first failure stays in the report directory as `steps/<step>-flaky-<n>.log`.
 When the rerun fails too, debaser tries the step on plain upstream to find out whether a patch broke it.
 xref:overview/how-it-works.adoc[How a build works] follows that path to exit 3, 4, or 5.
 
@@ -221,7 +231,8 @@ debaser records a passed install step in the build directory's own Git directory
 
 A recipe without an `[install]` table runs every step on every build.
 
-The skip applies only to the steps in the build directory.
+debaser skips the install step only in the build directory.
+The checks of your own branches after a rebase run every step, the install step included.
 When debaser reruns a step on plain upstream, it runs the install step first in the throwaway worktree, even when the recipe lists it later.
 `debaser rollback` runs the install step again after it moves the build directory back, and stops with `dependency restore failed after rollback; see <log>` when the step fails.
 
@@ -244,7 +255,8 @@ The installed artifact from the start of the run becomes `<install path>.prev`.
 When there was no installed artifact at the start, debaser removes an old `.prev` file.
 When the build output does not exist, debaser installs nothing and warns `warning: the build output <path> does not exist; nothing was installed`.
 
-The build summary starts with `debaser: built <install path>`, the installed artifact relative to the build directory, or with the integration branch when nothing was installed.
+In plain output, the build summary starts with `debaser: built <install path>`, the installed artifact relative to the build directory, or with the integration branch when nothing was installed.
+On a color terminal, the live view ends with `build done · artifact <path>`, with the installed artifact's absolute path, and has no such line when nothing was installed.
 Acceptance checks find the build output through `DEBASER_ARTIFACT`; xref:recipe-author/acceptance-checks.adoc[Acceptance checks] covers them.
 
 == The after-build command
@@ -276,7 +288,7 @@ The `leftovers` of all layers combine.
 
 == Project name
 
-`project_name` is the name the prompts for the coding agent use for the project, for example `Fix a failing step in a patched <name> build`.
+`project_name` is the name debaser fills into the prompts for the coding agent, for example `Fix a failing step in a patched <name> build`.
 Without it, debaser uses the repository part of the patch list's `upstream.repo`, and `debaser recipe` shows `default` as its layer.
 
 == Environment variables for steps
@@ -291,13 +303,16 @@ Steps run with debaser's own environment plus four variables that describe the b
 |A JSON array of the merged patches, each with `source`, `display`, `commit`, and `pin` when the patch is pinned.
 
 |`DEBASER_FORK_URL`
-|The push URL of the remote `origin`, without user name and password, or empty when the clone has no `origin`.
+|The push URL of the remote `origin`, or empty when the clone has no `origin`.
+From a URL with a scheme, such as `https://`, debaser removes the user name and password; an scp-style `user@host:path` stays as it is.
 
 |`DEBASER_COMMIT`
-|The commit of the tree the step runs in.
+|The commit of the tree the step runs in: the merged result in the build directory, the tree's own commit on plain upstream and in the checks of your own branches.
 
 |`DEBASER_MANIFEST`
-|The path of `manifest.json` in the data directory, which holds the same data: `version`, `upstream` (`repo`, `branch`, `tip`), `commit`, `fork`, and `patches`.
+|The path of `manifest.json` in the data directory.
+debaser writes it when the steps start in the build directory, with `version`, `upstream` (`repo`, `branch`, `tip`), `commit`, `fork`, and `patches`.
+Its `commit` is the build directory's commit, also when a step runs in another tree.
 |===
 
 Steps get these variables in the build directory, on plain upstream, and in the checks of your own branches after a rebase.
@@ -309,22 +324,22 @@ A local recipe changes how debaser builds your clone without touching the projec
 It lives as `recipe.toml` in the data directory, next to `patches.json`.
 By default the data directory is `debaser` inside your clone's shared Git directory (`.git/debaser` in a plain clone); `--dir` or `DEBASER_DIR` moves it.
 
-The example uses the fictional project `example/widget`, a Bun and TypeScript command-line tool with a `bun.lock`.
+The example uses the fictional project `example/gadget`, a Bun and TypeScript command-line tool with a `bun.lock`.
 debaser detects it as `bun-ts`, which brings the steps `install`, `typecheck`, and `test`, and the install step `install` with its triggers and marker.
-In this example, widget commits no recipe of its own.
+gadget commits no recipe of its own.
 Its build script `build.ts` writes the binary to the path after `--outfile`.
 
-The local recipe keeps what `bun-ts` provides and adds what widget needs:
+The local recipe keeps what `bun-ts` provides and adds what gadget needs:
 
 [source,toml]
 ----
-project_name = "widget CLI"
-after_build = ["./dist/widget-custom", "--version"]
+project_name = "gadget CLI"
+after_build = ["./dist/gadget-custom", "--version"]
 leftovers = ["**/*.tmp"]
 
 [artifact]
-output = "dist/widget"
-install = "dist/widget-custom"
+output = "dist/gadget"
+install = "dist/gadget-custom"
 
 [[steps]]
 name = "lint"
@@ -351,8 +366,8 @@ What each part does:
 It repeats `run` and `parser`, because a replacement does not inherit them, and adds a timeout of 600 seconds.
 With `tests = ["src"]`, a full run tests only `src`; the narrowed rerun still runs only the failing files.
 * `build` is a new step at the end.
-It writes the binary to `+{output}+`, which is `dist/widget` in the build directory.
-* `[artifact]` makes debaser copy `dist/widget` to `dist/widget-custom` after a successful build, keeping the previous copy as `dist/widget-custom.prev`.
+It writes the binary to `+{output}+`, which is `dist/gadget` in the build directory.
+* `[artifact]` makes debaser copy `dist/gadget` to `dist/gadget-custom` after a successful build, keeping the previous copy as `dist/gadget-custom.prev`.
 * `after_build` runs the installed binary with `--version` once the build has succeeded.
 * The install step comes from `bun-ts` unchanged, so the recipe does not mention it.
 
@@ -376,13 +391,13 @@ The command assumes the default data directory; with `--dir` or `DEBASER_DIR`, w
 [source,bash]
 ----
 cat > "$(git rev-parse --git-common-dir)/debaser/recipe.toml" <<'EOF'
-project_name = "widget CLI"
-after_build = ["./dist/widget-custom", "--version"]
+project_name = "gadget CLI"
+after_build = ["./dist/gadget-custom", "--version"]
 leftovers = ["**/*.tmp"]
 
 [artifact]
-output = "dist/widget"
-install = "dist/widget-custom"
+output = "dist/gadget"
+install = "dist/gadget-custom"
 
 [[steps]]
 name = "lint"
@@ -418,11 +433,12 @@ xref:recipe-author/recipes.adoc[Recipes and their layers] explains the output.
 
 . Build.
 +
-Check: the summary names the installed artifact.
+Check: the end of the output names the installed artifact.
+In plain output, the summary starts with `debaser: built dist/gadget-custom`; on a color terminal, the last line is `build done · artifact` followed by the absolute path, ending in `dist/gadget-custom`.
 Skip this check when the build stops; xref:user/stops.adoc[When a build stops] explains each stop.
 +
 [source,bash]
 ----
 debaser build
 ----
-// expect: exit 0 and contains "built dist/widget-custom"
+// expect: exit 0 and contains "dist/gadget-custom"
