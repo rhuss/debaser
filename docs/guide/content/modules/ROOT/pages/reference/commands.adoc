@@ -1,0 +1,396 @@
+= Commands
+
+// Sources:
+// debaser:src/cli/usage.ts:1-43
+// debaser:src/cli/args.ts:3-28
+// debaser:src/cli/main.ts:35-108
+// debaser:src/cli/main.ts:110-129
+// debaser:src/cli/commands/index.ts:44-86
+// debaser:src/cli/commands/index.ts:101-182
+// debaser:src/cli/commands/add.ts:16-77
+// debaser:src/cli/commands/remove.ts:11-26
+// debaser:src/cli/commands/list.ts:13-33
+// debaser:src/cli/commands/build.ts:8-12
+// debaser:src/cli/commands/rebase.ts:10-17
+// debaser:src/cli/commands/continue.ts:8-12
+// debaser:src/cli/commands/rollback.ts:8-11
+// debaser:src/cli/commands/status.ts:66-74
+// debaser:src/cli/commands/recipe.ts:12-41
+// debaser:src/cli/commands/trust.ts:10-28
+// debaser:src/core/paths.ts:4-16
+// debaser:src/core/context.ts:41-45
+// debaser:src/core/patchlist.ts:9-10
+// debaser:src/core/lock.ts:45-52
+// debaser:src/git/git.ts:80-96
+// debaser:src/run/build.ts:88
+// debaser:src/run/rebase-phase.ts:104-117
+// debaser:src/run/rebase-phase.ts:173-177
+// debaser:src/run/build.ts:99
+// debaser:src/run/common.ts:77-85
+// debaser:src/run/rebase-phase.ts:258-261
+// debaser:src/run/resume.ts:28-32
+// debaser:src/run/finish.ts:38
+// debaser:src/run/rollback.ts:60-79
+// debaser:src/run/rollback.ts:142-145
+// debaser:src/recipes/load.ts:9-24
+// debaser:src/recipes/trust.ts:69-107
+// debaser:src/live/worker.ts:18-21
+// debaser:src/live/worker.ts:50-61
+// debaser:src/views/list.ts:63-72
+
+A debaser command line has the form `debaser [--dir <path>] <command> [options]`.
+`debaser --help` prints the usage text.
+debaser accepts a few options that the usage text leaves out; the tables below mark them "no" in the `--help` column.
+
+== Global options
+
+[cols="2,5,1",options="header"]
+|===
+|Option |Effect |In `--help`
+
+|`--dir <path>`, `--dir=<path>`
+|Sets the data directory.
+debaser finds the option anywhere on the command line, before or after the command.
+A relative path counts from the current directory.
+Without `--dir`, debaser uses `DEBASER_DIR`, else `<git-common-dir>/debaser`.
+|yes
+
+|`--version`, `-V`
+|Prints `debaser {debaser-version}` and exits 0.
+|`--version` only
+
+|`--help`, `-h`, `help`
+|Prints the usage text on standard output and exits 0.
+|`--help` only
+|===
+
+`--version`, `--help`, and their short forms work only in place of the command.
+After a command they are leftover words, so `debaser build --help` is a usage error.
+
+== How debaser reads a command line
+
+[cols="1,4",options="header"]
+|===
+|Rule |Effect
+
+|Options with a value
+|`--name value` or `--name=value`.
+A missing value is a usage error: `--<name> needs a value`.
+
+|Flags
+|Only the exact form `--name`.
+`--name=<value>` is not a flag and counts as a leftover word.
+
+|Position
+|Options and flags can stand before, between, or after the positionals.
+
+|Positionals
+|Taken in order from the words that do not start with `--`, up to the number the command accepts.
+
+|Leftover words
+|An unknown option, an option of another command, or an extra positional is a usage error: `unexpected <words>`.
+
+|Short forms
+|Only `-V` and `-h`, in place of the command.
+Command options have no short forms.
+|===
+
+A usage error prints `debaser: <message>` and the usage text on standard error, and exits 1.
+No command prints the usage text on standard error and exits 1.
+An unknown command is a usage error with the message `unknown command <name>`.
+
+== Checks at the start of a command
+
+Each refusal exits 1, with the message on standard error.
+
+[cols="2,2,4",options="header"]
+|===
+|Check |Applies to |Refusal
+
+|A Git repository
+|every command
+|`not inside a git repository`
+
+|A patch list
+|every command except `add`
+|`+there is no patch list yet; add a patch first with `debaser add <source>`+`
+
+|Git version
+|commands that take the lock
+|`git {debaser-git-min} or newer is required (found <version>)`
+
+|The run lock
+|commands that take the lock
+|`another debaser command is running in this checkout: <command> (pid <pid>, since <time>)`
+|===
+
+debaser releases the lock when the command ends, also after Ctrl-C, a hangup, or a kill.
+xref:user/headless.adoc[Running headless] covers the lock for scheduled runs, and xref:reference/files-and-codes.adoc[Files, exit codes, and environment] gives its file and every exit code.
+
+== Commands
+
+"Terminal questions" lists what a command can ask when standard input is a terminal.
+Off a terminal, debaser asks nothing; xref:user/headless.adoc[Running headless] gives the fallback for each question.
+
+[cols="2,3,4,1,4,2,5",options="header"]
+|===
+|Command |Positionals |Options and flags |Lock |Terminal questions |`--json` |Notes
+
+|`add`
+|`<source>` `[description]`
+|`--pin <sha>` +
+`--upstream <owner>/<repo>` +
+`--description <text>` (no `--help`)
+|yes
+|none
+|no
+|The first `add` creates the patch list.
+See xref:user/patch-list.adoc#add-a-patch[Add a patch].
+
+|`remove`
+|`<source>`
+|`--reason <text>`
+|yes
+|The reason, when `--reason` is missing; without a terminal, the command refuses.
+|no
+|Moves the patch to the retired patches with the date and the reason.
+See xref:user/patch-list.adoc#retire[Retire a patch].
+
+|`list`
+|none
+|`--verbose` +
+`--retired` (no `--help`) +
+`--json`
+|no
+|none
+|yes
+|Only reads.
+See xref:user/patch-list.adoc[Managing the patch list].
+
+|`build`
+|none
+|`--push` +
+`--rebase <mode>` +
+`--in-worktree` +
+`--trust-recipe` +
+`--verbose` +
+`--json`
+|yes
+|Trust a new or changed project recipe (`--trust-recipe` answers it).
+Force-push the rebased own branches (`--push` answers it).
+|yes
+|Works in the build directory.
+See xref:user/first-build.adoc[Your first build] and xref:user/build-directory.adoc[The build directory].
+
+|`rebase`
+|none
+|`--push` +
+`--rebase <mode>` +
+`--in-worktree` +
+`--trust-recipe` (no `--help`) +
+`--verbose` +
+`--json` +
+`--skip-branch`
+|yes
+|As for `build`.
+|yes
+|Only rebases the own branches onto upstream.
+`--rebase off` is a usage error.
+`rebase --skip-branch` does what `continue --skip-branch` does.
+See xref:user/own-branches.adoc[Rebasing your own branches].
+
+|`continue`
+|none
+|`--skip-branch` +
+`--verbose` +
+`--trust-recipe` (no `--help`)
+|yes
+|As for `build`.
+|no
+|Resumes a stopped run.
+See xref:user/stops.adoc#continue[Continue a stopped run].
+
+|`rollback`
+|none
+|`--verbose`
+|yes
+|Trust a new or changed project recipe; no option answers it.
+|no
+|Undoes a stopped run, or restores the previous build.
+See xref:user/stops.adoc#rollback[Roll back].
+
+|`status`
+|none
+|`--fetch` +
+`--json`
+|no
+|none
+|yes
+|Only reads; fetches only with `--fetch`.
+See xref:user/status.adoc[Reading status].
+
+|`recipe`
+|none
+|`--json` +
+`--trust-recipe` (no `--help`; no effect)
+|no
+|none
+|yes
+|Only reads; leaves an untrusted project recipe out without asking.
+See xref:recipe-author/recipes.adoc[Recipes and their layers].
+
+|`trust`
+|none
+|none
+|yes
+|The trust confirmation; without a terminal, the command refuses.
+|no
+|Fetches the upstream branch, shows the commands of the project recipe, and records the trust after a yes.
+See xref:recipe-author/recipes.adoc#trust[Trust the project's recipe].
+|===
+
+== Options
+
+[cols="2,2,5,2",options="header"]
+|===
+|Option |Commands |Effect |Default
+
+|`--pin <sha>`
+|`add`
+|Pins the patch at a commit: one Git resolves in the checkout, or a full 40-character hexadecimal SHA.
+See xref:user/patch-list.adoc#pin[Pin a patch].
+|not pinned
+
+|`--upstream <owner>/<repo>`
+|`add`
+|Names the upstream repository when this `add` creates the patch list.
+Any other form than `owner/repo` is a usage error.
+Once the patch list exists, `add` ignores the option.
+|the repository of the `upstream` remote
+
+|`--description <text>`
+|`add`
+|Sets the description of the patch.
+It wins over the second positional.
+Not in `--help`.
+|the pull request title, or the branch name
+
+|`--reason <text>`
+|`remove`
+|The reason stored with the retired patch.
+|asked on a terminal
+
+|`--verbose`
+|`list`
+|Lists the retired patches below the live ones.
+|retired patches only counted
+
+|`--retired`
+|`list`
+|Shows only the retired patches.
+Not in `--help`.
+|off
+
+|`--verbose`
+|`build`, `rebase`, `continue`
+|In the live view on a terminal with at least 20 rows, shows the full log with the view pinned above it.
+|off
+
+|`--verbose`
+|`rollback`
+|On a color terminal, shows the install's output in place of the checklist.
+|off
+
+|`--json`
+|`list`, `build`, `rebase`, `status`, `recipe`
+|Prints JSON on standard output (see <<json>>).
+|off
+
+|`--push`
+|`build`, `rebase`
+|Force-pushes the rebased own branches to `origin` without asking.
+See xref:user/own-branches.adoc#push[Push rebased branches].
+|asked on a terminal, else not pushed
+
+|`--rebase <mode>`
+|`build`, `rebase`
+|Chooses which own branches the run rebases: `all`, `conflicting`, or (for `build` only) `off`.
+Another value is a usage error.
+See xref:user/own-branches.adoc#modes[Rebase modes].
+|the patch list's `rebase` key, else `all`
+
+|`--in-worktree`
+|`build`, `rebase`
+|Rebases a branch that is checked out in a worktree right there.
+See xref:user/own-branches.adoc#in-worktree[Rebase a branch in its own worktree].
+|off
+
+|`--trust-recipe`
+|`build`, `rebase`, `continue`
+|Trusts a new or changed project recipe without asking, and records the trust.
+In `--help` for `build` only.
+|asked on a terminal, else refused
+
+|`--trust-recipe`
+|`recipe`
+|Accepted and ignored.
+Not in `--help`.
+|none
+
+|`--skip-branch`
+|`continue`, `rebase`
+|Gives up the branch a rebase run stopped at.
+Any other stopped run refuses it.
+|off
+
+|`--fetch`
+|`status`
+|Fetches the upstream branch first; a failed fetch prints a warning and the command goes on.
+See xref:user/status.adoc#fetch[Check against the latest upstream].
+|no fetch
+|===
+
+== Terminal behavior
+
+[cols="2,5",options="header"]
+|===
+|Behavior |When
+
+|Questions
+|Only when standard input is a terminal.
+
+|Color
+|Standard output is a terminal, `NO_COLOR` is unset or empty, and `TERM` is not `dumb`.
+
+|Live view
+|`build`, `rebase`, and `continue` with color and without `--json`.
+
+|Checklist
+|`rollback` with color and without `--verbose`.
+
+|Neither of them
+|Progress lines go to standard error, the summary to standard output (to standard error with `--json`).
+|===
+
+[#json]
+== JSON output
+
+With `--json`, standard output holds only the JSON, and the summary lines go to standard error.
+A command that ends in an error before it has a result, such as a refusal, prints no JSON; the message goes to standard error.
+
+[cols="2,5",options="header"]
+|===
+|Command |Content and where it is described
+
+|`list --json`
+|The patch list with `config`, `upstream`, `branch`, `patches`, and `retired`; xref:user/patch-list.adoc[Managing the patch list].
+
+|`status --json`
+|The state of every patch and of upstream; xref:user/status.adoc#json[Reading status].
+
+|`recipe --json`
+|The effective recipe with the layer of each value; xref:recipe-author/recipes.adoc[Recipes and their layers].
+
+|`build --json`, `rebase --json`
+|The run's `result.json`; xref:user/headless.adoc#json[Running headless] and xref:reference/files-and-codes.adoc[Files, exit codes, and environment].
+|===

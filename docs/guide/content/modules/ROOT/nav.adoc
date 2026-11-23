@@ -17,3 +17,8 @@
 ** xref:recipe-author/acceptance-checks.adoc[Acceptance checks]
 ** xref:recipe-author/harness.adoc[Setting up the agent]
 ** xref:recipe-author/harness-verification.adoc[What the agent is asked and how its work is checked]
+* Reference
+** xref:reference/commands.adoc[Commands]
+** xref:reference/patches-json.adoc[patches.json]
+** xref:reference/recipe-toml.adoc[Recipe file]
+** xref:reference/files-and-codes.adoc[Files, exit codes, and environment]
