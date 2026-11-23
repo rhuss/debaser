@@ -63,3 +63,9 @@ rules:
       - 'debaser add'
       - 'debaser build'
       - 'debaser status'
+  - glob: content/modules/ROOT/pages/user/patch-list.adoc
+    require:
+      - '--pin'
+      - '--reason'
+      - 'list --verbose'
+      - 'DEBASER_DIR'
