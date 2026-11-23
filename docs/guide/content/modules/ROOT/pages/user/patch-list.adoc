@@ -8,7 +8,7 @@
 // debaser:src/plugins/sources/fork-branch.ts:9-19
 // debaser:src/plugins/sources/fork-branch.ts:26-34
 // debaser:src/plugins/sources/branch.ts:7-11
-// debaser:src/plugins/sources/branch.ts:39
+// debaser:src/plugins/sources/branch.ts:23-39
 // debaser:src/plugins/sources/github.ts:5
 // debaser:src/git/git.ts:124-127,140-142
 // debaser:src/git/remotes.ts:16-28
@@ -21,7 +21,8 @@
 // debaser:src/cli/commands/index.ts:152-155
 // debaser:src/cli/args.ts:3-19
 // debaser:src/cli/usage.ts:4-11
-// debaser:src/cli/main.ts:35
+// debaser:src/cli/main.ts:34-35
+// debaser:src/cli/main.ts:83-87
 // debaser:src/cli/main.ts:41-46
 // debaser:src/cli/main.ts:62-68
 // debaser:src/cli/main.ts:92-98
@@ -29,19 +30,25 @@
 // debaser:src/core/lock.ts:27-57
 // debaser:src/core/errors.ts:3-5
 // debaser:src/core/context.ts:41-45
-// debaser:src/core/paths.ts:4-16,28
+// debaser:src/core/paths.ts:4-16,28,32
+// debaser:README.md:46-48
 // debaser:src/core/patchlist.ts:12-13
+// debaser:src/core/patchlist.ts:27-28,33
 // debaser:src/core/patchlist.ts:38-57
 // debaser:src/core/patchlist.ts:81-95
 // debaser:src/core/patchlist.ts:107-127
 // debaser:src/core/patchlist.ts:168-184
 // debaser:src/core/runstate.ts:153-157
+// debaser:src/core/tree.ts:123-128,149-152
+// debaser:src/core/tree.ts:176-178
 // debaser:src/github/gh.ts:14-18
 // debaser:src/github/gh.ts:68-71
 // debaser:src/views/list.ts:9-83
 // debaser:src/views/config.ts:10-29
 // debaser:src/views/status.ts:125,134
 // debaser:src/run/build.ts:34-40
+// debaser:src/run/build.ts:61
+// debaser:src/run/rollback.ts:153
 // debaser:src/run/build.ts:100-103
 // debaser:src/run/fetch.ts:23-30
 // debaser:src/run/fetch.ts:44-62
@@ -98,7 +105,9 @@ The first form that fits decides the kind of patch.
 Only `\https://github.com/` URLs count as pull request and tree URLs.
 An argument that fits none of the other forms is read as a branch name of your clone, and debaser refuses it when Git does not accept it as a branch name.
 `debaser add` does not look the branch up.
-A branch that exists neither locally nor on `origin` stops the next build with `cannot find <branch>: no such local branch or origin/<branch>`.
+When the branch exists neither locally nor on `origin`, the next build stops.
+With an `origin` remote, the message starts with `cannot fetch origin/<branch> for <branch>`, followed by the reason.
+Without one, it is `cannot find <branch>: no such local branch or origin/<branch>`.
 
 [#add-a-patch]
 === Add a patch
@@ -106,21 +115,13 @@ A branch that exists neither locally nor on `origin` stops the next build with `
 Each `debaser add` appends one patch to the end of the list.
 `--upstream` counts only on the first `add`, the one that creates the list.
 
-. Add the patch, in the form that names it.
-Quote `#<number>`, because the shell reads a `#` at the start of a word as the start of a comment.
+. Add the patch in the form from the table that names it, here a pull request on upstream by its number.
++
+Check: debaser confirms the new patch with a line that starts with `added`, followed by the patch's name and its description.
 +
 [source,bash]
 ----
-debaser add '#<number>'
-debaser add <owner>/<repo>:<branch>
-debaser add '<git url>#branch=<branch>'
-----
-+
-Check: debaser confirms each new patch with a line that starts with `added`, followed by the patch's name and its description.
-+
-[source,bash]
-----
-debaser add <source>
+debaser add <number>
 ----
 // expect: contains "added "
 
@@ -176,7 +177,8 @@ A `<git url>#branch=<branch>` source whose URL holds a password, or an `http` or
 The message says to drop the credentials from the URL and use a Git credential helper.
 debaser refuses such a URL in `patches.json` as well.
 
-`debaser add` and `debaser remove` also refuse while another debaser command is running in the same clone.
+`debaser add`, `debaser remove`, `debaser build`, `debaser rebase`, `debaser continue`, `debaser rollback`, and `debaser trust` take a lock file in the data directory.
+`debaser add` and `debaser remove` therefore also refuse while another of these commands runs with the same data directory.
 
 [#pin]
 == Pin a patch
@@ -184,10 +186,12 @@ debaser refuses such a URL in `patches.json` as well.
 A pin holds a patch at one commit.
 debaser merges exactly that commit, even after the source moves on, and never rebases a pinned patch, not even an own branch.
 When the source cannot be fetched any more, for example a deleted branch, the build merges the pinned commit and adds a warning to the run.
+When the pinned commit is not in your clone, the build tries to fetch it by its id from where the patch comes from.
+If that fails too, the build stops with `cannot find the pinned commit <sha> of <name>`.
 
 . Add the patch with `--pin`.
 `<sha>` is any commit your clone knows, which debaser records as its full SHA.
-A full 40-character SHA works even when the commit is not in your clone yet, because the build fetches it by its id.
+A full 40-character SHA in lowercase hex works even when the commit is not in your clone yet.
 +
 Check: the confirmation ends with `(pinned at <short sha>)`, the first seven characters of the pinned commit.
 +
@@ -296,7 +300,8 @@ DEBASER_DIR=<path> debaser list
 ====
 Each command finds the data directory anew.
 A command run without the same `--dir` or `DEBASER_DIR` reads the default data directory, and so another patch list or none.
-Without a patch list, `debaser list` and `debaser remove` stop with `there is no patch list yet`, and `debaser add` creates a new one.
+Without a patch list, `debaser list` and `debaser remove` stop with `there is no patch list yet`.
+`debaser add` creates a new one, but only with an `upstream` remote or the `--upstream` option (see xref:user/first-build.adoc#no-upstream-remote[Clones without an upstream remote]).
 ====
 
 . Show where the patch list is.
@@ -338,19 +343,20 @@ Each patch in the `patches` array is an object like this one, from the fictional
 
 Entries in the `retired` array have the same keys plus `retired`, the date, and `reason`.
 
-debaser reads and checks the file at the start of every command except `--help` and `--version`.
+debaser reads and checks the file at the start of every command; only the help and version output skip it.
 A file that is not valid JSON, or breaks a rule, stops the command with exit 1 and a message that names the file and, for a broken entry, its place, such as `patches[2]`.
 Among the rules:
 
 * A description is a single line.
-* A pin is a full 40-character commit SHA.
+* A pin is a full 40-character commit SHA in lowercase hex.
 * A `fork-branch` source has exactly one of `repo` and `url`, and the URL carries no credentials.
 * `upstream.repo` has the form `<owner>/<repo>`, and `branch` differs from `upstream.branch`.
 
 `debaser add` and `debaser remove` write the whole file again from what they read.
+`debaser build` and `debaser rollback` do the same when they record the build directory's place as `tree`, which happens while the patch list has no `tree` entry, for example on the first build.
 
 [CAUTION]
 ====
 Keep notes for yourself in the descriptions, not in extra keys.
-debaser drops keys it does not know the next time `debaser add` or `debaser remove` saves the list.
+debaser drops keys it does not know the next time `debaser add`, `debaser remove`, or a run that records `tree` saves the list.
 ====
