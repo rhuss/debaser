@@ -1,6 +1,13 @@
 = When a build stops
 
 // Sources:
+// debaser:src/core/patchlist.ts:33
+// debaser:src/core/paths.ts:36
+// debaser:src/run/build.ts:95-123
+// debaser:src/harness/invoke.ts:105
+// debaser:src/live/render.ts:748-752
+// debaser:src/core/tree.ts:97-105
+// debaser:src/harness/verify.ts:41-51
 // debaser:src/core/errors.ts:1-20
 // debaser:src/cli/usage.ts:29-30
 // debaser:src/cli/usage.ts:40-43
@@ -61,7 +68,7 @@ On this page, the harness is the configured integration that runs a coding agent
 == Read a stop
 
 A stop prints a short message.
-In the live view on a color terminal, its first line starts with `stopped after`, followed by a masked run time, the stage the run stopped in, and the reason.
+In the live view on a color terminal, its first line starts with `✗ stopped after`, followed by the run time, the stage the run stopped in, and the reason.
 In plain output, the first line reads `debaser stopped: <reason>` instead.
 The lines below it name what you need to go on:
 
@@ -71,7 +78,7 @@ The lines below it name what you need to go on:
 * `report:` is the run's `report.md`, whose result line reads `Result: stopped (exit <code>): <reason>`.
 * `handoff:` names a file per patch the stop points at, with the problem, its cause, and a task for fixing that patch.
 * One or more lines say what to do next, for example `resolve the conflicts, `git add` the files, then continue`.
-* `prompt for an agent:` and `run it:` appear for a conflict or a failing recipe step (exits 2, 3, and 5).
+* `prompt for an agent:` and `run it:` appear for a merge conflict or a failing recipe step.
 They name a prompt file in the report directory and a command that runs an agent on it in the build directory.
 * `continue: debaser continue` and `undo the run: debaser rollback` close the message.
 After an exit 4, only the rollback line appears.
@@ -259,7 +266,7 @@ The harness's `attempts` setting defaults to 3.
 * The agent's fixes reached their limit for the run: the attempts multiplied by the number of recipe steps plus acceptance checks.
 debaser stops then rather than letting fixes break each other in a loop.
 * The harness failed to run: it exited with a non-zero code without an acceptable result, or its output stream reported a failure.
-A harness that fails to start fails the same way on the next attempt, so its attempts end at once.
+A harness that exits with an error and leaves no acceptable result ends its attempts at once.
 The stop gives the reason, for example `it exited <code>: <last line>`, and a `harness log:` line.
 
 The stop names the conflict, step, or acceptance check the agent gave up on, along with its files or log.
@@ -365,7 +372,7 @@ The rollback checks out the integration branch with force.
 Uncommitted changes to tracked files in the build directory are lost, and so are the run's merges and fix commits on the integration branch.
 ====
 
-The rollback refuses when the build directory has another branch or a detached HEAD checked out, or when another worktree holds the integration branch.
+Unless the run built in place, the rollback refuses when the build directory has another branch or a detached HEAD checked out; it also refuses when another worktree holds the integration branch.
 xref:user/build-directory.adoc#refusals[When debaser refuses the build directory] lists these checks and their messages.
 A refused rollback changes nothing, so the run stays stopped and you can still continue it.
 When the build directory is gone, the rollback moves only the refs back, as xref:user/build-directory.adoc[The build directory] describes under "A deleted build directory".
