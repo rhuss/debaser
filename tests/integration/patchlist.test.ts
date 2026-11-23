@@ -61,15 +61,26 @@ test("add creates an ignored config, dates entries, refuses duplicates and takes
     "debaser · 3 patches, merged in this order onto upstream/main\n" +
       "\n" +
       "#  PATCH               ADDED       DESCRIPTION\n" +
-      "1  acme/widget#109     2026-11-04  jump to blocked agents (unverified)\n" +
-      "2  my-branch           2026-11-04  My change (unverified)\n" +
-      "3  other/widget:topic  2026-11-04  Topic (unverified)\n" +
+      "1  acme/widget#109     2026-11-04  jump to blocked agents\n" +
+      "2  my-branch           2026-11-04  My change\n" +
+      "3  other/widget:topic  2026-11-04  Topic\n" +
       "\n" +
       "1 retired patch; list --verbose shows them\n",
   );
   expect((await run(w, "list", "--verbose")).out).toEndWith(
     "\n" + "1 retired patch\n" + "\n" + "PATCH               RETIRED     REASON\n" + "other/widget:named  2026-11-04  x\n",
   );
+});
+
+test("list marks a patch with an acceptance check, after its pin", async () => {
+  const w = world();
+  branch(w, "a", { "a.txt": "a\n" });
+  branch(w, "b", { "b.txt": "b\n" });
+  const pin = git(w.clone, "rev-parse", "a");
+  configure(w, ["a", "b"], { patchExtra: { a: { pin, acceptance: { run: ["true"] } } } });
+  const out = (await run(w, "list")).out;
+  expect(out).toMatch(new RegExp(`^1 +a +\\S+ +about a \\(pinned ${pin.slice(0, 7)}\\) \\(with check\\)$`, "m"));
+  expect(out).toMatch(/^2 +b +\S+ +about b$/m);
 });
 
 test("remove retires a patch with its reason, which it needs off a terminal", async () => {

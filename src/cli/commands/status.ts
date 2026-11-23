@@ -120,7 +120,8 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
         pr: prState,
         pinned: p.pin ?? null,
         checks: known?.checks ?? null,
-        acceptance: known?.acceptance ?? (p.acceptance ? null : "unverified"),
+        // A result.json from before "none" says "unverified" for a patch without a check.
+        acceptance: (known?.acceptance === "unverified" ? "none" : known?.acceptance) ?? (p.acceptance ? null : "none"),
         behind: base ? Number(git.git(ctx.repo, ["rev-list", "--count", "--no-merges", `${base}..${upstream}`]).stdout.trim()) || 0 : null,
       };
     });

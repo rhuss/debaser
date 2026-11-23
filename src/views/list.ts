@@ -53,7 +53,7 @@ export function render(
         dim(String(i + 1)),
         name(p.source),
         dim(p.added),
-        { text: [p.description, p.pin ? `(pinned ${p.pin.slice(0, 7)})` : "", p.acceptance ? "" : "(unverified)"].filter(Boolean).join(" ") },
+        { text: [p.description, p.pin ? `(pinned ${p.pin.slice(0, 7)})` : "", p.acceptance ? "(with check)" : ""].filter(Boolean).join(" ") },
       ]),
       { color: o.color, columns: o.columns, gap: 2 },
     ),

@@ -8,7 +8,7 @@ One standalone command, `debaser <verb> [options]` (FR-054). All verbs accept `-
 |---|---|---|---|
 | `add` | `add <source> [description] [--pin <sha>] [--upstream owner/repo]` | yes | First `add` creates `patches.json` (FR-001a). Sources: `123`, `#123`, `owner/repo#12`, PR URL, `owner/repo:branch`, tree URL, `<git url>#branch=<name>`, `<local-branch>`. PR titles come from `gh`. Refuses duplicates, the integration branch, `<branch>-prev`, URLs with credentials. |
 | `remove` | `remove <source> --reason <text>` | yes | Retires the patch; off a terminal `--reason` is required, on a terminal it is asked for. |
-| `list` | `list [--json]` | no | Live and retired patches; pinned and unverified marks. |
+| `list` | `list [--json]` | no | Live and retired patches; pinned and with-check marks. |
 | `rebuild` | `rebuild [--push] [--rebase all\|conflicting\|off] [--in-worktree] [--trust-recipe] [--verbose] [--json]` | yes | FR-005 to FR-011. |
 | `rebase` | `rebase [--push] [--rebase all\|conflicting] [--in-worktree] [--verbose] [--json]` | yes | Own branches only (FR-031 to FR-035a). |
 | `continue` | `continue [--skip-branch] [--verbose]` | yes | Resumes a stopped `rebuild` or `rebase` (FR-015); `--skip-branch` only for a stopped rebase. |

@@ -130,7 +130,7 @@ export function render(v: View, o: { color: boolean }): string[] {
       { text: r.pr ? r.pr.toLowerCase() : "not a PR", tone: r.pr === "MERGED" ? "green" : r.pr === "CLOSED" ? "red" : r.pr ? null : "dim" },
       { text: r.behind === null || r.behind === undefined ? "?" : String(r.behind), tone: "dim" },
       { text: r.checks ?? "-", tone: r.checks === "pass" ? "green" : r.checks === "fail" ? "red" : "dim" },
-      { text: r.acceptance ?? "-", tone: r.acceptance === "pass" || r.acceptance === "fixed" ? "green" : r.acceptance === "fail" ? "red" : "dim" },
+      { text: !r.acceptance || r.acceptance === "none" ? "-" : r.acceptance, tone: r.acceptance === "pass" || r.acceptance === "fixed" ? "green" : r.acceptance === "fail" ? "red" : "dim" },
       ...(pinned ? [{ text: r.pinned ? `pinned ${r.pinned.slice(0, 7)}` : "", tone: "dim" as Tone }] : []),
     ]);
   lines.push(
@@ -153,7 +153,6 @@ export function render(v: View, o: { color: boolean }): string[] {
   if (owns.some(s => s?.kind === "behind")) hints.push("Branches behind upstream: `rebase` updates them.");
   if (owns.some(s => s?.kind === "worktree" && s.rebasableThere))
     hints.push("Branches in a worktree: `rebase --in-worktree` rebases them there.");
-  if (v.rows.some(r => r.acceptance === "unverified")) hints.push("unverified: patches without an acceptance check.");
   if (v.note) hints.push(`Own branches: ${v.note}`);
   if (hints.length) lines.push("", ...hints.map(h => paint(h, "dim")));
   return lines;
