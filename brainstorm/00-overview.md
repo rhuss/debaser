@@ -1,12 +1,13 @@
 # Brainstorm Overview
 
-Last updated: 2026-11-22
+Last updated: 2026-11-23
 
 ## Sessions
 
 | # | Date | Topic | Status | Spec | Issue |
 |---|------|-------|--------|------|-------|
 | 01 | 2026-11-22 | build-worktree | active | - | - |
+| 02 | 2026-11-23 | acceptance-labels | approved | - | - |
 
 ## Open Threads
 - Tracked changes inside the build directory: refuse or reset? (from #01)
