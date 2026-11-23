@@ -108,3 +108,9 @@ rules:
       - '--trust-recipe'
       - '--push'
       - 'result\.json'
+  - glob: content/modules/ROOT/pages/recipe-author/recipes.adoc
+    require:
+      - 'visuals/recipe\.svg'
+      - '\.debaser/recipe\.toml'
+      - 'debaser trust'
+      - 'debaser recipe'
