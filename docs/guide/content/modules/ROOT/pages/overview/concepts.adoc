@@ -170,7 +170,7 @@ Acceptance checks run after every step has passed, in the build directory, with 
 The expected exit code defaults to 0, and `debaser status` shows the result in its PATCH CHECK column.
 
 harness::
-The configured integration that hands work to a xref:index.adoc[coding agent], set in the `harness` section of the patch list.
+The configured integration that hands work to a xref:index.adoc[coding agent], set in the `harness` section of `patches.json`.
 The agent is the command-line program that the harness runs and that does the work.
 The harness names the agent's command and its kind (`claude`, `codex`, `pi`, `opencode`, or `plain`), optionally with a different command per task (`conflict`, `check`, `acceptance`, `rebase`).
 If the harness's command cannot run, debaser prints a warning and carries on as if no harness were configured.

@@ -66,11 +66,13 @@ The exit code tells you which kind of stop you hit, and each kind has its own se
 
 xref:overview/how-it-works.adoc[How a build works] shows the phases in which each stop can happen.
 On this page, the harness is the configured integration that runs a coding agent, and `<build directory>` is the path a stop prints after `build directory:`.
+The harness can give conflicts, failing steps, and acceptance checks each a command of their own, and uses its main command for the others, as xref:recipe-author/harness.adoc#per-task[A different agent per task] shows.
 
 == Read a stop
 
 A stop prints a short message.
-In the live view, the progress card that debaser redraws on a color terminal, the stop's first line starts with `✗ stopped after`, followed by the run time, the stage the run stopped in, and the reason.
+The live view is the progress card debaser redraws on a color terminal.
+There, the stop's first line starts with `✗ stopped after`, followed by the run time, the stage, and the reason.
 In plain output, the first line reads `debaser stopped: <reason>` instead.
 The lines below it name what you need to go on:
 
@@ -80,7 +82,7 @@ The lines below it name what you need to go on:
 * `report:` is the run's `report.md`, whose result line reads `Result: stopped (exit <code>): <reason>`.
 * `handoff:` names a file per patch the stop points at, with the problem, its cause, and a task for fixing that patch.
 * One or more lines say what to do next, for example `+resolve the conflicts, `git add` the files, then continue+`.
-* `prompt for an agent:` and `run it:` appear for a merge conflict or a failing recipe step.
+* `prompt for an agent:` and `run it:` appear for a merge conflict or a recipe step that fails only with the patches.
 They name a prompt file in the report directory and a command that runs an agent on it in the build directory.
 * `continue: debaser continue` and `undo the run: debaser rollback` close the message.
 After an exit 4, only the rollback line appears.
@@ -94,7 +96,7 @@ xref:reference/files-and-codes.adoc[Files, exit codes, and environment] lists wh
 While a run is stopped, `debaser status` also says where it stopped, as xref:user/status.adoc[Reading status] shows.
 
 Exit 1 is not a stop.
-It means debaser refused to start or could not go on: a usage error, a failed precondition, another command holding the lock, a failed fetch, a failed reset, or a failed push after a finished build.
+It means debaser refused to start, or failed without stopping a run: a usage error, a failed precondition, another command holding the lock, a failed fetch, a failed reset, or a failed push after a finished build.
 The message names what went wrong.
 xref:user/build-directory.adoc#refusals[When debaser refuses the build directory] covers the refusals that concern the build directory.
 
@@ -173,7 +175,7 @@ git diff --name-only --diff-filter=U
 // expect: lines == 0
 
 . Continue the run.
-debaser commits the merge with the patch's merge message and goes on with the next patch.
+debaser commits the merge and goes on with the next patch.
 +
 [source,bash]
 ----
@@ -190,7 +192,8 @@ xref:user/own-branches.adoc[Rebasing your own branches] covers it.
 === Exit 3: a step fails only with the patches
 
 When a recipe step fails, debaser runs what failed once more, in case it is flaky.
-When it fails again, debaser runs the step on plain upstream, the fetched upstream commit without any patches merged, in a throwaway worktree, after the install step and the steps before it.
+When it fails again, debaser checks whether the step also fails on plain upstream.
+It runs the install step, the steps before the failing one, and the failing step itself in a throwaway worktree.
 When the step passes there, the patches break it.
 With no harness configured for failing steps, the run stops with exit 3.
 
@@ -198,7 +201,7 @@ The stop names the step, its command, and its log.
 Before it stops, debaser works out which patches to blame.
 It takes each merged patch that touches a file the failure names and runs the step with that patch alone on upstream.
 The `caused by:` line then reads `<patch> fails alone on upstream` for a patch that fails by itself.
-When none fails alone, it names the patches that fail only together, or one patch together with the other patches.
+When no patch fails alone, the line reads `<patch> and <patch> only together`, or `<patch> together with the other patches`.
 When no merged patch touches a file the failure names, the line is missing.
 The blamed patches get a handoff each, and the stop writes a prompt for an agent with the run's patches and the end of the log.
 
@@ -265,7 +268,7 @@ The run stops with exit 5 in three cases:
 
 * The agent did not produce an accepted result within its attempts.
 The harness's `attempts` setting defaults to 3.
-* The agent's fixes reached their limit for the run: the attempts multiplied by the number of recipe steps plus acceptance checks.
+* The agent's fixes reached their limit for the run: `attempts` times the sum of the recipe steps and the acceptance checks of patches the build does not skip.
 debaser stops then rather than letting fixes break each other in a loop.
 * The harness failed to run: the agent exited with a non-zero code without an acceptable result, or its output stream reported a failure.
 When the agent exits with an error and leaves no acceptable result, its attempts end at once.
@@ -276,7 +279,7 @@ For a conflict or a step, it also writes a prompt for an agent.
 You can go on in two ways:
 
 * Fix the problem yourself, as for <<exit-2,exit 2>>, <<exit-3,exit 3>>, or <<exit-6,exit 6>>, then run `debaser continue`.
-* Fix the harness, then run `debaser continue` to let the agent try again.
+* When the harness failed to run, fix it, then run `debaser continue` to give the agent new attempts.
 After the fixes reached their limit, the next failing step or acceptance check stops the run again at once, because the limit counts every agent fix of the run.
 
 [#exit-6]
@@ -286,7 +289,7 @@ After the recipe steps pass, debaser runs the acceptance check of every merged p
 A failing check runs once more, in case it is flaky.
 When a check still fails and no harness is configured for acceptance checks, the run stops with exit 6.
 
-The stop names the patch of the first failing acceptance check, all failing checks, the check's command, and its log.
+The stop names the patch whose acceptance check failed first, lists all failing acceptance checks, and gives the first one's command and log.
 It writes no agent prompt.
 Each failing patch gets a handoff instead, which says the build no longer does what the patch is for.
 
@@ -297,10 +300,13 @@ Each failing patch gets a handoff instead, which says the build no longer does w
 cd <build directory>
 ----
 
-. Fix the failure in the working tree, or commit the fix yourself.
+. Fix the failure in the working tree.
+You can also commit the fix yourself.
 
 . Continue the run.
 debaser commits your fix and runs the steps again from the first one, followed by every acceptance check.
++
+Check: the run no longer stops at this patch's acceptance check.
 +
 [source,bash]
 ----
@@ -314,7 +320,7 @@ Ctrl-C ends a run with exit 130, SIGTERM with 143, and SIGHUP with 129.
 The run ends where it is, keeps its state, and releases the lock.
 `debaser continue` and `debaser rollback` handle an interrupted run like a stopped one.
 
-`debaser continue` after an interrupted step commits only the changes to files Git already tracks.
+<<continue,Continue a stopped run>> says what `debaser continue` commits after an interrupted step.
 When the run was interrupted during an agent call, `debaser continue` checks what the agent left like a finished result.
 debaser commits an accepted result as the agent's fix, and stops at the conflict or failing step otherwise.
 
@@ -336,8 +342,8 @@ When nothing changed, it commits nothing.
 * After an interrupted step, it commits only the changes to files Git already tracks.
 
 After a stop at a step or an acceptance check, verification starts again at the first recipe step, because a fix can break a step that passed before it.
-After a stop with exit 5, the agent tries again, as <<exit-5,exit 5>> describes.
-When a rollback stopped because restoring the dependencies failed, `debaser continue` finishes the rollback.
+After a stop with exit 5, the agent gets new attempts, unless its fixes already reached their limit for the run, as <<exit-5,exit 5>> describes.
+`debaser continue` also finishes a rollback that stopped, as <<rollback,Roll back>> describes.
 
 `debaser continue` refuses with exit 1 in these cases:
 
@@ -346,16 +352,16 @@ When a rollback stopped because restoring the dependencies failed, `debaser cont
 Check the branch out again, or undo the run with `debaser rollback`.
 * The build directory is gone.
 xref:user/build-directory.adoc[The build directory] covers that case under "A deleted build directory".
-* `--skip-branch` was given for any run other than a rebase run stopped at a branch.
+* `--skip-branch` was given for any run other than a `debaser rebase` run stopped at a branch.
 
-`--skip-branch` gives up the own branch a rebase run stopped at and goes on with the next one.
+`--skip-branch` skips the own branch that a stopped `debaser rebase` run halted at and goes on with the next one.
 xref:user/own-branches.adoc[Rebasing your own branches] explains rebase runs.
 
 [#rollback]
 == Roll back
 
-`debaser rollback` returns to the last successful build.
-What that means depends on whether a run is stopped.
+`debaser rollback` undoes a stopped or interrupted run.
+With no such run, it returns to the previous build.
 
 === With a stopped run
 
@@ -374,7 +380,8 @@ The rollback checks out the integration branch with force.
 Uncommitted changes to tracked files in the build directory are lost, and so are the run's merges and fix commits on the integration branch.
 ====
 
-Unless the run built in place, the rollback refuses when the build directory has another branch or a detached HEAD checked out; it also refuses when another worktree holds the integration branch.
+The rollback refuses when the build directory has another branch or a detached HEAD checked out, unless the run built in place.
+It also refuses when another worktree holds the integration branch.
 xref:user/build-directory.adoc#refusals[When debaser refuses the build directory] lists these checks and their messages.
 A refused rollback changes nothing, so the run stays stopped and you can still continue it.
 When the build directory is gone, the rollback moves only the refs back, as xref:user/build-directory.adoc[The build directory] describes under "A deleted build directory".

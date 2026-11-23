@@ -15,6 +15,7 @@
 // debaser:src/run/verifyloop.ts:18-110
 // debaser:src/steps/isolated.ts:37-57
 // debaser:src/rebase/rebase.ts:570-600
+// debaser:src/rebase/rebase.ts:256-262
 // debaser:src/plugins/parsers/registry.ts:1-17
 // debaser:src/plugins/parsers/types.ts:1-12
 // debaser:src/plugins/parsers/generic.ts:25-31
@@ -51,11 +52,12 @@
 // debaser:README.md:121-125
 // debaser:src/cli/commands/index.ts:101-110
 
-The steps of a recipe are the commands that test and build the project, which debaser runs on the merged result.
+The steps of a recipe are the commands that test and build the project.
+debaser runs them on the merged result, the integration branch after it merged all patches onto upstream.
 This page covers the keys of a step and where a new step goes among the inherited ones.
 It explains the placeholders and environment a step gets, and how failure parsers shape the rerun of a failing step.
-It also covers the other keys of a recipe, except the prompts and the keys that choose layers.
-These are the install step, the build output and the installed artifact, the after-build command, `leftovers`, and `project_name`.
+It also covers the remaining recipe keys: the install step, the build output and the installed artifact, the after-build command, `leftovers`, and `project_name`.
+Prompts and the keys that choose layers have their own pages.
 It ends with a local recipe for a small project, written from start to finish.
 
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains the layers a recipe comes from and how they merge.
@@ -108,7 +110,7 @@ debaser writes each step's output to `steps/<step>.log` in the run's report dire
 
 == Place a step among the inherited ones
 
-A step in your layer either replaces a step from a lower layer or adds a new one:
+Three rules decide where the steps of your layer go:
 
 * A step with the name of a lower layer's step replaces that step at its place.
 It replaces the whole step, so repeat every key you want to keep, such as `parser` or `tests`.
@@ -118,7 +120,7 @@ It replaces the whole step, so repeat every key you want to keep, such as `parse
 The step that `before` or `after` names must already be in the recipe: a step of a lower layer, or a step earlier in the same file.
 Otherwise debaser stops with `step <name> is placed before <other>, which no lower layer has` (or `after`).
 
-With `steps_replace = true`, check the `[install]` table of the lower layers.
+With `steps_replace = true`, check the `[install]` table of the lower layers, which names the step that installs dependencies (see <<the-install-step>>).
 When it names a step your layer no longer has, debaser stops with `the install step <name> is not one of the recipe's steps`.
 Define a step with that name, or set `install.step` to one of yours.
 
@@ -156,16 +158,47 @@ Without `artifact.output`, it is `debaser-output` in that tree.
 |The tree the step runs in.
 
 |`+{tests}+`
-|On a full run, the step's `tests` list, or nothing when the step has none, so the test runner runs all tests.
+|On a full run, the step's `tests` list.
+Without `tests`, it becomes nothing, so the test runner runs all tests.
 On the rerun of a failing step, the failing test files, when debaser narrows the rerun to them (see <<failure-parsers-and-the-flaky-rerun>>).
 |===
 
 The tree a step runs in is usually the build directory.
-When debaser reruns a step on plain upstream, the fetched upstream commit without any patches merged, it runs the step in a throwaway worktree, and when it checks one of your own branches after a rebase, in that branch's worktree.
+When debaser reruns a step on plain upstream (the fetched upstream commit without any patches merged), it runs the step in a throwaway worktree.
+When it runs the steps on one of xref:user/own-branches.adoc[your own branches] after rebasing it, it uses the worktree it rebased that branch in.
 `+{root}+` and `+{output}+` follow the tree.
 
 `+{tests}+` as an argument of its own becomes one argument per entry, and no argument at all when the list is empty.
 Inside a longer argument, such as `+--filter={tests}+`, it becomes the files as words separated by spaces, with quotes around any file name that needs them.
+
+[#environment-variables-for-steps]
+== Environment variables for steps
+
+Steps run with debaser's own environment plus four variables that describe the build, so the project can stamp its build with them:
+
+[cols="1,3",options="header"]
+|===
+|Variable |Value
+
+|`DEBASER_PATCHES`
+|A JSON array of the merged patches, each with `source`, `display`, `commit`, and `pin` when the patch is pinned.
+
+|`DEBASER_FORK_URL`
+|The push URL of the remote `origin`, or empty when the clone has no `origin`.
+From a URL with a scheme, such as `https://`, debaser removes the user name and password; an scp-style `user@host:path` stays as it is.
+
+|`DEBASER_COMMIT`
+|The commit of the tree the step runs in: the merged result in the build directory, the tree's own commit on plain upstream and on your own branches after a rebase.
+
+|`DEBASER_MANIFEST`
+|The path of `manifest.json` in the xref:overview/concepts.adoc[data directory].
+debaser writes it when the steps start in the build directory, with `version`, `upstream` (`repo`, `branch`, `tip`), `commit`, `fork`, and `patches`.
+On plain upstream, its `commit` is still the build directory's commit.
+The steps on your own branches run before debaser writes the file in that run, so they see the previous build's file or none.
+|===
+
+Steps get these variables in the build directory, on plain upstream, and on your own branches after a rebase.
+The install step that `debaser rollback` runs does not get them.
 
 == Failure parsers and the flaky rerun
 
@@ -194,8 +227,9 @@ It gives no summary and no failing tests.
 A step that fails runs once more, in case the failure is flaky.
 The rerun is narrowed to the failing test files when both of these hold:
 
-* The parser names those files.
+* The parser names the failing test files.
 Only `bun-test` does, and only when every failure names its file and bun reports no error outside the failing tests.
+`tsc` names the files with type errors, which are not test files to rerun.
 `cargo-test` never narrows, because cargo selects tests by name, not by file.
 * `run` has `+{tests}+` as an argument of its own.
 
@@ -203,15 +237,16 @@ Otherwise the rerun runs the whole command again.
 
 When the rerun passes, the step counts as passed.
 In plain output, the build summary adds `warning: <step> failed once and passed when run again; it may be flaky (<log>)`.
-On a color terminal, the live view, the progress card that debaser redraws in place, shows `↻ retried <step> failed once, passed on retry: may be flaky` instead.
+On a color terminal, the live view (the progress card that debaser redraws in place) shows `↻ retried <step> failed once, passed on retry: may be flaky` instead.
 The log of the first failure stays in the report directory as `steps/<step>-flaky-<n>.log`.
 When the rerun fails too, debaser tries the step on plain upstream to find out whether a patch broke it.
 xref:overview/how-it-works.adoc[How a build works] follows that path to exit 3, 4, or 5.
 
+[#the-install-step]
 == The install step
 
 The install step installs the project's dependencies, for example `bun install --frozen-lockfile` in the generic recipe `bun-ts`.
-debaser skips it when the dependencies are unchanged.
+Depending on the `[install]` table, debaser can skip it when the dependencies have not changed.
 The `[install]` table names it and says when it runs:
 
 `install.step`::
@@ -224,13 +259,13 @@ Files whose change makes the step run again.
 `install.marker`::
 A path in the build directory, such as `node_modules`, whose absence makes the step run.
 
-For the step that `install.step` names, debaser decides at each build:
+For the step that `install.step` names, debaser checks these cases in order at each build, and the first that applies decides:
 
-. With a marker that is missing from the build directory, the step runs.
-. Without triggers, the step runs on every build when there is no marker, and is skipped when the marker exists.
-. With triggers and no marker, the step runs when it never passed in this build directory.
+. When `install.marker` is set and that path is missing from the build directory, the step runs.
+. When `install.triggers` is not set, the step runs on every build if `install.marker` is not set either, and is skipped if the marker path exists.
+. When `install.triggers` is set and `install.marker` is not, the step runs if it never passed in this build directory.
 debaser records a passed install step in the build directory's own Git directory, as the file `debaser-installed`, so a new or recreated build directory runs it once.
-. Otherwise, the step runs when one of the trigger files changed between the commit the build directory had at the start of the run and the merged result.
+. When `install.triggers` is set and none of the cases above applies, the step runs if one of the trigger files changed between the commit the build directory had at the start of the run and the merged result, and is skipped if none changed.
 
 A recipe without an `[install]` table runs every step on every build.
 
@@ -247,10 +282,12 @@ Two keys under `[artifact]` say what the build produces and where debaser instal
 The path the build step writes, which steps get as `+{output}+`.
 
 `artifact.install`::
-The path where debaser puts a copy of the build output once the build has passed.
+The path where debaser puts a copy of the build output.
 
-Both paths are relative to the build directory; an absolute path stays as it is.
-They are different files: the build steps write the build output, and debaser replaces the installed artifact only at the end of a successful run.
+debaser resolves a relative `artifact.install` against the build directory.
+It resolves a relative `artifact.output` against the build directory when it installs, and against the tree the step runs in for `+{output}+` (see <<placeholders-in-commands>>).
+An absolute path stays as it is.
+They are different files: the build steps write the build output, and debaser writes the installed artifact.
 
 debaser installs only when the recipe sets both keys.
 After every step and every acceptance check has passed, it copies the build output to the install path.
@@ -258,7 +295,8 @@ The installed artifact from the start of the run becomes `<install path>.prev`.
 When there was no installed artifact at the start, debaser removes an old `.prev` file.
 When the build output does not exist, debaser installs nothing and warns `warning: the build output <path> does not exist; nothing was installed`.
 
-In plain output, the build summary starts with `debaser: built <install path>`, the installed artifact relative to the build directory, or with the integration branch when nothing was installed.
+In plain output, the build summary starts with `debaser: built <install path>`, with the path relative to the build directory.
+When nothing was installed, the summary names the integration branch instead.
 On a color terminal, the live view ends with `build done · artifact <path>`, with the installed artifact's absolute path, and has no such line when nothing was installed.
 Acceptance checks find the build output through `DEBASER_ARTIFACT`; xref:recipe-author/acceptance-checks.adoc[Acceptance checks] covers them.
 
@@ -268,7 +306,7 @@ Acceptance checks find the build output through `DEBASER_ARTIFACT`; xref:recipe-
 Like `run`, it is a non-empty array with the command and its arguments.
 
 debaser runs it after the install and before `--push` pushes the integration branch.
-It runs in the build directory, with debaser's own environment but without the `DEBASER_` variables that steps get.
+It runs in the build directory, with debaser's own environment but without the variables in <<environment-variables-for-steps>>.
 debaser fills no placeholders in it and sets no timeout.
 Its output goes to `steps/after-build.log` in the report directory.
 
@@ -279,7 +317,7 @@ The summary says `warning: the after-build command failed; the build itself succ
 
 Build tools can leave temporary files in the build directory while they run.
 `leftovers` lists globs for such files, matched against paths relative to the build directory.
-debaser never commits a matching file with a fix, neither the agent's fix nor the changes `debaser continue` commits as yours.
+debaser never commits a matching file, neither in a fix by the agent nor in your changes that `debaser continue` commits for you.
 It also treats the `.<hash>.bun-build` files of an interrupted `bun build` this way, without a glob.
 
 [source,toml]
@@ -293,34 +331,6 @@ The `leftovers` of all layers combine.
 
 `project_name` is the name debaser fills into the prompts for the coding agent, for example `Fix a failing step in a patched <name> build`.
 Without it, debaser uses the repository part of the patch list's `upstream.repo`, and `debaser recipe` shows `default` as its layer.
-
-== Environment variables for steps
-
-Steps run with debaser's own environment plus four variables that describe the build, so the project can stamp its build with them:
-
-[cols="1,3",options="header"]
-|===
-|Variable |Value
-
-|`DEBASER_PATCHES`
-|A JSON array of the merged patches, each with `source`, `display`, `commit`, and `pin` when the patch is pinned.
-
-|`DEBASER_FORK_URL`
-|The push URL of the remote `origin`, or empty when the clone has no `origin`.
-From a URL with a scheme, such as `https://`, debaser removes the user name and password; an scp-style `user@host:path` stays as it is.
-
-|`DEBASER_COMMIT`
-|The commit of the tree the step runs in: the merged result in the build directory, the tree's own commit on plain upstream and on your own branches after a rebase.
-
-|`DEBASER_MANIFEST`
-|The path of `manifest.json` in the xref:overview/concepts.adoc[data directory].
-debaser writes it when the steps start in the build directory, with `version`, `upstream` (`repo`, `branch`, `tip`), `commit`, `fork`, and `patches`.
-On plain upstream, its `commit` is still the build directory's commit.
-The steps on your own branches run before debaser writes the file in that run, so they see the previous build's file or none.
-|===
-
-Steps get these variables in the build directory, on plain upstream, and on your own branches after a rebase.
-The after-build command and the install step that `debaser rollback` runs do not get them.
 
 == Write a local recipe
 
@@ -345,7 +355,7 @@ debaser list
 ----
 // expect: contains "local recipe: none"
 +
-When the line names a path instead of `none`, a local recipe exists already; edit that file instead.
+When the `config` line shows `local recipe:` with a path instead of `none`, a local recipe exists already; edit that file instead.
 
 . Write the recipe to `recipe.toml` in the data directory.
 The command assumes the default data directory; with `--dir` or `DEBASER_DIR`, write to `<data directory>/recipe.toml` instead.
