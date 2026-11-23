@@ -40,7 +40,7 @@ With an older Git they stop with the message `git {debaser-git-min} or newer is 
 Bun::
 Bun compiles debaser's TypeScript source into the executable (`bun build --compile`).
 You need it only for the build, not to run debaser.
-The project's CI builds and tests debaser with Bun 1.4.4 on `ubuntu-latest` and `macos-latest` runners (link:{debaser-blob}/.github/workflows/ci.yml#L22-L29[CI workflow]).
+The project's CI builds and tests debaser with Bun {debaser-bun-tested} on `ubuntu-latest` and `macos-latest` runners (link:{debaser-blob}/.github/workflows/ci.yml#L22-L29[CI workflow]).
 The pinned source does not state a minimum Bun version.
 
 GitHub CLI (`gh`), optional::

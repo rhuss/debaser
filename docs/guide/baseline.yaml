@@ -8,3 +8,4 @@ sources:
     attributes:
       version: 0.1.0
       git-min: "2.38"
+      bun-tested: 1.4.4
