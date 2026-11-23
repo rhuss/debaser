@@ -105,7 +105,7 @@ The integration branch, the branch debaser builds, is `debaser`.
 Every later `debaser add` appends a patch at the end of the list, and debaser merges the patches in the order of the list.
 
 . Add a pull request of upstream by its number.
-debaser asks the GitHub CLI (`gh`) for the pull request's title and takes it as the patch's description, without a leading area prefix such as `docs:`.
+debaser asks the GitHub CLI (`gh`) for the pull request's title, removes a leading area prefix such as `docs:`, and uses the rest as the patch's description.
 +
 Check: debaser confirms the new patch with a line that starts with `added <owner>/<repo>#<number>:`, followed by its description.
 +
@@ -127,7 +127,7 @@ xref:user/install.adoc[Install debaser] lists what else changes without `gh`.
 
 . Add one of your own branches.
 Without a description, the branch's name becomes its description.
-debaser refuses the integration branch and `debaser-prev` as patch branches, because it resets both on every run.
+debaser refuses the integration branch (`debaser`) and the previous build's branch (`debaser-prev`) as patch branches, because it resets both on every run.
 +
 Check: debaser confirms the new patch as `added <branch>: <branch>`.
 +
@@ -166,44 +166,13 @@ debaser list
 debaser refuses a source that is already in the list.
 xref:user/patch-list.adoc[Managing the patch list] covers every source form and how to change the list.
 
-[#no-upstream-remote]
-== Clones without an upstream remote
-
-Without an `upstream` remote and without the `--upstream` option, the first `debaser add` refuses with exit 1 and creates nothing.
-It names the two ways out:
-
-[source,text]
-----
-debaser: there is no upstream remote to take the upstream repository from
-  add it: git remote add upstream https://github.com/<owner>/<repo>.git
-  or name it: debaser add <source> --upstream <owner>/<repo>
-----
-
-The first way is the second step of <<set-up-the-clone>>.
-The second way names the upstream repository on the command line, in the form `<owner>/<repo>`:
-
-[source,bash]
-----
-debaser add <number> --upstream <owner>/<repo>
-----
-
-With `--upstream` and no `upstream` remote, debaser records `main` as the upstream branch.
-When it builds, it fetches that branch and the pull requests of upstream from `origin` instead, as long as the clone has an `origin` remote.
-
-[WARNING]
-====
-When `origin` is your fork, `--upstream` makes debaser fetch the upstream branch and upstream's pull requests from your fork, not from the original repository.
-`--upstream` fits a clone whose `origin` fetches from the original repository, for example a clone of upstream itself.
-With a fork as `origin`, add the `upstream` remote instead.
-====
-
 == Check the recipe
 
 A recipe tells debaser how to check, build, and install the project.
 debaser assembles it from layers: a generic recipe for the type of project, a built-in recipe for a known upstream repository, the project's own `.debaser/recipe.toml`, and a local `recipe.toml` in the data directory.
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains how the layers combine.
 
-Unless the patch list or a layer names the generic recipe, debaser picks it by the files at the fetched upstream commit.
+Unless the patch list or a recipe layer names a generic recipe, debaser picks one from the files at the fetched upstream commit.
 `bun.lock` or `bun.lockb` selects `bun-ts`, and `Cargo.toml` selects `rust-cargo`.
 When no generic recipe matches and no other layer exists, debaser stops with `no recipe matches this project`.
 The message suggests naming a generic recipe with `recipe` in the patch list or writing a local `recipe.toml`.
@@ -223,6 +192,14 @@ debaser recipe
 `debaser recipe` only reads.
 When the project has its own `.debaser/recipe.toml` that you have not trusted, the command leaves it out and says so in a note that points to `debaser trust`.
 
+The project's own recipe runs only after you trust it.
+When that recipe at the fetched upstream commit is not trusted yet, or changed since you trusted it, `debaser build` asks on a terminal.
+It shows what the recipe runs and installs, followed by `Trust it? [y/N]`.
+Any answer other than `y` or `yes` stops the build with nothing changed.
+`--trust-recipe` trusts the recipe without the question and records the trust for later runs.
+Without a terminal to ask on and without `--trust-recipe`, the build refuses with exit 1.
+xref:recipe-author/recipes.adoc[Recipes and their layers] covers trust in detail.
+
 == Run the build
 
 `debaser build` fetches upstream and your patches, rebases your own branches, and merges the patches onto the integration branch.
@@ -234,20 +211,11 @@ Its default name is `../<clone>-debaser`, where `<clone>` is the name of your cl
 debaser builds there and leaves the directory you started it from alone.
 The recipe's build output and installed artifact live in the build directory, unless the recipe gives absolute paths.
 
-The project's own recipe runs only after you trust it.
-When that recipe at the fetched upstream commit is not trusted yet, or changed since you trusted it, debaser asks on a terminal.
-It shows what the recipe runs and installs, followed by `Trust it? [y/N]`.
-Any answer other than `y` or `yes` stops the build with nothing changed.
-`--trust-recipe` trusts the recipe without the question and records the trust for later runs.
-Without a terminal to ask on and without `--trust-recipe`, the build refuses with exit 1.
-xref:recipe-author/recipes.adoc[Recipes and their layers] covers trust in detail.
-
 . Run the build.
 On a color terminal, debaser shows a live view of the run, a progress card that it redraws in place.
 Piped into a file or another program, or with `--json`, it prints plain progress lines instead.
-At its start, the build names the build directory and the patch list it uses.
-That line appears in the plain progress lines, and in the live view only with `--verbose`.
-When the recipe installs nothing, the summary at the end names the integration branch where it otherwise names the installed artifact.
+At its start, the build prints a line that names the build directory and the patch list it uses.
+The plain progress lines always include it; the live view shows it only with `--verbose`.
 +
 Check: the build finishes with exit 0, and its summary names what was `built`: the installed artifact's path relative to the build directory, or the integration branch when the recipe installs nothing.
 +
@@ -267,9 +235,10 @@ git worktree list
 ----
 // expect: contains "-debaser"
 
-. Confirm that the installed artifact is in the build directory.
-`<install>` is the `artifact.install` value that `debaser recipe` shows, when it is a relative path.
-Skip this step when `debaser recipe` shows no `artifact.install`, as with the generic recipes, and run `ls` on the path itself when it is absolute.
+. Confirm that the installed artifact exists.
+If `artifact.install` is a relative path, `<install>` is that value, relative to the build directory.
+If it is absolute, run `ls` on that path itself.
+If `debaser recipe` shows no `artifact.install`, as with the generic recipes, skip this step.
 +
 Check: the file exists.
 +
@@ -310,3 +279,34 @@ debaser status
 
 xref:user/status.adoc[Reading status] explains the patch table.
 From here, xref:user/patch-list.adoc[Managing the patch list] shows how to grow the list, and xref:user/build-directory.adoc[The build directory] shows how to move the build directory.
+
+[#no-upstream-remote]
+== Clones without an upstream remote
+
+Without an `upstream` remote and without the `--upstream` option, the first `debaser add` refuses with exit 1 and creates nothing.
+It names the two ways out:
+
+[source,text]
+----
+debaser: there is no upstream remote to take the upstream repository from
+  add it: git remote add upstream https://github.com/<owner>/<repo>.git
+  or name it: debaser add <source> --upstream <owner>/<repo>
+----
+
+The first way is the second step of <<set-up-the-clone>>.
+The second way names the upstream repository on the command line, in the form `<owner>/<repo>`:
+
+[source,bash]
+----
+debaser add <number> --upstream <owner>/<repo>
+----
+
+With `--upstream` and no `upstream` remote, debaser records `main` as the upstream branch.
+When it builds, it fetches that branch and upstream's pull requests from `origin`, so the clone needs an `origin` remote.
+
+[WARNING]
+====
+When `origin` is your fork, `--upstream` makes debaser fetch the upstream branch and upstream's pull requests from your fork, not from the original repository.
+`--upstream` fits a clone whose `origin` fetches from the original repository, for example a clone of upstream itself.
+With a fork as `origin`, add the `upstream` remote instead.
+====

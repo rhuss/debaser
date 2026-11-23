@@ -34,25 +34,25 @@
 // debaser:src/run/accept.ts:203-226
 // debaser:src/core/context.ts:41-44
 
-debaser is a command-line tool that keeps a patched build of someone else's GitHub project.
-The build is the latest upstream version (the original repository) plus your patch list, the ordered list of changes you want on top.
-A recipe tells debaser how to check and build that project: named steps run in order, the build output, and where to install it.
+A recipe tells debaser how to check and build a project: named steps run in order, the build output, and where to install it.
 debaser ships generic recipes for Bun and TypeScript projects (`bun-ts`) and for Rust projects built with Cargo (`rust-cargo`), plus recipes for two specific projects.
 When none of them matches and no other recipe is in place, a build stops with "no recipe matches this project".
 This section shows you how to write one, as a local `recipe.toml` next to your patch list or as a `.debaser/recipe.toml` the project commits.
+
 The recipe steps show that the combined build works, but not that each patch still does what it is for.
 An acceptance check covers that: a command you attach to one patch, which debaser runs after every recipe step has passed.
-Without an agent, a merge conflict, or a recipe step or acceptance check that your patches break, stops the build until you fix it.
-A harness hands that work to a coding agent.
+
+Without a harness, debaser stops the build at a merge conflict, or at a recipe step or acceptance check that your patches break, and you fix the problem yourself.
+A harness, the `harness` section of `patches.json`, hands such a problem to a coding agent.
 A coding agent is a command-line program that changes code from a written task, such as Claude Code, Codex, pi, OpenCode, or any command you name.
 debaser checks the agent's result itself.
 It commits an accepted fix as a separate commit, and records an accepted conflict resolution in the patch's merge commit.
 When the agent cannot finish, the run stops with exit 5, and you can fix the problem yourself and run `debaser continue`.
 
+These pages assume a clone with a patch list; xref:user/first-build.adoc[Your first build] sets one up.
+
 xref:overview/concepts.adoc[Key concepts] defines the terms these pages use.
 The reference pages xref:reference/recipe-toml.adoc[Recipe file] and xref:reference/patches-json.adoc[`patches.json`] list every key.
-
-These pages assume a clone with a patch list; xref:user/first-build.adoc[Your first build] sets one up.
 
 == Pages in this section
 
@@ -65,5 +65,5 @@ Read these pages first, in this order:
 Add these when you need them:
 
 * xref:recipe-author/acceptance-checks.adoc[Acceptance checks]: attach a check to a patch, and see what debaser does when it fails.
-* xref:recipe-author/harness.adoc[Setting up the agent]: write the `harness` section for Claude Code, Codex, pi, OpenCode, or another command, with timeouts, attempts, and a different agent per task.
+* xref:recipe-author/harness.adoc[Setting up the harness]: write the `harness` section for Claude Code, Codex, pi, OpenCode, or another command, with timeouts, attempts, and a different agent per task.
 * xref:recipe-author/harness-verification.adoc[What the agent is asked and how its work is checked]: the tasks debaser gives the agent, the prompts it writes, and how it accepts or rejects each attempt.

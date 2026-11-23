@@ -66,7 +66,7 @@ Knowing these rules helps you write prompt overrides that fit them and read a re
 This page covers the five tasks and their prompts, where debaser keeps each call's prompt and log, how it judges a conflict resolution and a fix, and what happens to a rejected attempt.
 It lists the commit messages and trailers for each case and explains the handoffs debaser writes per patch.
 It ends with the steps to override a prompt.
-xref:recipe-author/harness.adoc[Setting up the agent] shows how to configure the harness itself: the command, the kinds, the limits, and a different agent per task.
+xref:recipe-author/harness.adoc[Setting up the harness] shows how to configure the harness itself: the command, the kinds, the limits, and a different agent per task.
 
 == The five tasks
 
@@ -291,7 +291,7 @@ Once the bound is reached, the next failing step or acceptance check stops the r
 The reason reads `<step> fails again after the harness's <n> fixes`, or `the acceptance check of <patch> fails again after the harness's <n> fixes`.
 
 A merge conflict, a failing step, or a failing acceptance check also stops the run with exit 5 when the agent uses up its attempts or the harness is broken.
-xref:recipe-author/harness.adoc[Setting up the agent] describes how a rebase differs, and xref:user/stops.adoc#exit-5[Exit 5: the agent gives up] how to go on.
+xref:recipe-author/harness.adoc[Setting up the harness] describes how a rebase differs, and xref:user/stops.adoc#exit-5[Exit 5: the agent gives up] how to go on.
 When you run `debaser continue` after such a stop, the agent gets a fresh set of attempts for the conflict, the step, or the acceptance check, unless the bound is reached.
 
 [#commits]

@@ -300,4 +300,4 @@ xref:recipe-author/recipes.adoc#trust[Trust the project's recipe] explains the f
 
 * xref:recipe-author/steps.adoc[Steps, install, and artifact]: placeholders, failure parsers, the flaky rerun, and the environment a step gets.
 * xref:recipe-author/recipes.adoc[Recipes and their layers]: how a local recipe extends the generic recipe, a built-in project recipe, or the project's recipe below it.
-* xref:recipe-author/harness.adoc[Setting up the agent]: let a coding agent fix a failing step or a merge conflict.
+* xref:recipe-author/harness.adoc[Setting up the harness]: let a coding agent fix a failing step or a merge conflict.

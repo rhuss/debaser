@@ -16,12 +16,14 @@
 // debaser:src/github/gh.ts:14-25
 // debaser:src/plugins/sources/pr.ts:10-12
 // debaser:src/plugins/sources/pr.ts:25-35
+// debaser:src/run/fetch.ts:81
 // debaser:src/run/fetch.ts:29-31
 // debaser:src/run/finish.ts:103-106
 // debaser:src/report/report.ts:186-188
 // debaser:src/cli/commands/add.ts:67-74
 // debaser:src/rebase/rebase.ts:130-136,171-173
 // debaser:src/plugins/harness/registry.ts:8
+// debaser:src/core/patchlist.ts:14-26
 // debaser:src/harness/invoke.ts:13-14
 // debaser:src/harness/select.ts:41-44
 // debaser:src/run/harness-merge.ts:25-29
@@ -31,7 +33,7 @@
 // debaser:src/cli/commands/index.ts:101-110
 
 You build debaser from source on your own machine.
-The pinned commit has no release workflow, only a CI workflow that tests and builds, so there is no release binary to download.
+The debaser commit this guide was verified against, the pinned commit, has no release workflow, only a CI workflow that tests and builds, so there is no release binary to download.
 The build compiles debaser into a single executable, `dist/debaser`, which you then copy onto your `PATH`.
 This page installs debaser version {debaser-version}.
 
@@ -46,28 +48,30 @@ Bun::
 Bun compiles debaser's TypeScript source into the executable (`bun build --compile`).
 You need it only for the build, not to run debaser.
 The project's CI builds and tests debaser with Bun {debaser-bun-tested} on `ubuntu-latest` and `macos-latest` runners (link:{debaser-blob}/.github/workflows/ci.yml#L22-L29[CI workflow]).
-The pinned source does not state a minimum Bun version.
+The pinned commit does not state a minimum Bun version.
 
 GitHub CLI (`gh`), optional::
 debaser looks for `gh` on your `PATH` and runs it to ask GitHub about a pull request: its state, title, body, merge commit, and head branch.
 debaser fetches and merges pull requests with Git, so they build without `gh` too.
-Without `gh`, or when `gh` cannot answer (not signed in, offline), you lose, among other things:
+Without `gh`, or when `gh` cannot answer (not signed in, offline), these things change, among others:
 +
 * The pull request's state and title are unknown, and the run's summary and report carry a warning about it.
-* A pull request that upstream merged by squash or rebase is merged again, unless upstream already has its commits.
+* debaser cannot see that upstream merged a pull request by squash or rebase, so it merges that pull request again.
+It skips the pull request only when upstream contains its original commits.
 * `debaser add` cannot take a pull request's title as its description, so you give one yourself: `debaser add <number> "<description>"`, where `<number>` is the pull request's number.
 * debaser cannot tell whether a pull request comes from a branch of your own fork, so it does not rebase that branch.
 
 Coding agents, optional::
 A coding agent is a command-line program that changes code from a written task; debaser can hand it a merge conflict, a failing recipe step, or a failing acceptance check.
-debaser runs it through a harness, the agent integration you configure in the patch list: Claude Code (`claude`), Codex (`codex`), pi (`pi`), OpenCode (`opencode`), or any other command.
-Without a harness, a merge conflict, a failing recipe step, or a failing acceptance check stops the run, and you fix it yourself.
+debaser runs the agent through a harness, which you configure in the `harness` section of `patches.json`.
+The harness can run Claude Code (`claude`), Codex (`codex`), pi (`pi`), OpenCode (`opencode`), or any other command.
+Without a harness, each of these problems stops the run, and you fix it yourself.
 xref:overview/how-it-works.adoc[How a build works] lists each stop and its exit code.
 
 == Build and install debaser
 
 Install Git and Bun before you start.
-The steps clone debaser at the commit this guide was verified against, so the executable you build matches these pages.
+The steps clone debaser at the pinned commit, so the executable you build matches these pages.
 
 . Check your Git version.
 +
@@ -110,10 +114,12 @@ bun install
 bun run build
 ----
 +
-The `build` script compiles debaser's command-line entry point and the worker of its live view (the progress card it redraws in the terminal during a build) into one file, `dist/debaser`.
+The `build` script compiles debaser into one file, `dist/debaser`.
 
 . Copy `dist/debaser` to a directory on your `PATH`.
-The command below uses `~/.local/bin`; create it with `mkdir -p ~/.local/bin` if it does not exist, and pick another directory on your `PATH` if it is not on it.
+The command below uses `~/.local/bin`.
+If that directory does not exist, create it with `mkdir -p ~/.local/bin`.
+If it is not on your `PATH`, use a directory that is.
 +
 [source,bash]
 ----

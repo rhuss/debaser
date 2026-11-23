@@ -1,4 +1,4 @@
-= Setting up the agent
+= Setting up the harness
 
 // Sources:
 // debaser:src/core/patchlist.ts:14-19

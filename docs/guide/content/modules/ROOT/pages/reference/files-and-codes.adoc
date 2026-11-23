@@ -516,7 +516,7 @@ Unset when the recipe has no `artifact.output`, see xref:recipe-author/acceptanc
 
 |`DEBASER_PROMPT`, `DEBASER_TASK`
 |The harness command
-|The prompt file and the task name, see xref:recipe-author/harness.adoc[Setting up the agent]
+|The prompt file and the task name, see xref:recipe-author/harness.adoc[Setting up the harness]
 
 |`GH_PROMPT_DISABLED`
 |`gh pr view`

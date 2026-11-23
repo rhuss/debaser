@@ -234,7 +234,7 @@ When the agent uses up its attempts, or a call of the harness exits with a non-z
 Once the fixes have reached the cap, the next failing acceptance check stops the run with exit 5 at once, with `the acceptance check of <patch> fails again after the harness's <n> fixes`.
 xref:user/stops.adoc#exit-5[Exit 5: the agent gives up] explains how to go on.
 
-xref:recipe-author/harness.adoc[Setting up the agent] shows how to configure the harness and its `tasks`.
+xref:recipe-author/harness.adoc[Setting up the harness] shows how to configure the harness and its `tasks`.
 
 [#without-harness]
 === Without a harness

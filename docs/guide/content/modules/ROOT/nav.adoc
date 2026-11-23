@@ -16,7 +16,7 @@
 ** xref:recipe-author/recipes.adoc[Recipes and their layers]
 ** xref:recipe-author/steps.adoc[Steps, install, and artifact]
 ** xref:recipe-author/acceptance-checks.adoc[Acceptance checks]
-** xref:recipe-author/harness.adoc[Setting up the agent]
+** xref:recipe-author/harness.adoc[Setting up the harness]
 ** xref:recipe-author/harness-verification.adoc[What the agent is asked and how its work is checked]
 * Reference
 ** xref:reference/commands.adoc[Commands]
