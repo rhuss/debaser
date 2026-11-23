@@ -8,8 +8,9 @@
 // debaser:src/cli/commands/remove.ts:22-25
 // debaser:package.json:10
 // debaser:src/git/git.ts:89-97
-// debaser:src/core/context.ts:46-52
-// debaser:src/rebase/rebase.ts:88
+// debaser:README.md:32-33
+// debaser:src/rebase/rebase.ts:76-89
+// debaser:src/cli/main.ts:124-126
 // debaser:src/cli/usage.ts:4-24
 // debaser:src/cli/usage.ts:33-34
 // debaser:src/cli/usage.ts:40-43
@@ -21,7 +22,7 @@ debaser is a command-line tool that keeps a patched build of someone else's GitH
 The build is the latest upstream version (the original repository) plus your patch list, the ordered list of changes you want on top.
 This section takes you from installing debaser to a build you refresh with one command, `debaser build`, whenever upstream moves.
 That command fetches upstream and your patches, rebases your own branches, and merges the patches in the order you chose.
-Then it runs the project's checks and the checks attached to each patch, and installs the result.
+Then it runs the project's checks and each patch's acceptance check, and installs the result.
 Each run starts again from the latest upstream, so each patch stays separate and you can retire one without touching the others.
 When a build stops, debaser tells you the reason and where to look, and the previous build stays as a fallback.
 
@@ -38,7 +39,7 @@ Come back to these once your build runs:
 
 * xref:user/patch-list.adoc[Managing the patch list]: add patches as pull requests, branches of other repositories, or your own branches, list them, and retire the ones you no longer need.
 * xref:user/build-directory.adoc[The build directory]: where debaser builds the project (a second working directory next to your clone, `../<checkout>-debaser` by default) and how to move it.
-* xref:user/stops.adoc[When a build stops]: what each exit code means, and how to finish a stopped run with `debaser continue` or return to the last successful build with `debaser rollback`.
+* xref:user/stops.adoc[When a build stops]: what each stop's exit code means, and how to finish a stopped run with `debaser continue` or return to the last successful build with `debaser rollback`.
 * xref:user/status.adoc[Reading status]: see each patch's state and how far upstream moved, without changing anything.
 * xref:user/own-branches.adoc[Rebasing your own branches]: how debaser rebases your own branches onto upstream, during a build or with `debaser rebase` alone, and pushes them to your fork when you ask.
 * xref:user/headless.adoc[Running headless]: run debaser without a terminal, for example from a script, read its result as JSON, and act on its exit code.
