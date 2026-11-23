@@ -1,6 +1,14 @@
 = What the agent is asked and how its work is checked
 
 // Sources:
+// debaser:src/core/paths.ts:4-16,29
+// debaser:src/rebase/rebase.ts:60
+// debaser:src/rebase/rebase.ts:820-842
+// debaser:src/run/finish.ts:113
+// debaser:src/run/rebase-phase.ts:110-112
+// debaser:src/recipes/resolve.ts:24-26,136
+// debaser:src/run/stop.ts:33
+// debaser:src/prompts/rebase-conflict.md:29-31
 // debaser:src/harness/select.ts:7-22
 // debaser:src/run/rebase-phase.ts:43
 // debaser:src/core/runstate.ts:47
@@ -112,9 +120,9 @@ The rebase worktree is a throwaway worktree in debaser's `work` directory, or th
 == What each prompt says
 
 debaser ships one Markdown template per task and fills it before each call.
-Each task prompt starts with a title that names the project, for example `# Fix a failing step in a patched <project> build`, where `<project>` is the recipe's `project_name`.
-Each of the five task templates ends with rules for the agent: leave the changes in the working tree, do not commit, and stop when done with a short account of what it changed.
-The conflict templates also forbid Git commands that change refs or the index, such as `commit`, `merge`, `rebase`, `reset`, `checkout`, `stash`, and `add`, because debaser stages and commits the result itself.
+Each task prompt starts with a title that names the project, for example `# Fix a failing step in a patched <project> build`, where `<project>` is the recipe's `project_name`, or the repository part of the patch list's `upstream.repo` when the recipe sets none.
+Each of the five task templates ends with rules for the agent: do not commit, and stop when done with a short account of what it changed; the fix templates also tell it to leave the changes in the working tree.
+The conflict templates also forbid Git commands that change refs or the index, such as `commit`, `merge`, `rebase`, `reset`, `checkout`, `stash`, and `add`, because debaser stages the result itself and then commits the merge or continues the rebase.
 
 The table lists the placeholders each template gets.
 A prompt override may use the same names, written as `+{{name}}+`.
@@ -153,7 +161,7 @@ The `run it:` line of a stop runs an agent on that file, as xref:user/stops.adoc
 == Where prompts, logs, and raw streams are kept
 
 A run that calls the agent keeps its files in the run's report directory, under `reports` in the data directory.
-debaser numbers the agent calls of a run and writes three files per call into the report directory's `prompts` folder:
+debaser numbers the agent calls of a run and writes two or three files per call into the report directory's `prompts` folder (no `.jsonl` for `plain`):
 
 * `NN-<task>.md` holds the prompt, where `NN` is the call number with at least two digits and `<task>` is the value of `DEBASER_TASK`, for example `03-check.md`.
 * `NN-<task>.log` starts with the command line debaser ran, after `$ `, followed by the agent's readable output.
@@ -335,7 +343,8 @@ The build summary shows `harness` as the way the branch was rebased, and the rep
 A replayed commit that ends up empty because upstream already has its change is dropped.
 
 A fix for a rebased branch's check is a separate commit on the branch.
-Before it pushes the branch or offers to, debaser asks you to review it: `review <branch> before pushing: the harness fixed its checks in <commits>`.
+The summary and the report line for the branch end with `; the harness fixed its checks in <commits>, review before pushing`.
+In plain output, and in the live view with `--verbose`, a progress line repeats it before the push: `review <branch> before pushing: the harness fixed its checks in <commits> (git show <commit>)`.
 
 == Fixes stay in the build
 
