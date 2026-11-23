@@ -19,7 +19,6 @@
 // debaser:src/git/git.ts:102-123
 // debaser:src/git/worktree.ts:28-42
 // debaser:src/run/build.ts:58-63
-// debaser:src/cli/commands/index.ts:109-122
 // debaser:src/live/worker.ts:61
 // debaser:src/run/build.ts:115-117
 // debaser:src/run/common.ts:66-74
@@ -47,31 +46,30 @@
 // debaser:tests/integration/tree.test.ts:448-476
 // debaser:tests/integration/tree.test.ts:548-630
 // debaser:tests/integration/tree.test.ts:641-662
-// debaser:src/cli/commands/index.ts:101-110
+// debaser:src/cli/commands/index.ts:101-122
 
 A build checks out the integration branch, resets it to upstream, and merges your patches onto it.
 debaser does that work in the build directory, a linked Git worktree of your clone that holds the integration branch.
-The directory you start debaser from stays as it is, unless it is the build directory itself, as when you build in place.
+The directory you start debaser from stays as it is, unless it is the build directory itself (as when you build in place).
 You can keep editing, switch branches, or run a dev server there while a build runs, as <<working-beside-a-build>> describes.
 
-This page shows where the build directory lives, how to move it or build in place, which commands use it, and what to do when debaser refuses to use it.
+This page shows where the build directory lives, which commands use it, how to move it or build in place, what to do when debaser refuses to use it, and what happens when it is deleted.
 xref:overview/concepts.adoc[Key concepts] defines the terms, and xref:user/first-build.adoc[Your first build] creates the build directory for the first time.
 
 == Where the build directory lives
 
 By default the build directory sits beside your clone as `../<clone>-debaser`, where `<clone>` is the name of your clone's directory.
 Your clone here means its main working tree, the first worktree that `git worktree list` shows, usually the directory you cloned into.
-debaser resolves the default against your clone, also when you start it from a linked worktree or keep the data directory outside the repository with `--dir` or `DEBASER_DIR`.
+debaser resolves the default against your clone, even when you start it from a linked worktree or keep the data directory outside the repository with `--dir` or `DEBASER_DIR`.
 
 The first build that creates the directory records it in the patch list as a relative path, for example `"tree": "../widget-debaser"` for a clone named `widget`.
-Without a stopped run, `debaser rollback` returns to the previous build in the build directory, as <<which-commands-use-it>> describes.
-It checks and creates the build directory the same way as a build, so it can record `tree` too.
+`debaser rollback` without a stopped run can record `tree` too, because it checks and creates the build directory the same way as a build (see <<which-commands-use-it>>).
 
 image::where-things-live.svg["Your clone with its shared Git directory, which holds debaser's data directory, the fetched refs, and the branches; the build directory beside it as a linked worktree on the integration branch, with the build output, the installed artifact, and its .prev copy; and the remotes upstream and origin",role=expand]
 
 The diagram shows the default layout.
 As a linked worktree, the build directory shares your clone's Git directory and its branches.
-In the default layout, the data directory and the patch list live there too.
+In the default layout, the data directory and the patch list live in that shared Git directory too.
 The build directory holds the recipe's build output (`artifact.output`), the installed artifact (`artifact.install`), and the `.prev` copy of the installed artifact from the start of the run.
 Two settings change that picture:
 
@@ -91,10 +89,11 @@ debaser accepts any non-empty string and keeps the value as written.
 debaser has no command that sets `tree`.
 You edit `patches.json` by hand, as xref:user/patch-list.adoc#edit-by-hand[Managing the patch list] describes, and `debaser list` names the file on its `config` line.
 
+[#what-list-and-status-show]
 === What `list` and `status` show
 
 `debaser list` and `debaser status` start with three lines: the data directory (`data`), the patch list (`config`), and the build directory (`build`).
-When the build directory needs attention, the `build` line adds a note in parentheses.
+The `build` line adds a note in parentheses when the build directory does not exist, is your clone, or would block a build.
 
 [cols="1,2"]
 |===
@@ -134,14 +133,14 @@ The notes in the last four rows match refusals described in <<refusals>>.
 `debaser continue` and `debaser rollback` do too, except in the cases at the end of this section.
 
 * `debaser build` checks the build directory, creates it when it is missing, and names it at the start of the run.
-The plain progress output always shows that line.
+The plain output always shows that line.
 The live view (the progress card on a color terminal) shows it only with `--verbose`.
 * `debaser continue` goes on in the build directory of the stopped run.
 * `debaser rollback` undoes a stopped run in that run's build directory.
 Without a stopped run, it first runs the same build directory checks as a build, then restores the previous build there.
 
 When a build stops, the stop lines name the build directory on a `build directory:` line.
-Resolve the conflict or fix the step there, then run `debaser continue` from any worktree of the clone.
+Resolve the conflict or fix the failing recipe step there, then run `debaser continue` from any worktree of the clone.
 
 `debaser rebase` does not use the build directory.
 It works from the directory you start it from and rebases your own branches in throwaway worktrees, or with `--in-worktree` in the worktree that has the branch checked out.
@@ -155,7 +154,7 @@ When no worktree has it checked out, both commands refuse with `no worktree has 
 == Working beside a build
 
 A build leaves the directory you start it from alone, unless `tree` names that directory.
-The only other exception is `--in-worktree`, which rebases your own branches in the worktrees that have them checked out.
+The only other exception is `--in-worktree`, described below.
 A build started in your clone with uncommitted edits on a feature branch leaves both the branch and the edits as they were.
 A build started from the build directory itself, or from a third worktree, builds in the same build directory.
 
@@ -168,7 +167,7 @@ When the recipe names an install step, the first build in a new or recreated bui
 Later builds decide by the recipe's `[install]` table, checking these cases in order:
 
 * When the marker path (`install.marker`, for example `node_modules`) is missing, the step runs.
-* Without trigger files (`install.triggers`), the step runs on every build, unless the marker path exists.
+* Without trigger files (`install.triggers`), the step runs on every build when the recipe sets no marker, and is skipped otherwise.
 * With trigger files, the step runs when one of them changed, or, without a marker, when it never passed in this build directory.
 
 xref:recipe-author/steps.adoc#the-install-step[The install step] gives the details.
@@ -205,6 +204,8 @@ debaser list
 ----
 git worktree remove <old path>
 ----
++
+Git refuses when the directory has modified tracked files or untracked files that are not ignored; check them, then add `--force` if you no longer need them.
 +
 Check: the list of worktrees no longer contains the old path (with the default `tree`, a path ending in `-debaser`).
 +
@@ -345,7 +346,7 @@ Give the second patch list its own `tree`.
 === Not a worktree of this repository
 
 debaser refuses a path that exists but is not the top level of a worktree of this clone.
-A plain directory, a subdirectory of a worktree, or a working tree of another repository at that path all count.
+A plain directory, a subdirectory of a worktree, or a working tree of another repository at that path all fall under this refusal.
 debaser never writes into such a directory.
 
 [source,text]

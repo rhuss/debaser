@@ -104,9 +104,10 @@ The first form that fits decides the kind of patch.
 |===
 
 Only `\https://github.com/` URLs count as pull request and tree URLs.
+A pull request or tree URL on another host fits none of the forms, so debaser refuses it as an invalid branch name (see <<refused-sources>>).
 
 [#add-a-patch]
-=== Add a patch
+== Add a patch
 
 Each `debaser add` appends one patch to the end of the list.
 The `--upstream` option takes effect only on the first `add`, which creates the list (see xref:user/first-build.adoc#no-upstream-remote[Clones without an upstream remote]).
@@ -115,6 +116,8 @@ debaser shows each patch by one name, whatever form you typed:
 * `<owner>/<repo>#<number>` for a pull request.
 * `<owner>/<repo>:<branch>` or `<git url>:<branch>` for a branch of another repository.
 * The branch name for one of your own branches.
+
+`<git url>:<branch>` is only how debaser shows such a patch; to add one, use `<git url>#branch=<branch>`.
 
 . Add the patch in one of the forms from the table.
 This example adds a pull request on upstream by its number.
@@ -129,7 +132,7 @@ debaser add <number>
 
 [NOTE]
 ====
-`debaser add` does not look up one of your own branches.
+`debaser add` does not check that one of your own branches exists.
 When the branch exists neither locally nor on `origin`, the next build stops.
 With an `origin` remote, the message starts with `cannot fetch origin/<branch> for <branch>`, followed by the reason.
 Without one, it is `cannot find <branch>: no such local branch or origin/<branch>`.
@@ -147,13 +150,15 @@ debaser add <number> "<description>"
 debaser add <branch> --description "<description>"
 ----
 
+`--description` is not in the usage text that `debaser --help` prints, but `debaser add` accepts it.
+
 Without a description, debaser picks one by the kind of patch:
 
 * A pull request takes its title from the GitHub CLI (`gh`), without a leading area prefix such as `docs:`.
 * A branch, your own or another repository's, takes the branch name.
 
 Without `gh`, or when `gh` cannot answer, a pull request has no title to take.
-`debaser add` then refuses with exit 1 and shows the command with a description to add:
+`debaser add` then refuses with exit 1 and shows the same command with a description added:
 
 [source,text]
 ----
@@ -162,8 +167,7 @@ debaser: <owner>/<repo>#<number> needs a description (no PR title to take it fro
 
 xref:user/install.adoc[Install debaser] lists what else changes without `gh`.
 
-`--description` is not in the usage text that `debaser --help` prints, but `debaser add` accepts it.
-
+[#refused-sources]
 == Refused sources
 
 `debaser add` refuses a source in these cases, with exit 1 and the patch list unchanged.
@@ -172,10 +176,10 @@ The source is already in the list::
 debaser compares sources by what they name, not by how you typed them.
 Two pull requests are the same patch when their repository (ignoring letter case) and number match.
 So `<number>`, `#<number>`, `<owner>/<repo>#<number>`, and the pull request's URL name the same patch when `<owner>/<repo>` is upstream.
-Two branches of another repository are the same patch when the branch and the last two parts of the repository path match.
+Two branches of another repository are the same patch when the last two parts of the repository path (ignoring letter case) and the branch match.
 So `<owner>/<repo>:<branch>`, its tree URL, and `\https://github.com/<owner>/<repo>.git#branch=<branch>` name the same patch.
 The message is `<name> is already in the list`.
-Retired patches do not count, so a source you retired can be added again.
+Retired patches do not count, so you can add a retired source again.
 
 The source is not a valid branch name::
 An argument that fits none of the other forms is read as a branch name of your clone.
@@ -183,17 +187,17 @@ debaser refuses a branch name that Git does not accept.
 The message is `<branch> is neither a PR, another repository's branch nor a valid branch name`.
 
 The source is the integration branch or the previous build::
-debaser refuses one of your own branches named like the integration branch (default `debaser`) or the previous build (`<integration branch>-prev`), because debaser resets both on every run.
+debaser refuses one of your own branches that has the same name as the integration branch (default `debaser`) or the previous build (`<integration branch>-prev`), because debaser resets both on every run.
 The message ends with `rename it or set another branch`.
-`debaser build` refuses such a patch too, should it get into `patches.json` by an edit.
+`debaser build` refuses such a patch too, if a hand edit puts it into `patches.json`.
 
 The URL carries credentials::
 debaser refuses a `<git url>#branch=<branch>` source when the URL holds a password, or when it is an `http` or `https` URL with a user name.
 The message says to drop the credentials from the URL and use a Git credential helper.
 debaser refuses such a URL in `patches.json` as well.
 
-`debaser add`, `debaser remove`, `debaser build`, `debaser rebase`, `debaser continue`, `debaser rollback`, and `debaser trust` take a lock file in the data directory (see <<where>>).
-`debaser add` and `debaser remove` therefore also refuse while another of these commands runs with the same data directory.
+Whatever the source, `debaser add` and `debaser remove` also refuse while another command holds the lock file in the same data directory (see <<where>>).
+`debaser add`, `debaser remove`, `debaser build`, `debaser rebase`, `debaser continue`, `debaser rollback`, and `debaser trust` each take that lock while they run.
 
 [#pin]
 == Pin a patch
@@ -202,8 +206,8 @@ A pin holds a patch at one commit.
 debaser merges exactly that commit, even after the source moves on, and never rebases a pinned patch, not even one of your own branches.
 When the source cannot be fetched any more, for example a deleted branch, the build merges the pinned commit and adds a warning to the run.
 When the pinned commit is not in your clone, the build fetches it by its SHA from the patch's source repository.
-For one of your own branches that is `origin`, and without an `origin` remote the build skips the fetch.
-If that fails too, the build stops with `cannot find the pinned commit <sha> of <name>`.
+For one of your own branches, that repository is `origin`; without an `origin` remote, the build skips the fetch.
+When the commit is still missing after that, the build stops with `cannot find the pinned commit <sha> of <name>`.
 
 . Add the patch with `--pin`.
 `<sha>` is any commit your clone knows, which debaser records as its full SHA.
@@ -246,7 +250,7 @@ debaser remove <source> --reason "<reason>"
 
 Without `--reason`, debaser asks `Why is <name> retired?` when its standard input is a terminal.
 An empty answer, or no terminal to ask on, ends with `removing <name> needs --reason` and exit 1.
-A source that names no patch in the list ends with `<name> is not in the list`.
+A source that names no patch in the list ends with `<name> is not in the list` and exit 1.
 
 == Read the list
 
@@ -256,7 +260,7 @@ Below them, a table shows the patches in merge order with the columns `#`, `PATC
 The description carries `(pinned <short sha>)` for a pinned patch and `(with check)` for a patch with an acceptance check.
 On a color terminal, each kind of patch has its own color, and patch names link to the pull request or branch where debaser knows a page for it.
 
-Retired patches are only counted by default, in a line such as `1 retired patch; list --verbose shows them`.
+By default, debaser only counts the retired patches, in a line such as `1 retired patch; list --verbose shows them`.
 Three options change the output:
 
 `--verbose`::
@@ -333,7 +337,7 @@ debaser list
 == Edit `patches.json` by hand
 
 Some changes have no command.
-Among them are the order of the patches, the pin or description of a patch already in the list, removing retired entries, and settings such as the build directory's place (`tree`) or acceptance checks.
+Among them are reordering the patches, changing the pin or description of a patch already in the list, removing retired entries, and changing settings such as the build directory's location (`tree`) or acceptance checks.
 For those, edit `patches.json` in a text editor.
 xref:reference/patches-json.adoc[`patches.json`] lists every key.
 
@@ -356,7 +360,7 @@ Each patch in the `patches` array is an object like this one, from the fictional
 * `{ "kind": "fork-branch", "repo": "<owner>/<repo>", "branch": "<branch>" }`, or with `"url": "<git url>"` in place of `repo`
 * `{ "kind": "branch", "name": "<branch>" }`
 
-Entries in the `retired` array have the same keys plus `retired`, the date, and `reason`.
+Entries in the `retired` array have the same keys plus `retired` (the date) and `reason`.
 
 debaser reads and checks the file at the start of every command.
 Only `--version`, `--help`, `help`, their short forms, and a call with a missing or unknown command skip the check.

@@ -1,13 +1,9 @@
 = Running headless
 
 // Sources:
-// debaser:src/run/rebase-phase.ts:152
-// debaser:src/run/build.ts:102
 // debaser:src/rebase/push.ts:1-3
 // debaser:src/rebase/rebase.ts:208-227
 // debaser:src/cli/commands/status.ts:60-81
-// debaser:src/run/resume.ts:44
-// debaser:src/cli/commands/trust.ts:19-25
 // debaser:src/cli/main.ts:34-35
 // debaser:src/cli/main.ts:61-88
 // debaser:src/cli/main.ts:92-98
@@ -57,10 +53,10 @@
 // debaser:src/report/report.ts:139-147,173
 // debaser:src/report/report.ts:226-273
 // debaser:src/report/report.ts:281-306
-// debaser:src/cli/commands/index.ts:101-110
+// debaser:src/run/harness-common.ts:10-11
 
 A build that runs on a schedule or from a CI job keeps the patched tool current without you starting it by hand.
-Such a run has no terminal: nobody reads the live view (the progress card debaser redraws on a terminal), and nobody answers a question.
+Such a run has no terminal: nobody reads the live view (the progress card debaser redraws on a color terminal), and nobody answers a question.
 debaser checks standard input and standard output separately.
 Without a terminal on standard input, it asks nothing, and flags on the command line give the answers a terminal would.
 With `--json`, it prints the run's result as JSON on stdout, so a script can read the outcome.
@@ -92,15 +88,15 @@ Off a terminal, each one falls back to a fixed behavior.
 |Question |Asked by |Without a terminal |Flag
 
 |Trust the project's committed recipe `.debaser/recipe.toml`, when it is not trusted yet or changed since you trusted it: `Trust it? [y/N]`
-|`debaser build`, `debaser rebase`, `debaser continue`, `debaser rollback`
+|`debaser build`, `debaser rebase`, `debaser continue`, and `debaser rollback`
 |The run refuses with exit 1, before it writes a report: `the project's recipe .debaser/recipe.toml at <commit> is not trusted yet` (or `changed since you trusted it`), followed by `+review it, then run `debaser trust`, or pass --trust-recipe+`.
 |`--trust-recipe` (`build`, `rebase`, `continue`); for `rollback`, trust first with `debaser trust`
 
-|Push the rebased xref:overview/concepts.adoc[own branches]: `Force-push <n> rebased branches to origin (<branches>)? [y/N]`
+|Push the rebased xref:overview/concepts.adoc#patch-kinds[own branches]: `Force-push <n> rebased branches to origin (<branches>)? [y/N]`
 |`debaser build`, `debaser rebase`, and `debaser continue` at the end of a run
 |Nothing is pushed.
 The summary holds a `push:` line with the push command for each branch, so you can push by hand later.
-The run's exit code doesn't change.
+The run's exit code does not change.
 |`--push` (`build`, `rebase`); `continue` keeps the `--push` setting of the run it resumes
 
 |The reason for retiring a patch: `Why is <name> retired?`
@@ -116,11 +112,11 @@ Trust is recorded per upstream repository, together with a fingerprint of the re
 A recipe whose fingerprint matches the recorded one runs without a question and without a flag.
 
 `debaser trust` has no flag in place of its question.
-When the recipe is not trusted yet, it refuses without a terminal with `trusting a recipe needs a terminal to confirm on`, followed by `or pass --trust-recipe to build`.
+Without a terminal, it refuses a recipe that is not trusted yet or changed since you trusted it, with `trusting a recipe needs a terminal to confirm on`, followed by `or pass --trust-recipe to build`.
 
 `--trust-recipe` trusts the recipe at the fetched upstream commit and records it, as a yes on the terminal would.
 The run prints `trusting .debaser/recipe.toml at <commit> (--trust-recipe)` as a progress line.
-`debaser build`, `debaser rebase`, and `debaser continue` accept the flag; `debaser continue` loads the recipe again when it resumes a build.
+`debaser build`, `debaser rebase`, and `debaser continue` accept the flag; `debaser continue` takes it because it loads the recipe again when it resumes a build.
 
 You have two ways to set up a scheduled job:
 
@@ -134,7 +130,7 @@ The run then also takes a recipe that changed since you trusted it, without show
 With `--trust-recipe` in a scheduled job, a change to the project's recipe upstream runs on your machine at the next scheduled build, and nobody reviews it first.
 ====
 
-xref:user/first-build.adoc[Your first build] shows the question on a terminal.
+xref:user/first-build.adoc[Your first build] shows the question on a terminal, and xref:recipe-author/recipes.adoc#trust[Trust the project's recipe] covers trust in detail.
 
 === Push without a question
 
@@ -155,7 +151,7 @@ These steps set up the clone once and then run a build as the job would, so you 
 . In your clone, on a terminal, trust the project's recipe.
 Skip this step when you plan to pass `--trust-recipe` in the job.
 +
-Check: debaser reports the recipe as trusted, or says the project has no recipe to trust.
+Check: debaser reports the recipe as trusted or already trusted, or says the project has nothing to trust.
 +
 [source,bash]
 ----
@@ -175,7 +171,7 @@ debaser build --json < /dev/null
 // expect: contains "\"exitCode\""
 
 . Read the result of the newest run from the reports directory.
-This command assumes the default xref:overview/concepts.adoc[data directory]; with `--dir` or `DEBASER_DIR`, use `<data directory>/reports/latest/result.json` instead.
+This command assumes the default xref:overview/concepts.adoc#data-directory[data directory]; with `--dir` or `DEBASER_DIR`, use `<data directory>/reports/latest/result.json` instead.
 +
 Check: the file is the same JSON object that the build printed.
 +
@@ -232,7 +228,7 @@ It is 0 in a rebase run and on a first build, when the integration branch did no
 In a rebase run, `steps` is an empty list.
 
 |`harness`
-|`calls`, the number of harness calls, and `tokens` with `input` and `output`.
+|`calls`, the number of times the harness ran the agent, and `tokens` with `input` and `output`.
 `tokens` is `null` when no call reported its token use.
 
 |`artifact`
@@ -242,7 +238,7 @@ In a rebase run, `steps` is an empty list.
 |The path of the run's `report.md`
 |===
 
-xref:reference/files-and-codes.adoc[Files, exit codes, and environment] lists the fields of each patch entry.
+xref:reference/files-and-codes.adoc#result-json[Files, exit codes, and environment] lists the fields of each patch entry.
 
 == Branch on the exit code
 

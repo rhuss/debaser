@@ -42,7 +42,6 @@
 // debaser:src/github/gh.ts:3-25
 // debaser:src/github/gh.ts:31-37
 // debaser:src/rebase/rebase.ts:61-62
-// debaser:src/rebase/rebase.ts:76-87
 // debaser:src/rebase/rebase.ts:91-175
 // debaser:src/rebase/rebase.ts:177-253
 // debaser:README.md:173
@@ -58,13 +57,12 @@ xref:overview/concepts.adoc[Key concepts] defines the terms, and xref:user/first
 == What status reads and what it leaves alone
 
 `debaser status` never changes your clone, the build directory, or debaser's files.
+It reports on the build directory but never creates it.
 Only `--fetch` writes anything, and it updates nothing but Git's copy of the upstream branch.
-Without `--fetch`, it fetches nothing and works from what Git already has (see <<fetch>>).
+Without `--fetch`, it works from what Git already has (see <<fetch>>).
 
 Commands that change your clone or debaser's files take a lock in the data directory: `add`, `remove`, `build`, `rebase`, `continue`, `rollback`, and `trust`.
-`debaser status` takes no lock, so it never waits for these commands, never blocks them, and runs during a build.
-
-`debaser status` reports on the build directory but never creates it.
+`debaser status` takes no lock, so it never waits for these commands, never blocks them, and you can run it during a build.
 
 When it can show the status, `debaser status` ends with exit 0.
 Without a patch list, it refuses with exit 1 and the message `+there is no patch list yet; add a patch first with `debaser add <source>`+`.
@@ -81,11 +79,11 @@ The status line says that no run is in progress and names the upstream ref `upst
 The line below it counts `1 upstream commit since the last build`.
 
 In the table, both patches read `✓ clean` under UPSTREAM, `1` under BEHIND, and `pass` under CHECKS.
-`fast-start` is a branch in your clone, one of your own branches, and its OWN BRANCH cell reads `! behind upstream`.
+`fast-start` is a branch in your clone, so it counts as one of your own branches, and its OWN BRANCH cell reads `! behind upstream`.
 The second patch, `/srv/forks/helper/widget.git:helper-colors`, names a branch by Git URL and branch name; its OWN BRANCH cell is `-`.
 Neither patch is a pull request, so both PR cells read `not a PR`.
 Neither has an acceptance check, so PATCH CHECK shows `-`.
-The hint at the bottom, `+Branches behind upstream: `rebase` updates them.+`, belongs to `fast-start`.
+The hint at the bottom, `+Branches behind upstream: `rebase` updates them.+`, appears because `fast-start` is behind upstream.
 
 The sections below explain each part in the order `debaser status` prints it.
 
@@ -133,7 +131,7 @@ When a run is stopped, or another command holds the lock, indented lines below t
 * `started` gives the time the run started.
 * `report` gives the run's report directory, for a stopped run and for a locking command that is in the middle of a run.
 * `next` gives the commands that go on from a stopped run, for example `debaser continue, or debaser rollback`.
-It is left out while the command still runs.
+It is left out while another command holds the lock.
 
 xref:user/stops.adoc[When a build stops] explains what to do with a stopped run.
 
@@ -144,7 +142,7 @@ It also prints no table when the patch list exists but holds no patches.
 === Upstream commits since the last build
 
 Above the table, a line counts the upstream commits since the last build, for example `3 upstream commits since the last build`.
-debaser counts from the point where the integration branch meets the upstream branch to the upstream tip, leaving out merge commits.
+debaser counts from the point where the integration branch meets the upstream branch (their merge base) to the upstream tip, leaving out merge commits.
 Before the integration branch exists, the line reads `no build yet`.
 
 [#table]
@@ -172,18 +170,18 @@ For your own branches, the commit is the tip a rebase would start from.
 
 |OWN BRANCH
 a|What `debaser rebase` would do with the patch's branch.
-Own branches are the branches debaser may rebase and push for you: branches in this clone, and pull requests or branches that live in your fork, the repository `origin` pushes to.
+Own branches are the branches debaser may rebase and push for you: branches in your clone, and pull requests or branches that live in your fork, the repository `origin` pushes to.
 xref:user/own-branches.adoc#modes[Rebase modes] explains the modes, such as `conflicting`, and the mode `off`, which turns rebasing off.
 
 * `-`: the patch is not one of your own branches, it is pinned, rebasing is off, or there is no fork to push to.
 * `✓ up to date`: the branch already sits on top of upstream.
-* `✓ <reason>`: the branch is left as it is for the reason given, for example `✓ behind upstream, but merges cleanly` with the `conflicting` rebase mode.
+* `✓ <reason>`: debaser leaves the branch as it is for the reason given, for example `✓ behind upstream, but merges cleanly` with the `conflicting` rebase mode.
 * `! behind upstream`: upstream moved on, and a rebase would update the branch.
 * `✗ behind, conflicts`: upstream moved on, and the branch conflicts with it.
 * `! rebased, push pending`: an earlier run rebased the branch, and the push to `origin` is still due.
-* `· in worktree <path>`: the branch is checked out in a worktree, so a rebase leaves it alone.
+* `· in worktree <path>`: the branch is checked out in a worktree, so a rebase leaves it alone unless you pass `--in-worktree`.
 A worktree under `.claude/worktrees/` shows by its name, and a path in your home directory starts with `~`.
-`(origin is ahead)` follows when `origin` has a newer copy of the branch than the worktree holds.
+`(origin is ahead)` follows when `origin` has a newer copy of the branch than the worktree holds; `--in-worktree` then leaves the branch alone too.
 * `! diverged from origin`: the local branch and its copy on `origin` both have commits the other lacks.
 * `! <reason>`: debaser leaves the branch alone for the reason given, for example `! no branch <branch> here or on origin`.
 
@@ -196,7 +194,7 @@ a|The pull request's state as `gh` reports it, in lowercase.
 * `not a PR`: the patch is not a pull request, or `gh` could not answer (see <<gh>>).
 
 |BEHIND
-a|The number of upstream commits since the patch's base, the point where the patch's commit meets upstream.
+a|The number of upstream commits since the patch's base, the point where the patch's commit meets upstream (their merge base).
 Merge commits do not count.
 A `?` means debaser has no commit for the patch, or no merge base with upstream.
 
@@ -212,12 +210,12 @@ a|The result of the recipe steps in the last build, for this patch.
 a|The result of the patch's acceptance check in the last build.
 
 * `pass`: the check passed.
-* `flaky`: the check failed once and passed when debaser ran it again.
-* `fixed`: an agent fixed the check's failure earlier in the run, and the check passed.
+* `flaky`: the check failed on its first run and passed on the rerun.
+* `fixed`: the agent fixed the check's failure earlier in the run, and the check passed.
 * `fail`: the check failed.
 * `not run`: the build ended before the check ran.
 * `skipped`: the build skipped the patch as merged or as contained in upstream.
-* `-`: the patch has no acceptance check, or it got its check after the last build.
+* `-`: the patch has no acceptance check, or its acceptance check was added after the last build.
 
 |(no header)
 a|Appears only when at least one patch is pinned.
@@ -241,7 +239,7 @@ The last lines give hints about your own branches:
 * `<patch> was rebased earlier; push it with: <command>` for each branch with a push pending.
 * `+Branches behind upstream: `rebase` updates them.+` when a branch is behind upstream.
 * `+Branches in a worktree: `rebase --in-worktree` rebases them there.+` when a checked-out branch can be rebased in its worktree.
-* `Own branches: <note>` when there is no fork to push rebased branches to, or `gh` cannot tell whose some pull requests are.
+* `Own branches: <note>` when there is no fork to push rebased branches to, or `gh` cannot tell whose fork some pull requests come from.
 The note reads, for example, `rebasing is off: there is no origin remote to push rebased branches to`.
 
 xref:user/own-branches.adoc[Rebasing your own branches] explains the rebase modes and how to act on these states.
@@ -348,13 +346,13 @@ Each entry of `patches` holds:
 |`true` for a clean trial merge, `false` for a conflict, `null` when not fetched.
 
 |`conflicts`
-|The conflicting files, all of them.
+|All conflicting files, not only the three that the `Conflicts` section shows.
 
 |`rebase`
 |The OWN BRANCH state as one word: `current`, `pending`, `behind`, `worktree`, `diverged`, or `other`; `null` for a patch that is not an own branch.
 
 |`rebaseDetail`
-|The same state with its details (`reason`, `command`, `conflicts`, `path`, `rebasableThere`, as the state has them), or `null`.
+|The same state as an object: `kind` and, as the state has them, `reason`, `command`, `conflicts`, `path`, and `rebasableThere`; or `null`.
 
 |`behind`
 |The BEHIND count, or `null`.
@@ -379,7 +377,7 @@ It asks in two cases:
 debaser asks this only when rebasing is not off, the patch is not pinned, `origin` is a fork, and the fork is on GitHub.
 
 Without `gh` on the `PATH`, or when `gh` cannot answer (not signed in, offline, or no such pull request), the PR cell of a pull request reads `not a PR`.
-If that failed question was about ownership (the second case above), debaser cannot tell whose branch the pull request is from, and the hints end with a note like this:
+If the failed question was the ownership one (the second case above), debaser cannot tell whose branch the pull request is from, and the hints end with a note like this:
 
 [source,text]
 ----
