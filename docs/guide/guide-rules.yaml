@@ -74,3 +74,16 @@ rules:
       - 'image::where-things-live\.svg'
       - '"tree"'
       - 'git switch'
+  - glob: content/modules/ROOT/pages/user/stops.adoc
+    require:
+      - 'visuals/build-stopped-conflict\.svg'
+      - 'debaser continue'
+      - 'debaser rollback'
+      - 'visual:build-stopped-conflict'
+    require_order:
+      - '^=== Exit 2:'
+      - '^=== Exit 3:'
+      - '^=== Exit 4:'
+      - '^=== Exit 5:'
+      - '^=== Exit 6:'
+      - '^=== Exits 129, 130, and 143:'

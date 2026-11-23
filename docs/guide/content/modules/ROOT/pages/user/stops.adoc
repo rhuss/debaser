@@ -1,0 +1,435 @@
+= When a build stops
+
+// Sources:
+// debaser:src/core/errors.ts:1-20
+// debaser:src/cli/usage.ts:29-30
+// debaser:src/cli/usage.ts:40-43
+// debaser:src/cli/main.ts:34-35
+// debaser:src/cli/main.ts:83-98
+// debaser:src/cli/main.ts:110-118
+// debaser:src/cli/main.ts:127
+// debaser:src/cli/commands/index.ts:101-128
+// debaser:src/live/render.ts:743-752
+// debaser:src/run/stop.ts:18-56
+// debaser:src/run/stop.ts:80-87
+// debaser:src/run/stop.ts:88-112
+// debaser:src/run/stop.ts:113-145
+// debaser:src/report/report.ts:99-136
+// debaser:src/report/report.ts:140-175
+// debaser:src/report/handoff.ts:13-37
+// debaser:src/report/handoff.ts:122-166
+// debaser:src/run/mergeloop.ts:35-80
+// debaser:src/git/merge.ts:3-16
+// debaser:src/git/merge.ts:28-40
+// debaser:src/git/git.ts:4-5
+// debaser:src/git/git.ts:7-25
+// debaser:src/run/harness-merge.ts:25-95
+// debaser:src/harness/select.ts:12-21
+// debaser:src/harness/select.ts:39-52
+// debaser:src/harness/verify.ts:8-11
+// debaser:src/harness/verify.ts:41-51
+// debaser:src/run/verifyloop.ts:22-110
+// debaser:src/steps/isolated.ts:14-18
+// debaser:src/steps/attribute.ts:10-52
+// debaser:src/run/harness-fix.ts:33-80
+// debaser:src/run/accept.ts:88-143
+// debaser:src/run/accept.ts:203-226
+// debaser:src/run/rebase-phase.ts:133-135
+// debaser:src/run/rebase-phase.ts:235-276
+// debaser:src/run/resume.ts:28-143
+// debaser:src/run/harness-resume.ts:13-15
+// debaser:src/run/rollback.ts:23-40
+// debaser:src/run/rollback.ts:58-105
+// debaser:src/run/rollback.ts:141-171
+// debaser:src/core/tree.ts:93-106
+// debaser:src/run/build.ts:50-54
+// debaser:src/run/build.ts:64-71
+// debaser:src/run/where.ts:5-45
+// debaser:src/core/lock.ts:25-58
+// debaser:src/cli/commands/status.ts:75-80
+// debaser:tests/integration/stops.test.ts:358-374
+// visual:build-stopped-conflict
+
+A build stops when it cannot go on without you: a patch conflicts, a check fails, the coding agent gives up, or someone interrupts the run.
+debaser keeps the stopped run as it is, with the integration branch half built in the build directory.
+You then fix the problem and run `debaser continue`, or undo the run with `debaser rollback`.
+The exit code tells you which kind of stop you hit, and each kind has its own section below.
+
+xref:overview/how-it-works.adoc[How a build works] shows the phases in which each stop can happen.
+On this page, the harness is the configured integration that runs a coding agent, and `<build directory>` is the path a stop prints after `build directory:`.
+
+== Read a stop
+
+A stop prints a short message.
+In the live view on a color terminal, its first line starts with `stopped after`, followed by a masked run time, the stage the run stopped in, and the reason.
+In plain output, the first line reads `debaser stopped: <reason>` instead.
+The lines below it name what you need to go on:
+
+* `failing:` sums up the failing output in a few words, when the step's parser finds them.
+* `caused by:` names the patches debaser blames for a failing step, as <<exit-3,exit 3>> explains.
+* `build directory:` is where you fix the problem, not the checkout you started debaser from.
+* `report:` is the run's `report.md`, whose result line reads `Result: stopped (exit <code>): <reason>`.
+* `handoff:` names a file per patch the stop points at, with the problem, its cause, and a task for fixing that patch.
+* One or more lines say what to do next, for example `resolve the conflicts, `git add` the files, then continue`.
+* `prompt for an agent:` and `run it:` appear for a conflict or a failing recipe step (exits 2, 3, and 5).
+They name a prompt file in the report directory and a command that runs an agent on it in the build directory.
+* `continue: debaser continue` and `undo the run: debaser rollback` close the message.
+After an exit 4, only the rollback line appears.
+
+The `run it:` command is a suggestion.
+It runs the agent from the patch list's harness setting, or `claude` when no harness is configured.
+You can fix the problem by hand or with any other tool, as long as you work in the build directory.
+
+The reports live under `reports` in debaser's data directory, which by default sits in the clone's Git directory.
+xref:reference/files-and-codes.adoc[Files, exit codes, and environment] lists what a report contains.
+While a run is stopped, `debaser status` also says where it stopped, as xref:user/status.adoc[Reading status] shows.
+
+Exit 1 is not a stop.
+It means debaser refused to start or could not go on: a usage error, a failed precondition, another command holding the lock, a failed fetch, a failed reset, or a failed push after a finished build.
+The message names what went wrong.
+xref:user/build-directory.adoc#refusals[When debaser refuses the build directory] covers the refusals that concern the build directory.
+
+== Stops by exit code
+
+[cols="1,4",options="header"]
+|===
+|Exit code |The run stopped because
+
+|2
+|a patch conflicts with upstream or with the patches before it
+
+|3
+|a recipe step fails only with the patches merged
+
+|4
+|a recipe step fails on plain upstream too
+
+|5
+|the harness ran out of attempts, its fixes reached their limit, or it failed to run
+
+|6
+|an acceptance check fails
+
+|129, 130, 143
+|the run was interrupted by SIGHUP, Ctrl-C (SIGINT), or SIGTERM
+|===
+
+[#exit-2]
+=== Exit 2: a merge conflict
+
+debaser merges the patches in order.
+When a merge conflicts, Git first replays any resolutions it recorded on earlier runs.
+When files stay unmerged and no harness for conflicts is configured, the run stops with exit 2 and names the patch and the files.
+A configured harness that is not executable counts as none: debaser warns once and stops the same way.
+
+The captures in this guide use a fictional project, `example/widget`.
+Here, its third patch, `rename-flag`, conflicts in `widget.sh`:
+
+image::visuals/build-stopped-conflict.svg["Live view of debaser build --trust-recipe for the widget project stopped at merge 3/3 with a merge conflict in rename-flag, naming the file widget.sh, the build directory, the report, a prompt for an agent with the command to run it, debaser continue, and debaser rollback",role=expand]
+
+The first line says the run stopped at the merge stage, item 3 of 3, with a merge conflict in `rename-flag`.
+The lines below name the conflicting file, `widget.sh`, and the build directory `/work/widget-debaser`.
+The report lies under `.git/debaser/reports/` in the clone `/work/widget`.
+The next line tells you to resolve the conflicts, `git add` the files, then continue.
+The prompt file `fix-conflict.md` sits next to the report, and the `run it:` line runs `claude` on it in the build directory, because this project configures no harness.
+The last two lines offer `debaser continue` and `debaser rollback`.
+
+To go on, resolve the conflict in the build directory and let `debaser continue` conclude the merge.
+
+. Change into the build directory.
++
+[source,bash]
+----
+cd <build directory>
+----
+
+. Open each file listed after `files:` and resolve the conflict markers, by hand or with the agent command from the `run it:` line.
+
+. Stage each resolved file.
+`<file>` is a path from the `files:` line.
++
+[source,bash]
+----
+git add <file>
+----
+
+. Confirm that no file is left unmerged.
++
+Check: the command prints nothing.
++
+[source,bash]
+----
+git diff --name-only --diff-filter=U
+----
+// expect: lines == 0
+
+. Continue the run.
+debaser commits the merge with the patch's merge message and goes on with the next patch.
++
+[source,bash]
+----
+debaser continue
+----
+
+A file still unmerged makes `debaser continue` stop again with exit 2 and the line `<patch> still has unmerged files: <files>`.
+
+`debaser rebase` also ends with exit 2 when rebasing one of your own branches conflicts.
+That stop names a worktree instead of the build directory and offers `debaser continue --skip-branch`.
+xref:user/own-branches.adoc[Rebasing your own branches] covers it.
+
+[#exit-3]
+=== Exit 3: a step fails only with the patches
+
+When a recipe step fails, debaser runs what failed once more, in case it is flaky.
+When it fails again, debaser runs the step on plain upstream, in a throwaway worktree, after the install step and the steps before it.
+When the step passes there, the patches break it.
+With no harness configured for checks, the run stops with exit 3.
+
+The stop names the step, its command, and its log.
+Before it stops, debaser works out which patches to blame.
+It takes each merged patch that touches a file the failure names and runs the step with that patch alone on upstream.
+The `caused by:` line then reads `<patch> fails alone on upstream` for a patch that fails by itself.
+When none fails alone, it names the patches that fail only together, or one patch together with the other patches.
+When no merged patch touches a file the failure names, the line is missing.
+The blamed patches get a handoff each, and the stop writes a prompt for an agent with the run's patches and the end of the log.
+
+. Change into the build directory.
++
+[source,bash]
+----
+cd <build directory>
+----
+
+. Fix the failure in the working tree, by hand or with the agent command from the `run it:` line.
+You can also commit the fix yourself.
+
+. Run the step's command again.
+`<command>` is the command from the stop's `command:` line.
++
+Check: the command passes.
++
+[source,bash]
+----
+<command>
+----
+// expect: exit 0
+
+. Continue the run.
+debaser commits your fix and runs the steps again from the first one.
++
+[source,bash]
+----
+debaser continue
+----
+
+[#exit-4]
+=== Exit 4: upstream is broken
+
+When a failing step also fails on plain upstream, no patch is to blame.
+The run stops with exit 4 before any agent is asked, names no patch, and writes no agent prompt.
+The stop names the step, the upstream commit, and the log, and says `roll back, then build once upstream is fixed`.
+It offers no `debaser continue`, because continuing does not fix upstream.
+
+. Undo the run.
++
+Check: the rollback ends with exit 0.
++
+[source,bash]
+----
+debaser rollback
+----
+// expect: exit 0
+
+. Once upstream is fixed, build again.
++
+[source,bash]
+----
+debaser build
+----
+
+[#exit-5]
+=== Exit 5: the agent gives up
+
+With a harness configured, debaser hands a conflict, a step failing only with the patches, or a failing acceptance check to the coding agent.
+It checks the agent's result itself before it accepts it.
+The run stops with exit 5 in three cases:
+
+* The agent did not produce an accepted result within its attempts.
+The harness's `attempts` setting defaults to 3.
+* The agent's fixes reached their limit for the run: the attempts multiplied by the number of recipe steps plus acceptance checks.
+debaser stops then rather than letting fixes break each other in a loop.
+* The harness failed to run: it exited with a non-zero code without an acceptable result, or its output stream reported a failure.
+A harness that fails to start fails the same way on the next attempt, so its attempts end at once.
+The stop gives the reason, for example `it exited <code>: <last line>`, and a `harness log:` line.
+
+The stop names the conflict, step, or acceptance check the agent gave up on, along with its files or log.
+For a conflict or a step, it also writes a prompt for an agent.
+You can go on in two ways:
+
+* Fix the problem yourself, as for <<exit-2,exit 2>>, <<exit-3,exit 3>>, or <<exit-6,exit 6>>, then run `debaser continue`.
+* Fix the harness, then run `debaser continue` to let the agent try again.
+After the fixes reached their limit, the next failing step or acceptance check stops the run again at once, because the limit counts every agent fix of the run.
+
+[#exit-6]
+=== Exit 6: an acceptance check fails
+
+After the recipe steps pass, debaser runs the acceptance check of every merged patch that has one.
+A failing check runs once more, in case it is flaky.
+When a check still fails and no harness is configured for acceptance checks, the run stops with exit 6.
+
+The stop names the patch of the first failing check, all failing checks, the check's command, and its log.
+It writes no agent prompt.
+Each failing patch gets a handoff instead, which says the build no longer does what the patch is for.
+
+. Change into the build directory.
++
+[source,bash]
+----
+cd <build directory>
+----
+
+. Fix the failure in the working tree, or commit the fix yourself.
+
+. Continue the run.
+debaser commits your fix and runs the steps again from the first one, followed by every acceptance check.
++
+[source,bash]
+----
+debaser continue
+----
+
+[#interrupted]
+=== Exits 129, 130, and 143: an interrupted run
+
+Ctrl-C ends a run with exit 130, SIGTERM with 143, and SIGHUP with 129.
+The run ends where it is, keeps its state, and releases the lock.
+`debaser continue` and `debaser rollback` handle an interrupted run like a stopped one.
+
+`debaser continue` after an interrupted step commits only the changes to files Git already tracks.
+When the run was interrupted during an agent call, `debaser continue` checks what the agent left like a finished result.
+debaser commits an accepted result as the agent's fix, and stops at the conflict or failing step otherwise.
+
+[#continue]
+== Continue a stopped run
+
+`debaser continue` picks up a stopped or interrupted run where it ended.
+It works in the run's build directory, wherever you start it.
+On a color terminal, it shows the live view of the run.
+
+What it commits depends on where the run stopped:
+
+* At a merge conflict, it concludes the merge with the patch's merge message and goes on with the next patch.
+When you committed the merge yourself, it takes that commit.
+* At a step or an acceptance check, it commits everything you changed since the stop, new files included.
+The commit message is `debaser: fix <step> (user)`, or `debaser: fix acceptance <patch> (user)` for an acceptance check.
+Commits you made yourself since the stop count as the fix too.
+When nothing changed, it commits nothing.
+* After an interrupted step, it commits only the changes to files Git already tracks.
+
+After a stop at a step or an acceptance check, verification starts again at the first recipe step, because a fix can break a step that passed before it.
+After a stop with exit 5, the agent tries again, as <<exit-5,exit 5>> describes.
+When a rollback stopped because restoring the dependencies failed, `debaser continue` finishes the rollback.
+
+`debaser continue` refuses with exit 1 in these cases:
+
+* There is no stopped run: `there is no stopped run to continue`.
+* The build directory does not have the integration branch checked out, or the branch no longer contains the run's upstream commit.
+Check the branch out again, or undo the run with `debaser rollback`.
+* The build directory is gone.
+xref:user/build-directory.adoc[The build directory] covers that case under "A deleted build directory".
+* `--skip-branch` was given for any run other than a rebase run stopped at a branch.
+
+`--skip-branch` gives up the own branch a rebase run stopped at and goes on with the next one.
+xref:user/own-branches.adoc[Rebasing your own branches] explains rebase runs.
+
+[#rollback]
+== Roll back
+
+`debaser rollback` returns to the last successful build.
+What that means depends on whether a run is stopped.
+
+=== With a stopped run
+
+With a stopped or interrupted run, `debaser rollback` undoes it in the run's build directory:
+
+* It aborts a merge in progress.
+* It checks out the integration branch at the commit it had when the run started.
+When there was no build before the run, it checks out the branch or commit the build directory had at the start and deletes the integration branch.
+* It puts back the installed artifact from the start of the run, or removes the run's artifact when there was none before.
+* It runs the recipe's install step again to restore the dependencies.
+When that fails, `debaser continue` finishes the rollback after you fix the cause.
+
+[CAUTION]
+====
+The rollback checks out the integration branch with force.
+Uncommitted changes to tracked files in the build directory are lost, and so are the run's merges and fix commits on the integration branch.
+====
+
+The rollback refuses when the build directory has another branch or a detached HEAD checked out, or when another worktree holds the integration branch.
+xref:user/build-directory.adoc#refusals[When debaser refuses the build directory] lists these checks and their messages.
+A refused rollback changes nothing, so the run stays stopped and you can still continue it.
+When the build directory is gone, the rollback moves only the refs back, as xref:user/build-directory.adoc[The build directory] describes under "A deleted build directory".
+
+For a rebase run, `debaser rollback` ends the run instead, as xref:user/own-branches.adoc[Rebasing your own branches] describes.
+
+=== Without a stopped run
+
+With no stopped run, `debaser rollback` restores the previous build:
+
+* It checks out the integration branch at `<branch>-prev`, where `<branch>` is the integration branch, by default `debaser`.
+* It puts back the installed artifact from its `.prev` copy and keeps that copy.
+* When it moved the integration branch, it runs the recipe's install step again to restore the dependencies.
+
+This rollback applies the same refusals as a build, including uncommitted changes in the build directory.
+When the build directory is missing, it creates it.
+With neither `<branch>-prev` nor a `.prev` copy of the artifact, it refuses with `nothing to roll back to: no stopped run and no earlier build`.
+
+=== Run the rollback
+
+. Undo the stopped run, or return to the previous build.
++
+Check: the rollback ends with exit 0.
++
+[source,bash]
+----
+debaser rollback
+----
+// expect: exit 0
+
+== Resolved conflicts replay on the next build
+
+debaser runs its merges with Git's `rerere.enabled` and `rerere.autoUpdate` settings turned on.
+When `debaser continue` concludes a merge you resolved, Git records your resolution.
+On the next build, Git replays it when the same conflict comes back.
+When the recorded resolutions cover every conflicted file, debaser commits the merge and goes on, and the report marks the patch as `replayed`.
+Files that stay unmerged are handled as a new conflict.
+
+debaser makes Git forget a resolution it rejected from the agent, so a rejected resolution never replays.
+
+== One command at a time
+
+While a run is stopped or was interrupted, `debaser build` and `debaser rebase` refuse to start another one.
+In plain output, the refusal looks like this:
+
+[source,text]
+----
+debaser: a run is stopped or in progress; resume it with `continue` or undo it with `rollback`
+  stopped: while <where the run stopped>, started <time> ago
+  report: <report directory>
+  next: debaser continue, or debaser rollback
+----
+
+After an exit 4, the `next:` line reads `debaser rollback, then build once upstream is fixed`.
+
+While a command runs, it holds a lock in debaser's data directory.
+Every command that changes something takes that lock: `add`, `remove`, `build`, `rebase`, `continue`, `rollback`, and `trust`.
+A second one refuses with exit 1 while the first runs.
+In plain output, the refusal reads:
+
+[source,text]
+----
+debaser: another debaser command is running in this checkout: <command> (pid <pid>, since <time>)
+  wait for it to finish, or end that process
+----
+
+The next command takes over a lock left by a process that no longer runs.
