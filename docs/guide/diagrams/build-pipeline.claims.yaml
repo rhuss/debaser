@@ -1,0 +1,223 @@
+diagram: build-pipeline
+claims:
+  # --- title -------------------------------------------------------------------
+  - id: title
+    kind: label
+    elements: [title]
+    text: The diagram shows one run of `debaser build`, whose function runs preflight, fetch, reset, merge, verify, accept and finish in that order.
+    sources: ["debaser:src/run/build.ts:48-50"]
+
+  # --- phases (user blue) ------------------------------------------------------
+  - id: phase-lock
+    kind: label
+    elements: [p_lock]
+    text: build is a locking command; main.ts takes the checkout's run lock before the handler runs, then build refuses a run in progress and runs its preflight checks.
+    sources: ["debaser:src/cli/main.ts:35,83-87", "debaser:src/core/lock.ts:25-27", "debaser:src/run/build.ts:50-57"]
+  - id: phase-fetch
+    kind: label
+    elements: [p_fetch]
+    text: The fetch stage fetches the upstream branch, then each patch of the patch list.
+    sources: ["debaser:src/run/build.ts:95-104"]
+  - id: phase-rebase
+    kind: label
+    elements: [p_rebase]
+    text: build's rebase phase rebases the own branches before the reset; it is skipped with rebase mode off and never stops a build.
+    sources: ["debaser:src/run/rebase-phase.ts:49-55", "debaser:src/run/build.ts:113"]
+  - id: phase-reset
+    kind: label
+    elements: [p_reset]
+    text: The integration branch is reset to the fetched upstream tip with git checkout -B.
+    sources: ["debaser:src/run/build.ts:115-117"]
+  - id: phase-merge
+    kind: label
+    elements: [p_merge]
+    text: The merge loop merges the planned patches in order onto the reset branch.
+    sources: ["debaser:src/run/mergeloop.ts:35-37"]
+  - id: phase-verify
+    kind: label
+    elements: [p_verify]
+    text: The verify stage runs the recipe's steps in order on the merged tree.
+    sources: ["debaser:src/run/verifyloop.ts:22-26", "debaser:src/live/state.ts:318-330"]
+  - id: phase-accept
+    kind: label
+    elements: [p_accept]
+    text: The accept stage runs every live patch's acceptance check between verify and finish.
+    sources: ["debaser:src/run/accept.ts:86-89"]
+  - id: phase-install
+    kind: label
+    elements: [p_install]
+    text: After every check passed, the build output replaces the installed copy, and the copy from the run's start is kept as <target>.prev (when the recipe names an artifact install path).
+    sources: ["debaser:src/run/finish.ts:38-51", "debaser:src/run/common.ts:71-74"]
+  - id: phase-after-build
+    kind: label
+    elements: [p_after]
+    text: The after-build command runs only when the recipe sets one; its failure is a warning, the build itself succeeded.
+    sources: ["debaser:src/run/finish.ts:62-71"]
+  - id: phase-report
+    kind: label
+    elements: [p_report]
+    text: The run writes its report, which carries the final exit code.
+    sources: ["debaser:src/run/finish.ts:88-89"]
+
+  # --- phase order arrows ------------------------------------------------------
+  - id: flow-lock-fetch
+    kind: connects
+    elements: [a_lock_fetch]
+    text: The fetch starts after the lock and the preflight checks.
+    sources: ["debaser:src/cli/main.ts:83-87", "debaser:src/run/build.ts:57,95-97"]
+  - id: flow-fetch-rebase
+    kind: connects
+    elements: [a_fetch_rebase]
+    text: The rebase phase runs after the fetch.
+    sources: ["debaser:src/run/build.ts:104,113"]
+  - id: flow-rebase-reset
+    kind: connects
+    elements: [a_rebase_reset]
+    text: The reset follows the rebase phase.
+    sources: ["debaser:src/run/build.ts:113-117"]
+  - id: flow-reset-merge
+    kind: connects
+    elements: [a_reset_merge]
+    text: After the reset, proceed starts with the merge phase.
+    sources: ["debaser:src/run/build.ts:117,124,128-131"]
+  - id: flow-merge-verify
+    kind: connects
+    elements: [a_merge_verify]
+    text: A merge loop that did not stop moves the run to verify.
+    sources: ["debaser:src/run/build.ts:130-134"]
+  - id: flow-verify-accept
+    kind: connects
+    elements: [a_verify_accept]
+    text: A verify loop that did not stop moves the run to accept.
+    sources: ["debaser:src/run/build.ts:138-142"]
+  - id: flow-accept-install
+    kind: connects
+    elements: [a_accept_install]
+    text: When every acceptance check passed, the run goes to finish, which installs the build.
+    sources: ["debaser:src/run/build.ts:144-156", "debaser:src/run/finish.ts:38-51"]
+  - id: flow-install-after
+    kind: connects
+    elements: [a_install_after]
+    text: finish runs the after-build command after the install.
+    sources: ["debaser:src/run/finish.ts:42-51,62-71"]
+  - id: flow-after-report
+    kind: connects
+    elements: [a_after_report]
+    text: The report is written after the after-build command.
+    sources: ["debaser:src/run/finish.ts:62-71,88-89"]
+
+  # --- Git refs and branches (platform gray) -----------------------------------
+  - id: ref-debaser
+    kind: label
+    elements: [r_refs]
+    text: Every ref debaser writes lives under refs/debaser/; a patch is fetched into a private ref (a PR into refs/debaser/<repo>/pull/<n>).
+    sources: ["debaser:src/git/refs.ts:3-12", "debaser:src/run/fetch.ts:11-12", "debaser:src/plugins/sources/pr.ts:20,26"]
+  - id: fetch-writes-refs
+    kind: connects
+    elements: [a_fetch_refs]
+    text: The fetch writes the fetched patches into private refs under refs/debaser/.
+    sources: ["debaser:src/run/fetch.ts:11-28", "debaser:src/git/refs.ts:3-8"]
+  - id: ref-own
+    kind: label
+    elements: [r_own]
+    text: The own branches are the branches the rebase phase rebases.
+    sources: ["debaser:src/run/rebase-phase.ts:49-51"]
+  - id: rebase-moves-own
+    kind: connects
+    elements: [a_rebase_own]
+    text: The rebase phase rebases the own branches, and the patches naming them get their new tips.
+    sources: ["debaser:src/run/rebase-phase.ts:49-51,84-92"]
+  - id: ref-integration
+    kind: label
+    elements: [r_int]
+    text: The integration branch is the branch debaser resets and builds (list.branch).
+    sources: ["debaser:src/run/build.ts:55-56,117"]
+  - id: reset-integration
+    kind: connects
+    elements: [a_reset_int]
+    text: The reset points the integration branch at the fetched upstream tip.
+    sources: ["debaser:src/run/build.ts:115-117"]
+  - id: merge-onto-integration
+    kind: connects
+    elements: [a_merge_int]
+    text: The patches are merged onto the reset integration branch.
+    sources: ["debaser:src/run/mergeloop.ts:35-36"]
+
+  # --- coding agent (governance orange) ----------------------------------------
+  - id: agent
+    kind: label
+    elements: [agent]
+    text: The harness runs a coding agent; it is optional, the configured harness for a task is null without any.
+    sources: ["debaser:src/harness/select.ts:7,11-13"]
+  - id: agent-conflict
+    kind: connects
+    elements: [a_conflict]
+    text: A merge conflict that no recorded resolution replays goes to the conflict harness; an accepted resolution lets the merge loop go on.
+    sources: ["debaser:src/run/mergeloop.ts:35-36,75-76", "debaser:src/run/harness-merge.ts:25-29"]
+  - id: agent-failing-step
+    kind: connects
+    elements: [a_failstep]
+    text: A step failing only on the patched tree goes to the check harness; after an accepted fix the steps run again from the first.
+    sources: ["debaser:src/run/verifyloop.ts:94-98", "debaser:src/run/harness-fix.ts:42-47"]
+  - id: agent-failing-check
+    kind: connects
+    elements: [a_failcheck]
+    text: The first failing acceptance check goes to the acceptance harness; an accepted fix sends the run back to verify.
+    sources: ["debaser:src/run/accept.ts:134-140,188-192"]
+
+  # --- stop exits (admin red) --------------------------------------------------
+  - id: exit-2
+    kind: label
+    elements: [x2]
+    text: Exit 2 is a stop at an unresolved merge conflict.
+    sources: ["debaser:src/core/errors.ts:5-6"]
+  - id: exit-2-arrow
+    kind: connects
+    elements: [a_x2]
+    text: Without a conflict harness (resolveConflict returns null), the merge loop stops with exit 2.
+    sources: ["debaser:src/run/mergeloop.ts:75-79", "debaser:src/run/harness-merge.ts:25-29"]
+  - id: exit-3
+    kind: label
+    elements: [x3]
+    text: Exit 3 is a stop at a step that fails only on the patched tree.
+    sources: ["debaser:src/core/errors.ts:8-9"]
+  - id: exit-3-arrow
+    kind: connects
+    elements: [a_x3]
+    text: Without a check harness (fixStep returns null), a step that passes on plain upstream stops the run with exit 3.
+    sources: ["debaser:src/run/verifyloop.ts:94-108", "debaser:src/run/harness-fix.ts:42-47"]
+  - id: exit-4
+    kind: label
+    elements: [x4]
+    text: Exit 4 means the step fails on plain upstream too.
+    sources: ["debaser:src/core/errors.ts:10-11"]
+  - id: exit-4-arrow
+    kind: connects
+    elements: [a_x4]
+    text: A step that failed twice runs on plain upstream; when it fails there too the run stops with exit 4, before any harness is asked.
+    sources: ["debaser:src/run/verifyloop.ts:78-92"]
+  - id: exit-6
+    kind: label
+    elements: [x6]
+    text: Exit 6 is a stop at a failing acceptance check with no accepted fix.
+    sources: ["debaser:src/core/errors.ts:14-15"]
+  - id: exit-6-arrow
+    kind: connects
+    elements: [a_x6]
+    text: Without an acceptance harness, a failing acceptance check stops the run with exit 6.
+    sources: ["debaser:src/run/accept.ts:134-140,219-226"]
+  - id: exit-5
+    kind: label
+    elements: [x5]
+    text: Exit 5 is the harness out of attempts (errors.ts also counts the fix bound and a harness that kept failing to run).
+    sources: ["debaser:src/core/errors.ts:12-13"]
+  - id: exit-5-arrow
+    kind: connects
+    elements: [a_x5]
+    text: The conflict, check, and acceptance harness each stop the run with exit 5 when they cannot fix it.
+    sources: ["debaser:src/run/harness-merge.ts:82-90", "debaser:src/run/harness-fix.ts:67-71", "debaser:src/run/accept.ts:140-143,203-206"]
+
+  # --- legend ------------------------------------------------------------------
+  - id: legend
+    kind: legend
+    elements: [lg_title, lg_user, lg_platform, lg_gov, lg_admin, lg_user_sw, lg_platform_sw, lg_gov_sw, lg_admin_sw]
