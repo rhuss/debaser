@@ -5,7 +5,7 @@
 site:
   title: "debaser Guide"
   start_page: guide::index.adoc
-  url: https://rhuss.github.io/debaser/
+  url: https://ro14nd.de/debaser/
 content:
   sources:
     - url: .
