@@ -18,7 +18,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
     json: {
       upstream: list.upstream,
       branch: list.branch,
-      patches: list.patches.map(p => ({ ...p, display: display(p.source), verified: !!p.acceptance })),
+      patches: list.patches.map(p => ({ ...p, display: display(p.source), hasCheck: !!p.acceptance })),
       retired: list.retired.map(p => ({ ...p, display: display(p.source) })),
     },
   };

@@ -81,6 +81,11 @@ test("list marks a patch with an acceptance check, after its pin", async () => {
   const out = (await run(w, "list")).out;
   expect(out).toMatch(new RegExp(`^1 +a +\\S+ +about a \\(pinned ${pin.slice(0, 7)}\\) \\(with check\\)$`, "m"));
   expect(out).toMatch(/^2 +b +\S+ +about b$/m);
+  const json = JSON.parse((await run(w, "list", "--json")).out);
+  expect(json.patches.map((p: { display: string; hasCheck: boolean; verified?: boolean }) => [p.display, p.hasCheck, p.verified])).toEqual([
+    ["a", true, undefined],
+    ["b", false, undefined],
+  ]);
 });
 
 test("remove retires a patch with its reason, which it needs off a terminal", async () => {
