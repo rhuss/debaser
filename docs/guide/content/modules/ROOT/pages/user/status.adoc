@@ -7,7 +7,10 @@
 // debaser:src/cli/commands/status.ts:25-35
 // debaser:src/cli/commands/status.ts:36-42
 // debaser:src/cli/commands/status.ts:43-58
-// debaser:src/cli/commands/status.ts:66-164
+// debaser:src/cli/commands/status.ts:60-164
+// debaser:src/core/errors.ts:1-5
+// debaser:src/cli/main.ts:71
+// debaser:src/rebase/rebase.ts:76-109
 // debaser:src/cli/commands/status.ts:166-173
 // debaser:src/cli/commands/index.ts:83
 // debaser:src/cli/commands/index.ts:145-160
@@ -70,7 +73,7 @@ Without a patch list, it refuses with exit 1 and the message `+there is no patch
 == An example
 
 The capture below shows `debaser status` in a clone of the fictional project `example/widget`.
-The patch list holds two patches, one build has run, and upstream has gained a commit since.
+The patch list holds two patches, a build has run, and upstream has gained a commit since.
 
 image::visuals/status.svg["Output of debaser status for the widget project: the data, config, and build lines, a status line with no run in progress and the upstream ref, one upstream commit since the last build, a table with the patches fast-start and helper-colors that both merge cleanly and are one commit behind, with passing checks, and a hint that rebase updates branches behind upstream",role=expand]
 
@@ -194,7 +197,7 @@ a|The pull request's state as `gh` reports it, in lowercase.
 |BEHIND
 a|The number of upstream commits since the patch's base, the point where the patch's commit meets upstream.
 Merge commits do not count.
-A `?` means debaser has no commit for the patch.
+A `?` means debaser has no commit for the patch, or no merge base with upstream.
 
 |CHECKS
 a|The project checks of the last build, for this patch.
@@ -217,7 +220,7 @@ a|The result of the patch's acceptance check in the last build.
 
 |(no header)
 a|Appears only when at least one patch is pinned.
-A pinned patch shows `pinned <short commit>`; the other cells stay empty.
+A pinned patch shows `pinned <short commit>`; patches that are not pinned leave this cell empty.
 |===
 
 CHECKS and PATCH CHECK come from the `result.json` of the newest build in the reports directory.
@@ -237,7 +240,7 @@ The last lines give hints about your own branches:
 * `<patch> was rebased earlier; push it with: <command>` for each branch with a push pending.
 * `+Branches behind upstream: `rebase` updates them.+` when a branch is behind upstream.
 * `+Branches in a worktree: `rebase --in-worktree` rebases them there.+` when a checked-out branch can be rebased in its worktree.
-* `Own branches: <note>` when debaser rebases no own branches at all, or cannot tell whose some are.
+* `Own branches: <note>` when there is no fork to push rebased branches to, or `gh` cannot tell whose some pull requests are.
 The note reads, for example, `rebasing is off: there is no origin remote to push rebased branches to`.
 
 xref:user/own-branches.adoc[Rebasing your own branches] explains the rebase modes and how to act on these states.
@@ -366,7 +369,7 @@ It asks in two cases:
 debaser asks this only when rebasing is not off, the patch is not pinned, `origin` is a fork, and the fork is on GitHub.
 
 Without `gh` on the `PATH`, or when `gh` cannot answer (not signed in, offline, or no such pull request), the PR cell of a pull request reads `not a PR`.
-debaser also cannot tell whose branch the pull request is from, and the hints end with a note like this:
+When debaser asks about ownership (the second case above), it also cannot tell whose branch the pull request is from, and the hints end with a note like this:
 
 [source,text]
 ----
