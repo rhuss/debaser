@@ -36,11 +36,17 @@
 // debaser:src/recipes/trust.ts:69-107
 // debaser:src/live/worker.ts:18-21
 // debaser:src/live/worker.ts:50-61
-// debaser:src/views/list.ts:63-72
+// debaser:src/views/list.ts:32-72
+// debaser:src/run/end.ts:10-18
+// debaser:src/rebase/rebase.ts:94,239
+// debaser:src/live/live.ts:119
+// debaser:src/cli/commands/index.ts:128-130,164-176
+// debaser:src/run/build.ts:87
+// debaser:src/run/rebase-phase.ts:116
 
 A debaser command line has the form `debaser [--dir <path>] <command> [options]`.
 `debaser --help` prints the usage text.
-debaser accepts a few options that the usage text leaves out; the tables below mark them "no" in the `--help` column.
+debaser accepts a few options that the usage text leaves out; the tables below mark them as missing from `--help`.
 
 == Global options
 
@@ -65,7 +71,7 @@ Without `--dir`, debaser uses `DEBASER_DIR`, else `<git-common-dir>/debaser`.
 |===
 
 `--version`, `--help`, and their short forms work only in place of the command.
-After a command they are leftover words, so `debaser build --help` is a usage error.
+After a command, `--version` and `--help` are leftover words, so `debaser build --help` is a usage error; `add` and `remove` take a short form as a positional.
 
 == How debaser reads a command line
 
@@ -101,7 +107,8 @@ An unknown command is a usage error with the message `unknown command <name>`.
 
 == Checks at the start of a command
 
-Each refusal exits 1, with the message on standard error.
+Each refusal exits 1.
+Off a terminal the message goes to standard error; on a color terminal, `build`, `rebase`, `continue`, and `rollback` show it in their live view or checklist.
 
 [cols="2,2,4",options="header"]
 |===
@@ -192,7 +199,7 @@ See xref:user/first-build.adoc[Your first build] and xref:user/build-directory.a
 `--json` +
 `--skip-branch`
 |yes
-|As for `build`.
+|As for `build`; the `--push` of the stopped run answers the push question.
 |yes
 |Only rebases the own branches onto upstream.
 `--rebase off` is a usage error.
