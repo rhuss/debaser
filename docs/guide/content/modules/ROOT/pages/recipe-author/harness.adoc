@@ -39,8 +39,9 @@
 // debaser:README.md:147-152
 // debaser:docs/harness.md:16-26
 // debaser:docs/harness.md:52-100
+// debaser:src/cli/commands/index.ts:101-110
 
-Without an agent, a merge conflict or a check your patches break stops the build until you fix it yourself.
+Without an agent, a merge conflict, or a recipe step or acceptance check that your patches break, stops the build until you fix it yourself.
 A harness hands that work to a coding agent instead.
 A coding agent is a command-line program that changes code from a written task, such as Claude Code (`claude`), Codex (`codex`), pi (`pi`), OpenCode (`opencode`), or a command of your own.
 The harness is the part of the patch list that tells debaser which agent to run, how to run it, and how long to wait for it.
@@ -77,7 +78,7 @@ The default is 900.
 
 |`attempts`
 |positive number
-|How many tries the agent gets for one problem.
+|How many attempts the agent gets for one problem.
 The default is 3.
 debaser rounds a fraction down.
 
@@ -105,8 +106,8 @@ Standard input is closed, so the agent gets its task only from the prompt file.
 
 The first element of `command` is the program.
 debaser looks up a bare name such as `claude` on `PATH`.
-It takes a name that contains `/` as a path: an absolute path as it is, and a relative path from the checkout the run works in.
-For `debaser build` and `debaser continue` that is the build directory, and for `debaser rebase` it is the checkout you start it from.
+It takes a name that contains `/` as a path: an absolute path as it is, and a relative path from the working tree the run works in.
+For `debaser build` and `debaser continue` that is the build directory, and for `debaser rebase` it is the working tree you start it from.
 
 == The kinds and what they add
 
@@ -233,14 +234,14 @@ The relative path is taken from the build directory during a build, so the scrip
 
 `timeoutSeconds` bounds one call of the agent.
 The agent runs in its own process group.
-When the time runs out, debaser kills that whole group, so processes the agent started end with it, and the try counts as rejected with the reason `it timed out after <n>s`.
+When the time runs out, debaser kills that whole group, so processes the agent started end with it, and the attempt counts as rejected with the reason `it timed out after <n>s`.
 debaser also kills the group when the call ends and when you interrupt the run.
 
-`attempts` bounds the tries for one problem, for example one conflict, one failing step, or one failing acceptance check.
+`attempts` bounds how many attempts the agent gets for one problem, for example one conflict, one failing step, or one failing acceptance check.
 The fixes the agent makes in one run are bounded as well, by `attempts` times the sum of the recipe steps and the acceptance checks of patches the build does not skip.
 When the agent uses up its attempts or reaches that bound at a merge conflict, a failing step, or a failing acceptance check, the run stops with exit 5.
 The `rebase` task differs: during a build, a branch the agent cannot rebase keeps its old tip and the run goes on, while `debaser rebase` stops with exit 5 at a conflict the agent gave up on.
-xref:recipe-author/harness-verification.adoc[What the agent is asked and how its work is checked] explains how the tries are judged and counted, and xref:user/stops.adoc#exit-5[Exit 5: the agent gives up] how to go on.
+xref:recipe-author/harness-verification.adoc[What the agent is asked and how its work is checked] explains how the attempts are judged and counted, and xref:user/stops.adoc#exit-5[Exit 5: the agent gives up] how to go on.
 
 [#per-task]
 == A different agent per task
@@ -266,7 +267,7 @@ These are the task names and the work each one gets:
 |`acceptance`
 
 |`rebase`
-|a conflict while debaser rebases one of your own branches, and a failing check of a rebased branch
+|a conflict while debaser rebases one of your own branches, and a failing recipe step of a rebased branch
 |`rebase-conflict` or `rebase-check`
 |===
 
@@ -306,7 +307,7 @@ debaser: warning: harness <program> is not executable; continuing without it
 ----
 
 In plain output the warning appears when debaser looks for the agent.
-The live view shows it with the result when the run ends.
+The live view, the progress card on a color terminal, shows it with the result when the run ends.
 Without a usable harness, a merge conflict stops the run with exit 2, a step that fails only with the patches with exit 3, and a failing acceptance check with exit 6.
 xref:user/stops.adoc[When a build stops] describes each stop.
 
@@ -315,7 +316,7 @@ debaser ends its attempts for that problem at once; at a merge conflict, a faili
 
 == Add a harness to the patch list
 
-Set up a harness when you want debaser to try a conflict or a failing check with an agent before it stops for you.
+Set up a harness when you want debaser to try a conflict, a failing recipe step, or a failing acceptance check with an agent before it stops for you.
 No debaser command writes the `harness` section, so you add it to `patches.json` in a text editor.
 `harness` is a key debaser knows, so it is kept when a later command writes the file again.
 
@@ -331,7 +332,7 @@ command -v <agent>
 // expect: exit 0
 
 . Open the patch list in a text editor.
-The command assumes the default data directory; with `--dir` or `DEBASER_DIR`, open `<data directory>/patches.json` instead.
+The command assumes the default xref:overview/concepts.adoc[data directory]; with `--dir` or `DEBASER_DIR`, open `<data directory>/patches.json` instead.
 +
 [source,bash]
 ----
@@ -353,7 +354,7 @@ debaser list
 // expect: exit 0 and not-contains "harness."
 
 . Build.
-The next conflict or failing check goes to the agent.
+The next conflict, failing recipe step, or failing acceptance check goes to the agent.
 +
 [source,bash]
 ----

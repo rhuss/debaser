@@ -40,9 +40,9 @@ A recipe tells debaser how to check and build that project: named steps run in o
 debaser ships generic recipes for Bun and TypeScript projects (`bun-ts`) and for Rust projects built with Cargo (`rust-cargo`), plus recipes for two specific projects.
 When none of them matches and no other recipe is in place, a build stops with "no recipe matches this project".
 This section shows you how to write one, as a local `recipe.toml` next to your patch list or as a `.debaser/recipe.toml` the project commits.
-The recipe's checks show that the combined build works, but not that each patch still does what it is for.
+The recipe steps show that the combined build works, but not that each patch still does what it is for.
 An acceptance check covers that: a command you attach to one patch, which debaser runs after every recipe step has passed.
-Without an agent, a merge conflict or a check your patches break stops the build until you fix it.
+Without an agent, a merge conflict, or a recipe step or acceptance check that your patches break, stops the build until you fix it.
 A harness hands that work to a coding agent.
 A coding agent is a command-line program that changes code from a written task, such as Claude Code, Codex, pi, OpenCode, or any command you name.
 debaser checks the agent's result itself.

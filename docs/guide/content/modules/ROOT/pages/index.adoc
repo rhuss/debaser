@@ -51,7 +51,7 @@ Every time the project moves on, you fetch it again, re-apply each change, fix t
 
 debaser turns that chore into one command.
 `debaser build` gives you a runnable build of the latest project plus your changes, applied in the order you chose.
-The new build replaces the installed one only after the project's checks and the checks attached to your changes have passed.
+The new build replaces the installed one only after the recipe steps and the acceptance checks attached to your changes have passed.
 The build before it stays available as a fallback, and `debaser rollback` returns to it.
 
 == What the parts are
@@ -77,30 +77,30 @@ You need Bun only to build debaser from source.
 
 Coding agents::
 Command-line programs that change code from a written task: Claude Code, Codex, pi, OpenCode, or any command you name.
-debaser can hand a merge conflict or a failing check to one, then verifies the agent's result itself.
+debaser can hand a merge conflict, a failing recipe step, or a failing acceptance check to one, then verifies the agent's result itself.
 They are optional.
 
 == How the parts fit
 
 You keep an ordinary clone of the project with two remotes: `upstream` for the original and `origin` for your fork.
 debaser stores the patch list inside the clone's Git directory and builds in a second working directory next to the clone, the build directory.
-The checkout you work in stays as it was.
+The clone you work in stays as it was.
 
 Each run fetches upstream and every patch, then rebases your own branches onto upstream in throwaway working directories.
 In the build directory, it resets the integration branch (the branch debaser builds) to the new upstream tip and merges the patches onto it in order.
-Then it runs the recipe's checks and the patches' acceptance checks, and installs the result.
+Then it runs the recipe steps and the patches' acceptance checks, and installs the result.
 A recipe tells debaser how to check and build a project: named steps run in order, the build output, and where to install it.
 An acceptance check is an optional command attached to one patch.
 It passes when the command exits with the expected code and, when the check sets a pattern, its output contains a match.
 
-When a merge conflicts or a check fails, debaser calls the configured coding agent.
-debaser accepts the agent's change only when its checks pass, and commits each accepted change separately.
-Without an agent, or when the agent cannot fix the problem, the run stops with a reason, a log, and a ready-to-run prompt.
+When a merge conflicts, a recipe step fails, or an acceptance check fails, debaser hands the problem to a coding agent through the harness, the agent integration you configure.
+debaser accepts the agent's change only after it has checked the result itself, and commits each accepted change separately.
+Without a harness, or when the agent cannot fix the problem, the run stops with a reason, a log, and a ready-to-run prompt.
 
 image::build-pipeline.svg["One run of debaser build from lock and preflight to report, with the points where a coding agent steps in and the exit code of each kind of stop",role=expand]
 
 The diagram follows one `debaser build` from lock and preflight to report.
-With no agent configured, the exit code names the kind of stop: 2 for a merge conflict, 3 or 4 for a failing recipe step, and 6 for a failing acceptance check.
+With no harness configured, the exit code names the kind of stop: 2 for a merge conflict, 3 or 4 for a failing recipe step, and 6 for a failing acceptance check.
 When an agent tried and gave up, the run stops with exit 5 instead.
 
 == Compared with one long-lived branch
@@ -110,12 +110,12 @@ debaser instead rebuilds the integration branch from upstream on every run.
 Each patch stays separate, and you can retire one without touching the others.
 
 Git records how you resolved a conflict, and debaser replays those resolutions on the next run.
-When a recipe step fails twice, debaser runs it on plain upstream in a throwaway directory.
+When a recipe step fails twice, debaser runs it on plain upstream, the fetched upstream commit without any patches merged, in a throwaway directory.
 A failure there too means upstream is broken (exit 4); a pass means a patch breaks it (exit 3).
 
 == Ways to run it
 
-On a terminal, `debaser build` shows a live view of the run; piped, it prints plain progress lines.
+On a terminal, `debaser build` shows a live view of the run, a progress card that it redraws in place; piped, it prints plain progress lines.
 xref:user/first-build.adoc[Your first build] walks through a run on a terminal.
 
 With `--json`, the run prints its result as JSON on standard output: the outcome, the exit code, each patch's result, and the report's path.
@@ -126,7 +126,7 @@ xref:user/headless.adoc[Run debaser headless] covers that mode.
 debaser is at version {debaser-version}.
 The debaser source this guide was checked against has no release workflow, so this guide installs debaser by building it from source with Bun.
 Pull request sources work with GitHub only.
-Only one debaser command that changes things runs at a time per data directory, which by default means per clone.
+Only one debaser command that changes things runs at a time per xref:overview/concepts.adoc[data directory], which by default means per clone.
 
 == Where to go next
 

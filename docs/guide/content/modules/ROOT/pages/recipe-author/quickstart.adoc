@@ -88,7 +88,7 @@ When the `config` line names a path instead of `none`, a local recipe exists alr
 
 == Step 2: write the recipe
 
-The recipe for notes has three steps, an install step, the build output with its installed copy, and one glob for temporary files.
+The recipe for notes has three steps, an install step, the build output with its installed artifact, and one glob for temporary files.
 
 . Write the recipe to `recipe.toml` in the data directory.
 The command assumes the default data directory; with `--dir` or `DEBASER_DIR`, write to `<data directory>/recipe.toml` instead.
@@ -199,7 +199,7 @@ Add this `acceptance` object to that patch's entry:
 ----
 
 `+{output}+` is the build output, `dist/notes.pyz` in the build directory.
-The check passes when the command exits with 0 and `match` is found in its output.
+The acceptance check passes when the command exits with 0 and `match` is found in its output.
 
 . Open the patch list, add the object to your patch's entry, and save the file.
 The command assumes the default data directory.

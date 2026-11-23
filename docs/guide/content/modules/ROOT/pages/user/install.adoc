@@ -28,6 +28,7 @@
 // debaser:src/run/harness-fix.ts:42-47
 // debaser:src/run/accept.ts:134-140
 // debaser:src/core/errors.ts:6-15
+// debaser:src/cli/commands/index.ts:101-110
 
 You build debaser from source on your own machine.
 The pinned commit has no release workflow, only a CI workflow that tests and builds, so there is no release binary to download.
@@ -58,9 +59,9 @@ Without `gh`, or when `gh` cannot answer (not signed in, offline), you lose, amo
 * debaser cannot tell whether a pull request comes from a branch of your own fork, so it does not rebase that branch.
 
 Coding agents, optional::
-A coding agent is a command-line program that changes code from a written task; debaser can hand it a merge conflict or a failing check.
+A coding agent is a command-line program that changes code from a written task; debaser can hand it a merge conflict, a failing recipe step, or a failing acceptance check.
 debaser runs it through a harness, the agent integration you configure in the patch list: Claude Code (`claude`), Codex (`codex`), pi (`pi`), OpenCode (`opencode`), or any other command.
-Without a harness, a merge conflict or a failing check stops the run, and you fix it yourself.
+Without a harness, a merge conflict, a failing recipe step, or a failing acceptance check stops the run, and you fix it yourself.
 xref:overview/how-it-works.adoc[How a build works] lists each stop and its exit code.
 
 == Build and install debaser
@@ -109,7 +110,7 @@ bun install
 bun run build
 ----
 +
-The `build` script compiles debaser's command-line entry point and the worker of its live view into one file, `dist/debaser`.
+The `build` script compiles debaser's command-line entry point and the worker of its live view (the progress card it redraws in the terminal during a build) into one file, `dist/debaser`.
 
 . Copy `dist/debaser` to a directory on your `PATH`.
 The command below uses `~/.local/bin`; create it with `mkdir -p ~/.local/bin` if it does not exist, and pick another directory on your `PATH` if it is not on it.

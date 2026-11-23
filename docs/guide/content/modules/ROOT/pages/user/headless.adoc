@@ -57,9 +57,10 @@
 // debaser:src/report/report.ts:139-147,173
 // debaser:src/report/report.ts:226-273
 // debaser:src/report/report.ts:281-306
+// debaser:src/cli/commands/index.ts:101-110
 
 A build that runs on a schedule or from a CI job keeps the patched tool current without you starting it by hand.
-Such a run has no terminal: nobody reads the live view, and nobody answers a question.
+Such a run has no terminal: nobody reads the live view (the progress card debaser redraws on a terminal), and nobody answers a question.
 debaser detects this and takes the headless path.
 It asks nothing, and flags on the command line give the answers a terminal would.
 With `--json`, it prints the run's result as JSON on stdout, so a script can read the outcome.
@@ -173,7 +174,7 @@ debaser build --json < /dev/null
 // expect: contains "\"exitCode\""
 
 . Read the result of the newest run from the reports directory.
-This command assumes the default data directory; with `--dir` or `DEBASER_DIR`, use `<data directory>/reports/latest/result.json` instead.
+This command assumes the default xref:overview/concepts.adoc[data directory]; with `--dir` or `DEBASER_DIR`, use `<data directory>/reports/latest/result.json` instead.
 +
 Check: the file is the same JSON object that the build printed.
 +

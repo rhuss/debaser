@@ -55,9 +55,11 @@
 // debaser:src/core/lock.ts:25-58
 // debaser:src/cli/commands/status.ts:75-80
 // debaser:tests/integration/stops.test.ts:358-374
+// debaser:src/cli/commands/index.ts:101-110
+// debaser:src/run/verifyloop.ts:78-93
 // visual:build-stopped-conflict
 
-A build stops when it cannot go on without you: a patch conflicts, a check fails, the coding agent gives up, or someone interrupts the run.
+A build stops when it cannot go on without you: a patch conflicts, a recipe step or acceptance check fails, the coding agent gives up, or someone interrupts the run.
 debaser keeps the stopped run as it is, with the integration branch half built in the build directory.
 You then fix the problem and run `debaser continue`, or undo the run with `debaser rollback`.
 The exit code tells you which kind of stop you hit, and each kind has its own section below.
@@ -68,13 +70,13 @@ On this page, the harness is the configured integration that runs a coding agent
 == Read a stop
 
 A stop prints a short message.
-In the live view on a color terminal, its first line starts with `✗ stopped after`, followed by the run time, the stage the run stopped in, and the reason.
+In the live view, the progress card that debaser redraws on a color terminal, the stop's first line starts with `✗ stopped after`, followed by the run time, the stage the run stopped in, and the reason.
 In plain output, the first line reads `debaser stopped: <reason>` instead.
 The lines below it name what you need to go on:
 
 * `failing:` sums up the failing output in a few words, when the step's parser finds them.
 * `caused by:` names the patches debaser blames for a failing step, as <<exit-3,exit 3>> explains.
-* `build directory:` is where you fix the problem, not the checkout you started debaser from.
+* `build directory:` is where you fix the problem, not the directory you started debaser from.
 * `report:` is the run's `report.md`, whose result line reads `Result: stopped (exit <code>): <reason>`.
 * `handoff:` names a file per patch the stop points at, with the problem, its cause, and a task for fixing that patch.
 * One or more lines say what to do next, for example `+resolve the conflicts, `git add` the files, then continue+`.
@@ -109,10 +111,10 @@ xref:user/build-directory.adoc#refusals[When debaser refuses the build directory
 |a recipe step fails only with the patches merged
 
 |4
-|a recipe step fails on plain upstream too
+|a recipe step fails on plain upstream too, without any patches merged
 
 |5
-|the harness ran out of attempts, its fixes reached their limit, or it failed to run
+|the agent ran out of attempts, its fixes reached their limit, or the harness failed to run
 
 |6
 |an acceptance check fails
@@ -188,9 +190,9 @@ xref:user/own-branches.adoc[Rebasing your own branches] covers it.
 === Exit 3: a step fails only with the patches
 
 When a recipe step fails, debaser runs what failed once more, in case it is flaky.
-When it fails again, debaser runs the step on plain upstream, in a throwaway worktree, after the install step and the steps before it.
+When it fails again, debaser runs the step on plain upstream, the fetched upstream commit without any patches merged, in a throwaway worktree, after the install step and the steps before it.
 When the step passes there, the patches break it.
-With no harness configured for checks, the run stops with exit 3.
+With no harness configured for failing steps, the run stops with exit 3.
 
 The stop names the step, its command, and its log.
 Before it stops, debaser works out which patches to blame.
@@ -265,8 +267,8 @@ The run stops with exit 5 in three cases:
 The harness's `attempts` setting defaults to 3.
 * The agent's fixes reached their limit for the run: the attempts multiplied by the number of recipe steps plus acceptance checks.
 debaser stops then rather than letting fixes break each other in a loop.
-* The harness failed to run: it exited with a non-zero code without an acceptable result, or its output stream reported a failure.
-A harness that exits with an error and leaves no acceptable result ends its attempts at once.
+* The harness failed to run: the agent exited with a non-zero code without an acceptable result, or its output stream reported a failure.
+When the agent exits with an error and leaves no acceptable result, its attempts end at once.
 The stop gives the reason, for example `it exited <code>: <last line>`, and a `harness log:` line.
 
 The stop names the conflict, step, or acceptance check the agent gave up on, along with its files or log.
@@ -284,7 +286,7 @@ After the recipe steps pass, debaser runs the acceptance check of every merged p
 A failing check runs once more, in case it is flaky.
 When a check still fails and no harness is configured for acceptance checks, the run stops with exit 6.
 
-The stop names the patch of the first failing check, all failing checks, the check's command, and its log.
+The stop names the patch of the first failing acceptance check, all failing checks, the check's command, and its log.
 It writes no agent prompt.
 Each failing patch gets a handoff instead, which says the build no longer does what the patch is for.
 
@@ -362,7 +364,7 @@ With a stopped or interrupted run, `debaser rollback` undoes it in the run's bui
 * It aborts a merge in progress.
 * It checks out the integration branch at the commit it had when the run started.
 When there was no build before the run, it checks out the branch or commit the build directory had at the start and deletes the integration branch.
-* It puts back the installed artifact from the start of the run, or removes the run's artifact when there was none before.
+* It puts back the installed artifact from the start of the run, or removes the run's installed artifact when there was none before.
 * It runs the recipe's install step again to restore the dependencies.
 When that fails, `debaser continue` finishes the rollback after you fix the cause.
 
@@ -389,7 +391,7 @@ With no stopped run, `debaser rollback` restores the previous build:
 
 This rollback applies the same refusals as a build, including uncommitted changes in the build directory.
 When the build directory is missing, it creates it.
-With neither `<branch>-prev` nor a `.prev` copy of the artifact, it refuses with `nothing to roll back to: no stopped run and no earlier build`.
+With neither `<branch>-prev` nor a `.prev` copy of the installed artifact, it refuses with `nothing to roll back to: no stopped run and no earlier build`.
 
 === Run the rollback
 

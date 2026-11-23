@@ -44,6 +44,7 @@
 // debaser:src/cli/commands/index.ts:128-130,164-176
 // debaser:src/run/build.ts:87
 // debaser:src/run/rebase-phase.ts:116
+// debaser:src/cli/commands/index.ts:101-110
 
 A debaser command line has the form `debaser [--dir <path>] <command> [options]`.
 `debaser --help` prints the usage text.
@@ -56,7 +57,7 @@ debaser accepts a few options that the usage text leaves out; the tables below m
 |Option |Effect |In `--help`
 
 |`--dir <path>`, `--dir=<path>`
-|Sets the data directory.
+|Sets the xref:overview/concepts.adoc[data directory].
 debaser finds the option anywhere on the command line, before or after the command.
 A relative path counts from the current directory.
 Without `--dir`, debaser uses `DEBASER_DIR`, else `<git-common-dir>/debaser`.
@@ -109,7 +110,7 @@ An unknown command is a usage error with the message `unknown command <name>`.
 == Checks at the start of a command
 
 Each refusal exits 1.
-Off a terminal the message goes to standard error; on a color terminal, `build`, `rebase`, `continue`, and `rollback` show it in their live view or checklist.
+Off a terminal the message goes to standard error; on a color terminal, `build`, `rebase`, `continue`, and `rollback` show it in their live view or checklist (see <<terminal-behavior>>).
 
 [cols="2,2,4",options="header"]
 |===
@@ -254,7 +255,7 @@ See xref:recipe-author/recipes.adoc#trust[Trust the project's recipe].
 
 |`--pin <sha>`
 |`add`
-|Pins the patch at a commit: one Git resolves in the checkout, or a full 40-character hexadecimal SHA.
+|Pins the patch at a commit: one Git resolves in your clone, or a full 40-character hexadecimal SHA.
 See xref:user/patch-list.adoc#pin[Pin a patch].
 |not pinned
 

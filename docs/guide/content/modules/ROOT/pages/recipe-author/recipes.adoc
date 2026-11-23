@@ -95,7 +95,7 @@ debaser takes the first of these that names a generic recipe:
 . `recipe` in the local `recipe.toml`.
 . `extends` in the lowest layer above the generic one.
 . Detection: each generic recipe lists file names under `detect`, and debaser looks for them at the fetched upstream commit.
-When nothing of upstream has been fetched yet, it looks in your checkout.
+When nothing of upstream has been fetched yet, it looks in the working tree debaser runs in.
 
 Only the lowest layer above the generic recipe may set `extends`.
 In a higher layer, debaser stops with `<layer>: extends is only allowed in the lowest non-generic layer (<lowest layer>)`.

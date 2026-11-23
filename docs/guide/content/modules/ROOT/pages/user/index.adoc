@@ -23,7 +23,7 @@ debaser is a command-line tool that keeps a patched build of someone else's GitH
 The build is the latest upstream version (the original repository) plus your patch list, the ordered list of changes you want on top.
 This section takes you from installing debaser to a build you refresh with one command, `debaser build`, whenever upstream moves.
 That command fetches upstream and your patches, rebases your own branches, and merges the patches in the order you chose.
-Then it runs the project's checks and each patch's acceptance check, and installs the result.
+Then it runs the recipe steps and each patch's acceptance check, and installs the result.
 Unlike one long-lived branch that you merge or rebase by hand, each run starts again from the latest upstream, so each patch stays separate and you can retire one without touching the others.
 When a build stops, debaser tells you the reason and where to look, and the previous build stays as a fallback.
 

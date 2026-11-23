@@ -45,6 +45,7 @@
 // debaser:src/views/config.ts:10-29
 // debaser:src/views/status.ts:99-110
 // debaser:src/views/status.ts:120-138
+// debaser:src/cli/commands/index.ts:101-110
 // visual:build-regular
 
 This page takes you from a plain clone of a project to its first patched build.
@@ -230,7 +231,7 @@ xref:overview/how-it-works.adoc[How a build works] follows each phase.
 
 The first build also creates the build directory, a linked Git worktree beside your clone, and records its place in the patch list as `tree`.
 Its default name is `../<clone>-debaser`, where `<clone>` is the name of your clone's directory (`<repo>` after the clone step above).
-debaser builds there and leaves the checkout you started it from alone.
+debaser builds there and leaves the directory you started it from alone.
 The recipe's build output and installed artifact live in the build directory, unless the recipe gives absolute paths.
 
 The project's own recipe runs only after you trust it.
@@ -242,7 +243,7 @@ Without a terminal to ask on and without `--trust-recipe`, the build refuses wit
 xref:recipe-author/recipes.adoc[Recipes and their layers] covers trust in detail.
 
 . Run the build.
-On a color terminal, debaser shows a live view of the run.
+On a color terminal, debaser shows a live view of the run, a progress card that it redraws in place.
 Piped into a file or another program, or with `--json`, it prints plain progress lines instead.
 At its start, the build names the build directory and the patch list it uses.
 That line appears in the plain progress lines, and in the live view only with `--verbose`.

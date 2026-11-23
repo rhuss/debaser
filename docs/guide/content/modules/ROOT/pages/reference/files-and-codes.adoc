@@ -55,6 +55,8 @@
 // debaser:src/github/gh.ts:14-42
 // debaser:src/cli/commands/status.ts:80-86
 // debaser:src/views/status.ts:49-56
+// debaser:src/cli/commands/index.ts:101-110
+// debaser:src/run/verifyloop.ts:78-93
 
 This page lists the files debaser keeps, what a run's report holds, the Git refs debaser writes, the exit codes, and the environment variables debaser reads and sets.
 
@@ -114,7 +116,7 @@ A finished build copies it to `<installed artifact>.prev` and deletes it.
 A rollback of a stopped run restores the installed artifact from it.
 
 |`isolated-upstream`
-|A throwaway worktree in which debaser runs a failing step on plain upstream.
+|A throwaway worktree in which debaser runs a failing step on plain upstream, the fetched upstream commit without any patches merged.
 
 |`isolated-attribute-<commit>`
 |A throwaway worktree in which debaser runs a failing step on upstream plus one patch, to find the patches a failure belongs to.
@@ -173,7 +175,7 @@ xref:user/headless.adoc#reports[Reports and `latest`] says which exits write a r
 |A copy of a failing step's log, kept for the fix or the stop that answers it.
 
 |`steps/<step>-flaky-<n>.log`
-|The failed first try of a step that passed when debaser ran it again.
+|The failed first run of a step that passed when debaser ran it again.
 
 |`steps/after-build.log`
 |The output of the after-build command.
@@ -185,13 +187,13 @@ xref:user/headless.adoc#reports[Reports and `latest`] says which exits write a r
 |The output of a patch's acceptance check.
 
 |`acceptance/<patch>-flaky.log`
-|The failed first try of an acceptance check.
+|The failed first run of an acceptance check.
 
 |`isolated/<name>-<step>.log`
 |Steps run in an `isolated-<name>` worktree under `work/`.
 
 |`rebase/<branch>-<step>.log`, `rebase/<branch>-<step>-flaky.log`
-|The checks of a rebased own branch, and the failed first try of a check.
+|The recipe steps run on a rebased own branch, and the failed first run of a step.
 
 |`rebase/<branch>-push.log`
 |The output of a refused push of a rebased branch.
@@ -327,7 +329,7 @@ For a branch of another GitHub repository given other than by Git URL, `url` is 
 |Merged patches only: `fail` when the stop blames the patch, `pass` after exit 0 or a stop at an acceptance check, `unknown` otherwise
 
 |`acceptance`
-|`pass`, `fail`, `flaky`, `fixed`, `none` (no check), `not run`, or `skipped` (patches skipped as merged upstream or already contained, and every retired patch)
+|`pass`, `fail`, `flaky`, `fixed`, `none` (no acceptance check), `not run`, or `skipped` (patches skipped as merged upstream or already contained, and every retired patch)
 
 |`handoff`
 |The path of the patch's handoff file, when it has one
@@ -345,7 +347,7 @@ Each entry of `steps` has `name`, `log` (the path of `steps/<name>.log`), and `r
 |passed
 
 |`flaky`
-|passed (the failed first try is noted under `Warnings and notes`)
+|passed (the failed first run is noted under `Warnings and notes`)
 
 |`fixed`
 |passed after a fix
@@ -389,7 +391,7 @@ Each entry of `steps` has `name`, `log` (the path of `steps/<name>.log`), and `r
 |The fork's tip at the time of the rebase, which the push uses as its lease; absent when the fork had no such branch
 
 |`refs/debaser/rebase-checking/<branch>`
-|The rebased tip while the checks of a rebase with `--in-worktree` run
+|The rebased tip while the recipe steps of a rebase with `--in-worktree` run
 
 |`refs/heads/<branch>`
 |The integration branch
@@ -434,7 +436,7 @@ A rejected step fix that an interrupted agent call left.
 |A recipe step fails on plain upstream too; debaser checks this before any agent attempt.
 
 |xref:user/stops.adoc#exit-5[5]
-|The agent could not resolve a conflict or fix a step or acceptance check in its attempts, or failed to run.
+|The agent could not resolve a conflict or fix a step or acceptance check in its attempts, or the harness failed to run.
 A step or acceptance check fails again after the agent's fixes reached their bound.
 In `debaser rebase`: the agent could not resolve a rebase conflict.
 
@@ -461,7 +463,7 @@ The run keeps its state, and debaser releases the lock.
 |`<git-common-dir>/debaser`
 
 |`NO_COLOR`
-|Any non-empty value turns off color and the live view
+|Any non-empty value turns off color and the live view (the progress card on a terminal)
 |unset
 
 |`TERM`

@@ -50,7 +50,7 @@
 A recipe file is a TOML file that tells debaser how to check, build, and install a project.
 This page lists its keys, their merge rule across layers, and the built-in recipes.
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains the layers, trust, and `debaser recipe`.
-xref:recipe-author/steps.adoc[Steps, install, and artifact] explains steps, placeholders, the install step, the artifact, `after_build`, and `leftovers`.
+xref:recipe-author/steps.adoc[Steps, install, and artifact] explains steps, placeholders, the install step, the build output and the installed artifact, `after_build`, and `leftovers`.
 
 == Layers
 
@@ -76,7 +76,7 @@ From the lowest to the highest layer:
 |`.debaser/recipe.toml at <commit>`
 
 |local recipe
-|`recipe.toml` in the data directory
+|`recipe.toml` in the xref:overview/concepts.adoc[data directory]
 |`local`
 |The file's path
 |===
@@ -158,7 +158,7 @@ debaser reads it only in the built-in recipes.
 |array of strings
 |none
 |Read only from the generic recipes.
-|Files at the fetched upstream commit (or in the checkout when nothing is fetched) whose presence selects the generic recipe.
+|Files at the fetched upstream commit (or in the working tree debaser runs in when nothing is fetched) whose presence selects the generic recipe.
 One match is enough.
 `detect must be an array of strings`
 
@@ -173,7 +173,7 @@ One match is enough.
 |array of tables
 |none
 |By step name, see <<step-keys>>.
-|The checks and the build, in order.
+|The steps that test and build the project, in order.
 `+steps must be an array of tables ([[steps]])+`, `steps[<index>] must be a table`, `step <name> appears twice`
 
 |`steps_replace`
@@ -193,7 +193,7 @@ One match is enough.
 |table
 |none
 |Per key, see <<artifact-keys>>.
-|The build output and its installed copy.
+|The build output and the installed artifact.
 `artifact must be a table`
 
 |`after_build`
@@ -314,7 +314,7 @@ A recipe without an `[install]` table runs every step on every build.
 
 Each key replaces the lower layer's value on its own.
 Both paths are relative to the build directory; an absolute path stays as it is.
-xref:recipe-author/steps.adoc#build-output-and-installed-artifact[Build output and installed artifact] explains the copy and the `.prev` file.
+xref:recipe-author/steps.adoc#build-output-and-installed-artifact[Build output and installed artifact] explains the install and the `.prev` file.
 
 [cols="1,1,2,3",options="header"]
 |===
@@ -329,7 +329,7 @@ xref:recipe-author/steps.adoc#build-output-and-installed-artifact[Build output a
 |`artifact.install`
 |string
 |none (nothing is installed)
-|Where debaser copies the build output after a successful build, keeping the previous copy as `<path>.prev`.
+|Where debaser copies the build output after a successful build, keeping the previous installed artifact as `<path>.prev`.
 debaser installs only when `artifact.output` is set too.
 `artifact.install must be a string`
 |===

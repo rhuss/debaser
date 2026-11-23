@@ -51,7 +51,7 @@ image::visuals/build-regular.svg["Output of a successful debaser build: the inst
 
 The first line of the summary names what was built (the installed artifact relative to the build directory, or the integration branch when the recipe installs nothing), the upstream commit it was built on, and the number of patches.
 Below the timeline, the summary lists the time of each phase, the branches (one current), and the patches (two merged).
-The last lines give the report path and the artifact path.
+The last lines give the report path and the path of the installed artifact.
 
 == The phases
 
@@ -64,14 +64,14 @@ xref:user/stops.adoc[When a build stops] explains how to read a stop and how to 
 
 === Lock and preflight
 
-`build` is one of the commands that change the checkout or debaser's files, so it first takes the run lock in debaser's data directory.
+`build` is one of the commands that change your clone or debaser's files, so it first takes the run lock in debaser's xref:overview/concepts.adoc[data directory].
 While another live debaser process holds that lock, `build` refuses to start; a lock left by a process that ended is taken over.
 `build` also refuses when an earlier run is stopped or still in progress, and it says where that run stopped and which commands go on from there.
 
 The preflight checks the Git version, the name of the integration branch, and the remote that upstream is fetched from.
 That remote is the one the patch list names; when the patch list names `upstream` and no such remote exists, debaser uses `origin`.
 With `--push`, it also requires an `origin` remote of your own, apart from upstream.
-debaser prepares the build directory only after every check passes, so a refusal leaves no directory behind.
+debaser prepares the build directory only after every preflight check passes, so a refusal leaves no directory behind.
 
 What stops it: a refusal, with exit 1 and nothing changed.
 
@@ -118,22 +118,22 @@ Git records how conflicts were resolved and replays those resolutions on the nex
 When a conflict has no recorded resolution, debaser hands it to the coding agent configured for conflicts.
 If debaser accepts the agent's resolution, it goes on with the next patch.
 
-What stops it: without an agent, the run stops with exit 2 and names the conflicting files.
+What stops it: without a harness, the run stops with exit 2 and names the conflicting files.
 When the agent cannot resolve the conflict, the run stops with exit 5.
 
 === Recipe steps
 
 debaser runs the recipe's steps in order in the build directory.
 A step that fails runs once more, in case it is flaky.
-When it fails a second time, debaser runs it on plain upstream in a throwaway working directory, with every earlier step first.
+When it fails a second time, debaser runs it on plain upstream, the fetched upstream commit without any patches merged, in a throwaway working directory, with every earlier step first.
 That rerun tells a broken upstream apart from a breaking patch.
 
 If the step fails on plain upstream too, upstream itself is broken.
-If it passes there, a patch breaks it, and debaser hands the failure to the coding agent configured for checks.
+If it passes there, a patch breaks it, and debaser hands the failure to the coding agent configured for failing steps.
 An accepted fix becomes its own commit, and the steps run again from the first one, because a fix can break a step that passed before.
 
 What stops it: a step that fails on plain upstream too stops the run with exit 4, before any agent is asked.
-A step that fails only with the patches stops it with exit 3 when no agent is configured, and with exit 5 when the agent cannot fix it.
+A step that fails only with the patches stops it with exit 3 when no harness is configured, and with exit 5 when the agent cannot fix it.
 
 === Acceptance checks
 
@@ -141,19 +141,19 @@ After every step has passed, debaser runs the acceptance check of each merged pa
 When the recipe names a build output, the check finds it through the `DEBASER_ARTIFACT` environment variable.
 A failing check runs once more, in case it is flaky.
 
-The first check that still fails goes to the coding agent configured for acceptance, scoped to that check's patch.
+The first acceptance check that still fails goes to the coding agent configured for acceptance, scoped to that check's patch.
 An accepted fix sends the run back to the recipe steps, which run again from the first one, followed by every acceptance check.
 
-What stops it: without an agent, a failing acceptance check stops the run with exit 6.
+What stops it: without a harness, a failing acceptance check stops the run with exit 6.
 When the agent cannot fix the check, or the agent's fixes reach their limit, the run stops with exit 5.
 
 === Install and finish
 
 Before the install, debaser pushes the rebased own branches to `origin` with `--push` or after a yes on a terminal; otherwise it prints the push commands.
-The installed copy changes only at this point, after every step and every acceptance check has passed.
-The build output replaces the installed artifact, and the copy from the start of the run is kept as `<target>.prev`.
+The installed artifact changes only at this point, after every step and every acceptance check has passed.
+The build output replaces the installed artifact, and the installed artifact from the start of the run is kept as `<target>.prev`.
 When the build output does not exist, debaser warns and installs nothing.
-The branch `<branch>-prev` moves to where the integration branch was when the run started, so `debaser rollback` finds the previous integration branch next to the previous installed copy.
+The branch `<branch>-prev` moves to where the integration branch was when the run started, so `debaser rollback` finds the previous integration branch next to the previous installed artifact.
 When the recipe names no install path, nothing is installed, and the summary names the integration branch as the result.
 
 When the recipe sets an after-build command, it runs next.

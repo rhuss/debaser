@@ -36,6 +36,11 @@
 // debaser:src/recipes/types.ts:5
 // debaser:src/run/verifyloop.ts:19
 // debaser:src/run/verifyloop.ts:51
+// debaser:src/run/verifyloop.ts:78-93
+// debaser:src/steps/isolated.ts:15-19
+// debaser:src/steps/isolated.ts:48-57
+// debaser:src/cli/commands/index.ts:101-110
+// debaser:src/live/screen.ts:1-4
 // debaser:src/run/accept.ts:25-38
 // debaser:src/run/accept.ts:86-105
 // debaser:src/views/status.ts:133-138
@@ -55,7 +60,7 @@
 // debaser:src/prompts/handoff.md:1-28
 
 Every later page of this guide uses the terms below with one fixed meaning.
-They appear in the order a run meets them: where the code comes from, what debaser builds and where it keeps its files, how it checks a build, and what a run leaves behind.
+They appear in the order a run meets them: where the code comes from, what debaser builds and where it keeps its files, how it checks a build, and what a run shows and leaves behind.
 xref:overview/how-it-works.adoc[How a build works] shows the same terms at work, one phase at a time.
 
 == Where the code comes from
@@ -105,8 +110,8 @@ Without a stopped run, `debaser rollback` restores them.
 
 build directory::
 The working directory in which debaser builds and which holds the integration branch: by default a linked Git worktree beside your clone, `../<clone>-debaser`.
-The patch list's `tree` setting moves it, and `"tree": "."` builds in place in the main checkout.
-`debaser build`, `debaser continue`, and `debaser rollback` work there, never in the checkout they were started from unless `tree` names that checkout.
+The patch list's `tree` setting moves it, and `"tree": "."` builds in place in your clone.
+`debaser build`, `debaser continue`, and `debaser rollback` work there, never in the directory they were started from unless `tree` names that directory.
 
 data directory::
 Where debaser keeps its own files for a clone, among them the patch list, the optional local recipe `recipe.toml`, the reports, and the state of the current run.
@@ -134,9 +139,14 @@ From the bottom, they are a generic recipe for the type of project, a built-in r
 The project's own recipe takes effect only after you trust it.
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains how the layers combine.
 
-step::
-One named command of the recipe.
-debaser runs the steps in order in the build directory; together they are the project checks, which belong to the recipe rather than to one patch.
+recipe step::
+One named command of the recipe, or step for short.
+debaser runs the steps in order in the build directory; they belong to the recipe rather than to one patch.
+
+plain upstream::
+The fetched upstream commit without any patches merged.
+When a recipe step fails twice with the patches, debaser runs it on plain upstream in a throwaway worktree, preceded by the install step and every step before it.
+A failure there too means upstream itself is broken; a pass means a patch breaks the step.
 
 acceptance check::
 An optional command attached to one patch through its `acceptance` entry in the patch list.
@@ -146,15 +156,20 @@ The expected exit code defaults to 0, and `debaser status` shows the result in i
 
 harness::
 The configured integration that hands work to a xref:index.adoc[coding agent], set in the `harness` section of the patch list.
-It names the agent's command and its kind (`claude`, `codex`, `pi`, `opencode`, or `plain`), optionally with a different command per task (`conflict`, `check`, `acceptance`, `rebase`).
+The agent is the command-line program that the harness runs and that does the work.
+The harness names the agent's command and its kind (`claude`, `codex`, `pi`, `opencode`, or `plain`), optionally with a different command per task (`conflict`, `check`, `acceptance`, `rebase`).
 A harness whose command cannot be run counts as none, and debaser prints a warning.
 
-== What a run leaves behind
+== What a run shows and leaves behind
 
 run::
 One `debaser build` or `debaser rebase`, from its start to its end.
 While a run is in progress or stopped, its state stays in `run.json` in the data directory.
 A finished run removes that state, and so does a run undone with `debaser rollback`.
+
+live view::
+The progress card that debaser redraws in place on a color terminal while `debaser build`, `debaser rebase`, or `debaser continue` runs.
+With `--json`, or without a color terminal, debaser prints plain progress lines instead.
 
 report::
 The record of a run in its own directory, `reports/<timestamp>` in the data directory: `report.md`, the machine-readable `result.json`, and the handoffs beside them.

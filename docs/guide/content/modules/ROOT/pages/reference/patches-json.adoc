@@ -297,7 +297,7 @@ See xref:recipe-author/acceptance-checks.adoc[Acceptance checks].
 |`acceptance.run`
 |array of strings
 |required
-|The check command, one element per argument.
+|The acceptance check's command, one element per argument.
 `+{output}+` and `+{root}+` expand as in recipe steps.
 Otherwise: `acceptance.run must be a non-empty array of strings`.
 
@@ -317,11 +317,11 @@ Invalid: `acceptance.match is not a valid regular expression: <reason>`.
 |`acceptance.timeout`
 |number
 |`300`
-|Seconds before debaser kills the check; a timed-out check fails.
+|Seconds before debaser kills the acceptance check; a timed-out check fails.
 Otherwise: `acceptance.timeout must be a positive number`.
 |===
 
-A check passes when it does not time out, exits with `exit`, and its output matches `match` when set.
+An acceptance check passes when it does not time out, exits with `exit`, and its output matches `match` when set.
 
 [#retired-entries]
 == Retired entries
@@ -428,8 +428,8 @@ The SHA is fictional.
 <3> The integration branch; it differs from `upstream.branch`.
 <4> Skips detection and uses the generic recipe `bun-ts`.
 <5> Rebases only own branches that no longer merge cleanly onto upstream.
-<6> The build directory, relative to the main worktree.
-<7> Claude Code for conflicts, checks, and acceptance checks, with the default limits written out.
+<6> The build directory, relative to your clone.
+<7> Claude Code for conflicts, failing recipe steps, and acceptance checks, with the default limits written out.
 <8> Codex for rebasing; the entry sets its own `kind`.
 <9> A pull request of the upstream repository.
 <10> Merges exactly this commit, even after the pull request moves on.

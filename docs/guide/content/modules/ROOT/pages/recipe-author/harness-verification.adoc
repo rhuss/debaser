@@ -55,8 +55,10 @@
 // debaser:src/report/report.ts:193-201
 // debaser:src/report/handoff.ts:13-168
 // debaser:src/steps/attribute.ts:11-52
+// debaser:src/cli/commands/index.ts:101-110
+// debaser:src/run/verifyloop.ts:78-93
 
-A harness lets debaser hand a conflict or a failing check to a coding agent, but debaser never takes the agent's word for the result.
+A harness lets debaser hand a conflict, a failing recipe step, or a failing acceptance check to a coding agent, but debaser never takes the agent's word for the result.
 For every call it writes the task into a prompt, runs the agent, and then checks what the agent left in the working tree.
 Only an accepted result is kept, and debaser commits it itself.
 Knowing these rules helps you write prompt overrides that fit them and read a report that lists accepted and rejected attempts.
@@ -84,7 +86,7 @@ For the rebase tasks, the name in `DEBASER_TASK` and in the prompt file names us
 |the build directory
 
 |Failing step
-|A recipe step fails twice and passes on plain upstream.
+|A recipe step fails twice and passes on plain upstream, the fetched upstream commit without any patches merged.
 |`check`
 |`check`
 |`check`
@@ -104,7 +106,7 @@ For the rebase tasks, the name in `DEBASER_TASK` and in the prompt file names us
 |`rebase_conflict`
 |the rebase worktree
 
-|Failing check of a rebased branch
+|Failing step of a rebased branch
 |A recipe step fails on one of your own branches after its rebase.
 |`rebase`
 |`rebase-check`
@@ -161,7 +163,7 @@ The `run it:` line of a stop runs an agent on that file, as xref:user/stops.adoc
 
 == Where prompts, logs, and raw streams are kept
 
-A run that calls the agent keeps its files in the run's report directory, under `reports` in the data directory.
+A run that calls the agent keeps its files in the run's report directory, under `reports` in the xref:overview/concepts.adoc[data directory].
 debaser numbers the agent calls of a run and writes two or three files per call into the report directory's `prompts` folder (no `.jsonl` for `plain`):
 
 * `NN-<task>.md` holds the prompt, where `NN` is the call number with at least two digits and `<task>` is the value of `DEBASER_TASK`, for example `03-check.md`.
@@ -169,7 +171,7 @@ debaser numbers the agent calls of a run and writes two or three files per call 
 Its last line is `(exit <code>)`, or `(killed after <n>s)` when the call timed out.
 * `NN-<task>.jsonl` holds the raw event stream, for every kind except `plain`.
 
-The report's `Harness` section has one line per call, with what the call was about, the try number, `accepted` or `rejected: <reason>`, and the tokens.
+The report's `Harness` section has one line per call, with what the call was about, the attempt number (`try <n>`), `accepted` or `rejected: <reason>`, and the tokens.
 The `Agent-resolved merges` section lists the merges the agent resolved, and `Fix commits` lists every fix commit with `(agent)` or `(user)`.
 
 == How debaser checks a conflict resolution
@@ -209,7 +211,7 @@ It then accepts the fix when at least one file changed.
 Temporary files a build leaves, such as the recipe's `leftovers`, do not count.
 When nothing else changed, the fix is rejected with `it changed nothing`.
 
-The check does not require the failing step to pass.
+Accepting the fix does not require the failing step to pass.
 debaser commits the accepted fix and then runs the step again to see whether it helped, as <<fix-loop>> describes.
 
 [#verdict]
@@ -243,9 +245,9 @@ debaser aborts the rebase and, in a throwaway worktree, removes untracked files.
 It then replays the branch again from the commit that conflicted, onto the commits already replayed, so resolutions accepted for earlier commits stay.
 The `attempts` count separately for each replayed commit.
 
-Failing check of a rebased branch::
+Failing step of a rebased branch::
 debaser resets the worktree to the commit before the call, unless the fix changed nothing.
-The `attempts` count once per branch, over all its checks.
+The `attempts` count once per branch, over all its recipe steps.
 debaser does not ask the agent while the branch's own worktree has changes of yours, so a rejected attempt cannot erase them.
 
 [#fix-loop]
@@ -263,7 +265,7 @@ When an earlier step fails, verification starts over from the first step too, an
 After an accepted acceptance fix, every recipe step runs again from the first one, followed by every acceptance check.
 The attempts for an acceptance check carry over to the next pass and reset only when the check passes.
 
-On a rebased branch, every check runs again from the first after an accepted fix.
+On a rebased branch, every recipe step runs again from the first after an accepted fix.
 
 == The fix bound and exit 5
 
@@ -276,7 +278,7 @@ The reason reads `<step> fails again after the harness's <n> fixes`, or `the acc
 
 A merge conflict, a failing step, or a failing acceptance check also stops the run with exit 5 when the agent uses up its attempts or the harness is broken.
 xref:recipe-author/harness.adoc[Setting up the agent] describes how a rebase differs, and xref:user/stops.adoc#exit-5[Exit 5: the agent gives up] how to go on.
-When you run `debaser continue` after such a stop, the agent gets a fresh set of attempts for the conflict or the check, unless the bound is reached.
+When you run `debaser continue` after such a stop, the agent gets a fresh set of attempts for the conflict, the step, or the acceptance check, unless the bound is reached.
 
 === An interrupted agent call
 
@@ -323,7 +325,7 @@ In the table, `<patch>` is the patch's display name, `<description>` its descrip
 |`debaser: fix acceptance <patch> (user)`
 |none
 
-|The agent fixes a check of a rebased branch
+|The agent fixes a step of a rebased branch
 |`fix: pass <step> on upstream <first 7 characters of upstream>`, with the body `Made by debaser's harness after rebasing onto <upstream commit and subject>.`
 |`Fixed-By: harness`
 
@@ -343,9 +345,9 @@ Nothing in the branch's history marks it as the agent's work.
 The build summary shows `harness` as the way the branch was rebased, and the report's `Harness` section lists the call.
 A replayed commit that ends up empty because upstream already has its change is dropped.
 
-A fix for a rebased branch's check is a separate commit on the branch.
+A fix for a failing step of a rebased branch is a separate commit on the branch.
 The summary and the report line for the branch end with `; the harness fixed its checks in <commits>, review before pushing`.
-In plain output, and in the live view with `--verbose`, a progress line repeats it before the push: `review <branch> before pushing: the harness fixed its checks in <commits> (git show <commit>)`.
+In plain output, and in the live view (the progress card on a color terminal) with `--verbose`, a progress line repeats it before the push: `review <branch> before pushing: the harness fixed its checks in <commits> (git show <commit>)`.
 
 == Fixes stay in the build
 

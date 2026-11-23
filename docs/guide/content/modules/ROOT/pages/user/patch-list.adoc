@@ -179,7 +179,7 @@ A `<git url>#branch=<branch>` source whose URL holds a password, or an `http` or
 The message says to drop the credentials from the URL and use a Git credential helper.
 debaser refuses such a URL in `patches.json` as well.
 
-`debaser add`, `debaser remove`, `debaser build`, `debaser rebase`, `debaser continue`, `debaser rollback`, and `debaser trust` take a lock file in the data directory.
+`debaser add`, `debaser remove`, `debaser build`, `debaser rebase`, `debaser continue`, `debaser rollback`, and `debaser trust` take a lock file in the data directory (see <<where>>).
 `debaser add` and `debaser remove` therefore also refuse while another of these commands runs with the same data directory.
 
 [#pin]
@@ -286,7 +286,7 @@ debaser list --json 2>/dev/null
 
 The patch list is `patches.json` in debaser's data directory.
 By default that is the directory `debaser` inside the clone's shared Git directory, the one `git rev-parse --git-common-dir` prints.
-Every worktree of the clone shares that directory, so the build directory and your checkout read the same patch list.
+Every worktree of the clone shares that directory, so the build directory and your clone read the same patch list.
 
 `--dir <path>` or the environment variable `DEBASER_DIR` moves the whole data directory, not only the patch list.
 When both are set, `--dir` wins.

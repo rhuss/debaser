@@ -62,11 +62,11 @@ The upstream branch counts as last fetched.
 Pull requests and branches of other repositories count at the commit debaser last fetched them to, and pinned patches at their pinned commit.
 Branches of your clone count at the local branch, or at Git's copy on `origin` when there is no local branch.
 
-Commands that change the checkout or debaser's files take a lock in the data directory: `add`, `remove`, `build`, `rebase`, `continue`, `rollback`, and `trust`.
+Commands that change your clone or debaser's files take a lock in the data directory: `add`, `remove`, `build`, `rebase`, `continue`, `rollback`, and `trust`.
 `status` is not one of them, so it never waits for another command and never blocks one.
 
 `debaser status` describes the build directory, but it never checks or creates it.
-The trial merges behind the UPSTREAM column use `git merge-tree`, which computes a merge without touching any checkout.
+The trial merges behind the UPSTREAM column use `git merge-tree`, which computes a merge without touching any working tree.
 
 When it can show the status, `debaser status` ends with exit 0.
 Without a patch list, it refuses with exit 1 and the message `+there is no patch list yet; add a patch first with `debaser add <source>`+`.
@@ -201,7 +201,7 @@ Merge commits do not count.
 A `?` means debaser has no commit for the patch, or no merge base with upstream.
 
 |CHECKS
-a|The project checks of the last build, for this patch.
+a|The result of the recipe steps in the last build, for this patch.
 
 * `pass`: the build ended with exit 0, or it stopped only on an acceptance check after every step had passed.
 * `fail`: the build stopped on a failing step and blamed this patch.
@@ -226,7 +226,7 @@ A pinned patch shows `pinned <short commit>`; patches that are not pinned leave 
 
 CHECKS and PATCH CHECK come from the `result.json` of the newest build in the reports directory.
 A build that stopped writes one too.
-A `debaser rebase` run writes no check results, so `debaser status` skips its reports and keeps showing the last build's.
+A `debaser rebase` run writes no results for recipe steps or acceptance checks, so `debaser status` skips its reports and keeps showing the last build's.
 
 === Conflicts
 

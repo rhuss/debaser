@@ -49,12 +49,13 @@
 // debaser:src/views/config.ts:22-29
 // debaser:src/core/tree.ts:176-179
 // debaser:README.md:121-125
+// debaser:src/cli/commands/index.ts:101-110
 
-The steps of a recipe are the checks and the build that debaser runs on the merged result.
+The steps of a recipe are the commands that test and build the project, which debaser runs on the merged result.
 This page covers the keys of a step and where a new step goes among the inherited ones.
 It explains the placeholders and environment a step gets, and how failure parsers shape the rerun of a failing step.
 It also covers the other keys of a recipe, except the prompts and the keys that choose layers.
-These are the install step, the build output and its installed copy, the after-build command, `leftovers`, and `project_name`.
+These are the install step, the build output and the installed artifact, the after-build command, `leftovers`, and `project_name`.
 It ends with a local recipe for a small project, written from start to finish.
 
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains the layers a recipe comes from and how they merge.
@@ -156,11 +157,11 @@ Without `artifact.output`, it is `debaser-output` in that tree.
 
 |`+{tests}+`
 |On a full run, the step's `tests` list, or nothing when the step has none, so the test runner runs all tests.
-On the narrowed rerun of a failing step, the failing test files.
+On the rerun of a failing step, the failing test files, when debaser narrows the rerun to them (see <<failure-parsers-and-the-flaky-rerun>>).
 |===
 
 The tree a step runs in is usually the build directory.
-When debaser reruns a step on plain upstream, it runs the step in a throwaway worktree, and when it checks one of your own branches after a rebase, in that branch's worktree.
+When debaser reruns a step on plain upstream, the fetched upstream commit without any patches merged, it runs the step in a throwaway worktree, and when it checks one of your own branches after a rebase, in that branch's worktree.
 `+{root}+` and `+{output}+` follow the tree.
 
 `+{tests}+` as an argument of its own becomes one argument per entry, and no argument at all when the list is empty.
@@ -202,7 +203,7 @@ Otherwise the rerun runs the whole command again.
 
 When the rerun passes, the step counts as passed.
 In plain output, the build summary adds `warning: <step> failed once and passed when run again; it may be flaky (<log>)`.
-On a color terminal, the live view's card shows `↻ retried <step> failed once, passed on retry: may be flaky` instead.
+On a color terminal, the live view, the progress card that debaser redraws in place, shows `↻ retried <step> failed once, passed on retry: may be flaky` instead.
 The log of the first failure stays in the report directory as `steps/<step>-flaky-<n>.log`.
 When the rerun fails too, debaser tries the step on plain upstream to find out whether a patch broke it.
 xref:overview/how-it-works.adoc[How a build works] follows that path to exit 3, 4, or 5.
@@ -234,7 +235,7 @@ debaser records a passed install step in the build directory's own Git directory
 A recipe without an `[install]` table runs every step on every build.
 
 debaser skips the install step only in the build directory.
-The checks of your own branches after a rebase run every step, the install step included.
+When debaser runs the steps on your own branches after a rebase, it runs every step, the install step included.
 When debaser reruns a step on plain upstream, it runs the install step first in the throwaway worktree, even when the recipe lists it later.
 `debaser rollback` runs the install step again after it moves the build directory back, and stops with `dependency restore failed after rollback; see <log>` when the step fails.
 
@@ -309,16 +310,16 @@ Steps run with debaser's own environment plus four variables that describe the b
 From a URL with a scheme, such as `https://`, debaser removes the user name and password; an scp-style `user@host:path` stays as it is.
 
 |`DEBASER_COMMIT`
-|The commit of the tree the step runs in: the merged result in the build directory, the tree's own commit on plain upstream and in the checks of your own branches.
+|The commit of the tree the step runs in: the merged result in the build directory, the tree's own commit on plain upstream and on your own branches after a rebase.
 
 |`DEBASER_MANIFEST`
-|The path of `manifest.json` in the data directory.
+|The path of `manifest.json` in the xref:overview/concepts.adoc[data directory].
 debaser writes it when the steps start in the build directory, with `version`, `upstream` (`repo`, `branch`, `tip`), `commit`, `fork`, and `patches`.
 On plain upstream, its `commit` is still the build directory's commit.
-The checks of your own branches run before debaser writes the file in that run, so they see the previous build's file or none.
+The steps on your own branches run before debaser writes the file in that run, so they see the previous build's file or none.
 |===
 
-Steps get these variables in the build directory, on plain upstream, and in the checks of your own branches after a rebase.
+Steps get these variables in the build directory, on plain upstream, and on your own branches after a rebase.
 The after-build command and the install step that `debaser rollback` runs do not get them.
 
 == Write a local recipe
@@ -388,7 +389,7 @@ It repeats `run` and `parser`, because a replacement does not inherit them, and 
 With `tests = ["src"]`, a full run tests only `src`; the narrowed rerun still runs only the failing files.
 * `build` is a new step at the end.
 It writes the binary to `+{output}+`, which is `dist/gadget` in the build directory.
-* `[artifact]` makes debaser copy `dist/gadget` to `dist/gadget-custom` after a successful build, keeping the previous copy as `dist/gadget-custom.prev`.
+* `[artifact]` makes debaser copy `dist/gadget` to `dist/gadget-custom` after a successful build, keeping the previous installed artifact as `dist/gadget-custom.prev`.
 * `after_build` runs the installed binary with `--version` once the build has succeeded.
 * The install step comes from `bun-ts` unchanged, so the recipe does not mention it.
 
