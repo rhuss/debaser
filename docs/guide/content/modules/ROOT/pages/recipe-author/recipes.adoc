@@ -35,7 +35,7 @@ It can also set the project's name and, under `leftovers`, globs of temporary fi
 debaser rejects a recipe with a key it does not know, and the message names the file and the key.
 
 debaser assembles the effective recipe from up to four layers, each extending the one below it.
-To change what a build does, you add a layer above the ones that exist: a local recipe for your clone, or a recipe the project commits.
+To change what a build does, you add a layer: a local recipe for your clone, or a recipe the project commits.
 xref:recipe-author/steps.adoc[Steps, install, and artifact] covers the keys of a single step and how you place new steps.
 
 == The four layers
@@ -44,7 +44,7 @@ From the bottom up, the layers are:
 
 generic recipe::
 A recipe for a type of project, such as Bun and TypeScript or Rust with Cargo.
-debaser picks one as described in <<generic,How debaser chooses the generic recipe>>.
+debaser picks one, if any, as described in <<generic,How debaser chooses the generic recipe>>.
 `debaser recipe` names it `generic:<name>`.
 
 built-in project recipe::
@@ -81,7 +81,7 @@ A step with a new name goes before or after the step it names with `before` or `
 
 After the merge, the recipe needs at least one step, and `install.step` must name one of the steps.
 Otherwise debaser stops with `the recipe has no steps` or `the install step <name> is not one of the recipe's steps`.
-A step placed before or after a name that no lower layer has stops it with `step <name> is placed before <other>, which no lower layer has` (or `after`).
+A step placed before or after a name that is not among the steps merged so far (the lower layers' steps and the earlier steps of its own layer) stops it with `step <name> is placed before <other>, which no lower layer has` (or `after`).
 
 When no layer sets `project_name`, debaser uses the repository part of the patch list's `upstream.repo`.
 
@@ -198,7 +198,7 @@ debaser recipe
 ----
 // expect: exit 0 and not-contains "is not trusted"
 
-When the recipe is not trusted yet, `debaser trust` needs a terminal for its question.
+When the recipe is not trusted yet, or changed since you trusted it, `debaser trust` needs a terminal for its question.
 Without one, it stops with exit 1 and `trusting a recipe needs a terminal to confirm on`.
 Any answer other than `y` or `yes` stops it with `.debaser/recipe.toml was not trusted`.
 
@@ -214,13 +214,13 @@ It leaves an untrusted project recipe out without asking, and adds the note `+.d
 The output has three parts:
 
 * A line that names the layers from the bottom up, separated by `<`.
-A built-in layer appears as `<name> (built-in)`, the project's recipe as `repo .debaser/recipe.toml at upstream <commit>`, and the local recipe as `local <path>`.
+A built-in layer appears as its layer id followed by `(built-in)`, for example `generic:bun-ts (built-in)`, the project's recipe as `repo .debaser/recipe.toml at upstream <commit>`, and the local recipe as `local <path>`.
 * A table of the steps in order, with the columns `STEP`, `COMMAND`, `PARSER`, and `LAYER`.
 The command shows the step's `+{tests}+` list and its timeout when the step sets them.
 * A table with the columns `VALUE`, `SETTING`, and `LAYER` for `project_name`, the `install` and `artifact` keys, `after_build`, `leftovers`, and each overridden prompt.
 For a `project_name` that no layer sets, the layer column says `default`.
 
-`debaser recipe --json` prints the same information as JSON, with the layer of each step and an `untrustedRepoRecipe` field.
+`debaser recipe --json` prints the effective recipe as JSON, with the layer of each step and an `untrustedRepoRecipe` field.
 
 . Fetch upstream, so that the project's recipe and the detection read the latest upstream commit.
 Use the name of your upstream remote if it is not `upstream`.
@@ -240,7 +240,7 @@ debaser recipe
 ----
 // expect: exit 0 and contains "STEP"
 
-The capture shows `debaser recipe` in a clone of the example project `example/widget`.
+The capture shows `debaser recipe` in a clone of the fictional project `example/widget`.
 
 image::visuals/recipe.svg["debaser recipe output for example/widget: the layers line names the project's .debaser/recipe.toml and the local recipe.toml, the steps table lists lint, test, smoke, and build with the layer of each, and the values table shows project_name, artifact.output, and artifact.install",role=expand]
 
