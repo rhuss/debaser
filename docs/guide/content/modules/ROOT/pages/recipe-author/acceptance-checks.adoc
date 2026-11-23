@@ -38,6 +38,10 @@
 // debaser:src/views/list.ts:56
 // debaser:src/cli/commands/list.ts:29
 // debaser:src/views/status.ts:132-138
+// debaser:src/cli/main.ts:61-68
+// debaser:src/core/runstate.ts:25
+// debaser:src/harness/verify.ts:41-51
+// debaser:src/report/handoff.ts:153-158
 
 The recipe's steps tell you that the combined build works.
 An acceptance check tells you that one patch still does what it is for.
@@ -78,8 +82,8 @@ debaser searches the standard output and the standard error of the command toget
 Without it, the timeout is 300 seconds.
 |===
 
-debaser checks these keys whenever it reads `patches.json`.
-A broken acceptance check stops the command with exit 1 and a message such as `<file>: patches[<index>] (<patch>): acceptance.timeout must be a positive number`.
+debaser validates these keys whenever it reads `patches.json`.
+An invalid `acceptance` object stops any debaser command that reads `patches.json`, with exit 1 and a message such as `<file>: patches[<index>] (<patch>): acceptance.timeout must be a positive number`.
 A `match` that is not a valid regular expression fails with `acceptance.match is not a valid regular expression: <reason>`.
 
 == Add a check to a patch
@@ -125,7 +129,7 @@ The command assumes the default xref:overview/concepts.adoc[data directory]; wit
 Replace the command of the example with one that exercises your patch.
 
 . Save the file and list the patches.
-debaser reads and checks the file before it prints anything.
+debaser reads and validates the file before it prints anything.
 +
 Check: the description of your patch ends with `(with check)`.
 +
@@ -145,8 +149,8 @@ debaser build
 . Read the acceptance section of the newest report.
 The command assumes the default data directory; `<patch>` is your patch as `debaser list` shows it.
 +
-Check: the line of your patch ends with `pass`, `flaky`, or `fixed`.
-Skip this check when the build stopped before it reached the acceptance checks; xref:user/stops.adoc[When a build stops] explains each stop.
+Check: the line of your patch ends with `pass`, `flaky`, or `fixed` (see <<when-fails>>).
+Skip this step when the build stopped before debaser ran the acceptance checks; xref:user/stops.adoc[When a build stops] explains each stop.
 +
 [source,bash]
 ----
@@ -156,9 +160,10 @@ grep -A 50 '^## Acceptance checks' "$(git rev-parse --git-common-dir)/debaser/re
 
 == When and how a check runs
 
-debaser runs the acceptance checks after every recipe step has passed, before it installs anything.
-It runs them in patch list order, one per merged patch that has a check.
-A patch that the build skipped, because it is merged upstream or already contained, runs no check.
+debaser runs the acceptance checks after every recipe step has passed, and installs nothing until every acceptance check has passed.
+When the acceptance checks run, the build output is the file the recipe steps wrote, and the installed artifact (`artifact.install`) is still the old one.
+debaser runs them in patch list order, one per merged patch that has a check.
+debaser runs no acceptance check for a patch the build skipped, because upstream merged it or already contains its changes.
 
 Each acceptance check runs in the build directory.
 debaser fills the placeholders `+{output}+` and `+{root}+` in the arguments of `run`, as it does for steps.
@@ -173,8 +178,6 @@ xref:recipe-author/steps.adoc[Steps, install, and artifact] describes their valu
 
 When the recipe has no `artifact.output`, debaser removes `DEBASER_ARTIFACT` from the environment, even when your shell sets it.
 `+{output}+` still has a value then: `debaser-output` in the build directory.
-At this point the build output is the file the build steps wrote.
-The installed artifact (`artifact.install`) is not replaced yet: debaser installs only after every acceptance check has passed.
 
 An acceptance check passes when both of these hold:
 
@@ -187,6 +190,7 @@ An acceptance check that runs past its timeout is killed together with its proce
 debaser writes each acceptance check's output to `acceptance/<patch>.log` in the run's report directory, named after the patch.
 The log starts with `$ <command>` and ends with a line such as `(exit 0, expected 0; pattern found: ^ok$)`, or `(killed after <seconds>s: the check timed out)`.
 
+[#when-fails]
 == When a check fails
 
 A failing acceptance check first runs once more, in case it is flaky.
@@ -200,40 +204,46 @@ What happens next depends on the harness.
 
 === With a harness
 
+A harness command that is not executable counts as no harness.
+debaser warns with `warning: harness <executable> is not executable; continuing without it` and goes on as in <<without-harness>>.
+
 With a harness configured, debaser hands the first failing acceptance check to the coding agent.
 It uses the command from the harness's `tasks.acceptance` entry, or the top-level harness command when there is none.
-The prompt is scoped to the check's patch.
-It names the patch with its description and pull request, the check's command and expected result, and the build output.
-It also carries the last 200 lines of the check's log.
-A harness command that is not executable counts as no harness, with the warning `warning: harness <executable> is not executable; continuing without it`.
+debaser gives the agent a prompt about that patch only, which names the patch with its description and pull request, the check's command and expected result, and the build output.
+The prompt also carries the last 200 lines of the check's log.
 
 When debaser accepts the agent's change, it commits it as `debaser: fix acceptance <patch> (agent)` with the trailer `Fixed-By: harness`.
 The run then goes back to the recipe steps.
 Every step runs again from the first one, followed by every acceptance check.
 An acceptance check that passes after an agent fix for its patch earlier in the run has the result `fixed`.
 
+After a successful build, the agent's fix still leaves a xref:overview/concepts.adoc[handoff] for that patch, so the fix can go back to the patch's own branch.
+A handoff is a Markdown file for one patch in the report's `handoffs` directory, with the problem, its cause, and a prompt for the patch's branch.
+This one shows the agent's fix commit under `Fix applied in the patched build`, next to the task of making the check pass on the patch's own branch.
+
 Two limits apply:
 
 * A failing acceptance check gets up to the harness's `attempts` (3 by default).
-The count for a check carries over to the next pass and resets only when the check passes.
-* The agent's fixes for the whole run are bounded.
-The bound is `attempts` multiplied by the sum of the number of recipe steps and the number of acceptance checks of patches the build did not skip.
-Step fixes and acceptance fixes count against the same bound.
+The count for an acceptance check carries over when the run goes back to the recipe steps, and resets only when the check passes.
+* The agent's fixes for the whole run are capped at `attempts` multiplied by the sum of the recipe steps and the acceptance checks of patches the build does not skip.
+For example, 3 attempts, 4 recipe steps, and 2 such acceptance checks allow 18 fixes.
+Step fixes and acceptance fixes count against the same cap.
 
-When the agent uses up its attempts, or the harness fails to run, the run stops with exit 5.
-Once the fixes have reached the bound, the next failing acceptance check stops the run with exit 5 at once.
-The stop reads `the acceptance check of <patch> fails again after the harness's <n> fixes`.
+xref:recipe-author/harness.adoc#limits[Time and attempt limits] explains which results use up an attempt.
+When the agent uses up its attempts, or a call of the harness exits with a non-zero code or reports a failure in its event stream, the run stops with exit 5.
+Once the fixes have reached the cap, the next failing acceptance check stops the run with exit 5 at once, with `the acceptance check of <patch> fails again after the harness's <n> fixes`.
 xref:user/stops.adoc#exit-5[Exit 5: the agent gives up] explains how to go on.
 
 xref:recipe-author/harness.adoc[Setting up the agent] shows how to configure the harness and its `tasks`.
 
+[#without-harness]
 === Without a harness
 
 Without a harness, the run stops with exit 6.
 In plain output, the stop starts with `debaser stopped: the acceptance check of <patch> fails`, naming the patch of the first failing acceptance check.
 Below it, `failing acceptance checks:` lists all failing checks, `command:` gives the check's command, and `log:` its log.
 
-debaser writes a handoff for each failing acceptance check, in the report directory's `handoffs` folder.
+debaser writes a handoff for each failing acceptance check, in the report's `handoffs` directory.
 It has the kind `acceptance` and the cause `the build no longer does what this patch is for`.
 Its task is to make the check pass again on a build of the patch's branch merged onto the latest upstream.
 xref:user/stops.adoc#exit-6[Exit 6: an acceptance check fails] explains how to fix the problem and continue.
@@ -241,13 +251,9 @@ xref:user/stops.adoc#exit-6[Exit 6: an acceptance check fails] explains how to f
 === What a failing check leaves alone
 
 A stop at an acceptance check does not install anything.
-The installed artifact and the previous build stay as they were at the start of the run, because debaser installs only when the run finishes.
+The installed artifact and the previous build stay as they were at the start of the run.
 
-The failing acceptance check blames no other patch.
-In `result.json`, every merged patch keeps `"checks": "pass"` at an acceptance stop, because all recipe steps passed.
-
-A successful build after an agent fix for an acceptance check still carries a handoff for that patch.
-The handoff shows the agent's fix commit under `Fix applied in the patched build`, next to the task of making the check pass on the patch's own branch.
+In `result.json`, the `checks` field, which covers the recipe steps, stays `pass` for every merged patch at an acceptance stop; only the `acceptance` field records the failure.
 
 == Where debaser shows the checks
 

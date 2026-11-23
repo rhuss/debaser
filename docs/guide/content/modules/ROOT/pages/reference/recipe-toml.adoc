@@ -50,7 +50,7 @@
 A recipe file is a TOML file that tells debaser how to check, build, and install a project.
 This page lists its keys, their merge rule across layers, and the built-in recipes.
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains the layers, trust, and `debaser recipe`.
-xref:recipe-author/steps.adoc[Steps, install, and artifact] explains steps, placeholders, the install step, the build output and the installed artifact, `after_build`, and `leftovers`.
+xref:recipe-author/steps.adoc[Steps, install, and artifact] explains steps, placeholders, the install step, `after_build`, and `leftovers`, plus the build output and the installed artifact.
 
 == Layers
 
@@ -83,46 +83,7 @@ From the lowest to the highest layer:
 
 `<commit>` is the first seven characters of the upstream commit.
 xref:recipe-author/recipes.adoc#the-four-layers[The four layers] says when each layer is present.
-
-== Reading and checking
-
-debaser reads the recipe files when it resolves the effective recipe.
-Every error below stops the command with exit 1 and shows the message in the table.
-
-[cols="1,3",options="header"]
-|===
-|Case |Message
-
-|Not valid TOML
-|`<file>: <parser message>`
-
-|A key debaser does not know
-|`<file>: unknown key <key>`.
-For a nested key, `<key>` carries its place, such as `install.<key>`, `artifact.<key>`, `prompts.<key>`, or `steps[<index>].<key>`.
-
-|A key with the wrong type
-|`<file>: <message>`, with the message from the tables below.
-
-|A merged recipe without steps
-|`the recipe has no steps`
-
-|A merged `[install]` table without `step`
-|`the recipe's [install] table names no step`
-
-|`install.step` names no step of the merged recipe
-|`the install step <name> is not one of the recipe's steps`
-
-|`before` or `after` names a step not merged yet
-|`step <name> is placed before <other>, which no lower layer has` (or `after`)
-
-|`extends` above the lowest non-generic layer
-|`<layer>: extends is only allowed in the lowest non-generic layer (<lowest layer>)`
-
-|A prompt path that does not exist
-|`<layer>: prompt file <path> does not exist`
-|===
-
-The messages for choosing the generic recipe are in xref:recipe-author/recipes.adoc#generic[How debaser chooses the generic recipe].
+The lowest non-generic layer is the lowest layer above the generic recipe that is present.
 
 == Top-level keys
 
@@ -135,7 +96,7 @@ The messages for choosing the generic recipe are in xref:recipe-author/recipes.a
 |none
 |Not merged.
 debaser reads it only in the built-in recipes.
-|Identifies a built-in recipe: a generic recipe's name, or `owner/repo` for a project recipe.
+|Identifies a built-in recipe: a generic recipe's name, or `owner/repo` for a built-in project recipe.
 `name must be a string`
 
 |`recipe`
@@ -158,7 +119,8 @@ debaser reads it only in the built-in recipes.
 |array of strings
 |none
 |Read only from the generic recipes.
-|Files at the fetched upstream commit (or in the working tree debaser runs in when nothing is fetched) whose presence selects the generic recipe.
+|Files whose presence selects the generic recipe.
+debaser looks for them at the fetched upstream commit, or in the working tree it runs in when nothing is fetched.
 One match is enough.
 `detect must be an array of strings`
 
@@ -226,8 +188,10 @@ debaser never commits a matching file with a fix.
 Each `+[[steps]]+` table is one step.
 Messages start with the step's place, `steps[<index>]`.
 
-A step whose `name` a lower layer has replaces that step as a whole, at its place in the order; its `before` and `after` are ignored.
+A step with the same `name` as a step in a lower layer replaces that step as a whole and takes its place in the order.
+debaser ignores the replacing step's `before` and `after`.
 A step with a new name goes before the step `before` names, after the step `after` names, or at the end.
+`before` and `after` can name a step of a lower layer or a step earlier in the same layer.
 When a step sets both, `before` wins.
 See xref:recipe-author/steps.adoc#place-a-step-among-the-inherited-ones[Place a step among the inherited ones].
 
@@ -274,7 +238,7 @@ See xref:recipe-author/steps.adoc#place-a-step-among-the-inherited-ones[Place a 
 |`tests`
 |non-empty array of strings
 |none (all tests)
-|What `+{tests}+` stands for when the step runs in full.
+|What `+{tests}+` stands for on a full run, as opposed to the narrowed rerun of a failing step (see xref:recipe-author/steps.adoc#placeholders-in-commands[Placeholders in commands]).
 `steps[<index>].tests must be a non-empty array of strings`
 |===
 
@@ -297,7 +261,7 @@ xref:recipe-author/steps.adoc#the-install-step[The install step] gives the rules
 |`install.triggers`
 |array of strings
 |empty
-|Files whose change since the run's start makes the install step run.
+|Files whose change between the build directory's commit at the run's start and the merged result makes the install step run.
 `install.triggers must be an array of strings`
 
 |`install.marker`
@@ -313,8 +277,10 @@ A recipe without an `[install]` table runs every step on every build.
 == `[artifact]` keys
 
 Each key replaces the lower layer's value on its own.
-Both paths are relative to the build directory; an absolute path stays as it is.
-xref:recipe-author/steps.adoc#build-output-and-installed-artifact[Build output and installed artifact] explains the install and the `.prev` file.
+A relative `artifact.install` resolves against the build directory.
+A relative `artifact.output` resolves against the build directory for the install, and against the tree the step runs in for `+{output}+`.
+An absolute path stays as it is.
+xref:recipe-author/steps.adoc#build-output-and-installed-artifact[Build output and installed artifact] explains how debaser copies the build output to the installed artifact and keeps the `.prev` file.
 
 [cols="1,1,2,3",options="header"]
 |===
@@ -338,7 +304,9 @@ debaser installs only when `artifact.output` is set too.
 == `[prompts]` keys
 
 Each entry replaces the shipped template of the same name; a higher layer's entry replaces a lower one's.
-A value on one line that ends in `.md` is a file path: in the local recipe relative to the data directory, in the project's recipe read from `.debaser/` at the fetched upstream commit.
+A single-line value that ends in `.md` is a file path.
+In the local recipe, the path is relative to the data directory.
+In the project's recipe, debaser reads the file from `.debaser/` at the fetched upstream commit.
 Any other value is the template text.
 Every entry must be a string: `prompts.<name> must be a string`.
 xref:recipe-author/harness-verification.adoc#prompts[What each prompt says] lists the placeholders of each template.
@@ -357,20 +325,60 @@ xref:recipe-author/harness-verification.adoc#prompts[What each prompt says] list
 |The agent fix of a failing acceptance check.
 
 |`prompts.rebase_conflict`
-|The agent call for a conflict while rebasing an own branch.
+|The agent call for a conflict while rebasing one of your own branches.
 
 |`prompts.rebase_check`
-|The agent fix of a failing step on a rebased own branch.
+|The agent fix of a failing step on one of your own branches after its rebase.
 
 |`prompts.handoff`
 |The per-patch handoff files in the report.
 |===
 
+== Reading and checking
+
+debaser reads the recipe files when it resolves the effective recipe.
+Every error below stops the command with exit 1 and shows the message in the table.
+
+[cols="1,3",options="header"]
+|===
+|Case |Message
+
+|Not valid TOML
+|`<file>: <parser message>`
+
+|A key debaser does not know
+|`<file>: unknown key <key>`.
+For a nested key, `<key>` carries its place, such as `install.<key>`, `artifact.<key>`, `prompts.<key>`, or `steps[<index>].<key>`.
+
+|A key with the wrong type
+|`<file>: <message>`, with the message from the tables above.
+
+|An effective recipe without steps
+|`the recipe has no steps`
+
+|An `[install]` table of the effective recipe without `step`
+|`the recipe's [install] table names no step`
+
+|`install.step` names no step of the effective recipe
+|`the install step <name> is not one of the recipe's steps`
+
+|`before` or `after` names a step that is neither in a lower layer nor earlier in the same layer
+|`step <name> is placed before <other>, which no lower layer has` (or `after`)
+
+|`extends` above the lowest non-generic layer
+|`<layer>: extends is only allowed in the lowest non-generic layer (<lowest layer>)`
+
+|A prompt path that does not exist
+|`<layer>: prompt file <path> does not exist`
+|===
+
+The messages for choosing the generic recipe are in xref:recipe-author/recipes.adoc#generic[How debaser chooses the generic recipe].
+
 == Built-in recipes
 
 debaser embeds these recipes in its binary.
-A recipe whose `name` has the form `owner/repo` is a project recipe; any other is a generic recipe.
-The project columns show the effective recipe of the project recipe on top of its generic recipe, with no other layer.
+A built-in recipe whose `name` has the form `owner/repo` is a built-in project recipe; any other is a generic recipe.
+The `tals/corgi` and `rtk-ai/rtk` columns show each built-in project recipe merged onto its generic recipe, without the project's recipe or a local recipe.
 
 [cols="2,3,3,3,3",options="header"]
 |===

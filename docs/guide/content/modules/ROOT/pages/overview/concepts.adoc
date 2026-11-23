@@ -125,7 +125,8 @@ Otherwise, `debaser rollback` undoes that run instead.
 build directory::
 The working directory in which debaser builds and which holds the integration branch: by default a linked Git worktree beside your clone, `../<clone>-debaser`.
 The patch list's `tree` setting moves it, and `"tree": "."` builds in place in your clone.
-`debaser build`, `debaser continue`, and `debaser rollback` always work in the build directory, whichever directory you start them from.
+`debaser build`, `debaser continue`, and `debaser rollback` work in the build directory, whichever directory you start them from.
+xref:user/build-directory.adoc#which-commands-use-it[Which commands use it] lists the few exceptions for `continue` and `rollback`.
 
 data directory::
 Where debaser keeps its own files for a clone, among them the patch list, the optional local recipe `recipe.toml`, the reports, and the state of the current run.

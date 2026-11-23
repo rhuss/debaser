@@ -36,6 +36,11 @@
 // debaser:src/recipes/resolve.ts:113
 // debaser:src/recipes/resolve.ts:102-104,113-117
 // debaser:src/recipes/builtin/bun-ts.toml:2
+// debaser:src/harness/invoke.ts:96
+// debaser:src/run/harness-merge.ts:28
+// debaser:src/run/harness-fix.ts:46,86-100
+// debaser:src/run/accept.ts:136
+// debaser:src/run/rebase-phase.ts:43
 
 `patches.json` holds the patch list and the per-project settings.
 It lives in debaser's data directory, by default `<git-common-dir>/debaser/patches.json` (see xref:user/patch-list.adoc#where[Where the patch list lives]).
@@ -49,7 +54,7 @@ For editing it by hand, see xref:user/patch-list.adoc#edit-by-hand[Edit `patches
 
 |When debaser reads it
 |When a command starts.
-`--version`, `--help`, `help`, their short forms, a missing command, and an unknown command skip it.
+debaser does not read it for `--version`, `--help`, `help`, their short forms, a call without a command, or an unknown command.
 
 |No file
 |`debaser add` creates it.
@@ -64,8 +69,8 @@ A command that needs the patch list stops with `+there is no patch list yet; add
 |A key breaks a rule
 |Exit 1 with `debaser: <path>: <message>`.
 The tables below give each message.
-For a patch entry, the message starts with its place, such as `patches[2]:` or `retired[0]:`.
-For an acceptance check, the place adds the patch, such as `patches[0] (example/widget#12):`.
+For a key in a patch entry, the message starts with the entry's position, such as `patches[2]:` or `retired[0]:`.
+For a key in an acceptance check, the position also names the patch, such as `patches[0] (example/widget#12):`.
 |===
 
 == Top-level keys
@@ -94,7 +99,7 @@ A missing or empty value takes the default.
 
 |`recipe`
 |string
-|none: the recipe layers or detection choose
+|none: a recipe file names it, or debaser detects it
 |Names a generic recipe, such as `bun-ts`.
 An empty or non-string value: `recipe must name a generic recipe`.
 An unknown name stops the recipe resolution with `no generic recipe named <name>; debaser has <names>`.
@@ -102,16 +107,16 @@ See xref:recipe-author/recipes.adoc#generic[How debaser chooses the generic reci
 
 |`rebase`
 |string
-|absent means `all`; the first `debaser add` writes `"all"`
+|absent means `all`
 |The rebase mode for own branches: `all`, `conflicting`, or `off`.
 Other values: `rebase must be one of all, conflicting, off`.
-`build` and `rebase` use it when `--rebase` is not given.
+`debaser build` and `debaser rebase` use it when `--rebase` is not given.
 See xref:user/own-branches.adoc#modes[Rebase modes].
 
 |`tree`
 |string
-|`../<main worktree name>-debaser`, written by the first build
-|The build directory, absolute or relative to the main worktree.
+|`../<clone directory name>-debaser`, written by the first `debaser build` or `debaser rollback`
+|The build directory, absolute or relative to your clone.
 debaser keeps the value as written.
 An empty or non-string value: `tree must be a non-empty path to the build directory`.
 See xref:user/build-directory.adoc[The build directory].
@@ -149,7 +154,7 @@ A non-array `patches` or `retired` reads as an empty list.
 |required
 |The upstream repository as `<owner>/<repo>`.
 Otherwise: `upstream.repo must be owner/repo`.
-It also selects a built-in project recipe when debaser has one for that repository.
+It also selects debaser's built-in recipe for that repository, if one exists.
 
 |`upstream.remote`
 |string
@@ -163,8 +168,8 @@ At run time, when the value is `upstream` and the clone has no such remote, deba
 |`main`
 |The upstream branch debaser builds on.
 A missing or empty value takes the default.
-The first `debaser add` writes the `upstream` remote's default branch: its recorded `HEAD`, else what the remote advertises, else `main`.
-With `--upstream` and no `upstream` remote, it writes `main`.
+When the first `debaser add` creates the file, it writes the default branch of the `upstream` remote: the remote's recorded `HEAD`, else the branch the remote advertises, else `main`.
+If you name upstream with `debaser add --upstream <owner>/<repo>` and the clone has no `upstream` remote, it writes `main`, without asking `origin`.
 |===
 
 [#harness]
@@ -193,20 +198,22 @@ Other values: `harness.kind must be one of claude, codex, pi, opencode, plain`.
 |`harness.timeoutSeconds`
 |number
 |`900`
-|Must be positive: `harness.timeoutSeconds must be a positive number`.
-Applies to every task.
+|Seconds one agent call may run.
+Must be positive: `harness.timeoutSeconds must be a positive number`.
+One value for all tasks (see `harness.tasks`); a task entry cannot set its own.
 
 |`harness.attempts`
 |number
 |`3`
-|Must be positive: `harness.attempts must be a positive number`.
+|The most attempts the agent gets on one problem.
+Must be positive: `harness.attempts must be a positive number`.
 debaser rounds a fraction down.
-Applies to every task.
+One value for all tasks (see `harness.tasks`); a task entry cannot set its own.
 
 |`harness.tasks`
 |object
 |none: every task uses the top-level `command` and `kind`
-|Keys: `conflict`, `check`, `acceptance`, `rebase`.
+|Keys: `conflict` (merge conflicts), `check` (failing recipe steps), `acceptance` (failing acceptance checks), `rebase` (own-branch rebases).
 Other keys: `harness.tasks.<name> is not a task (conflict, check, acceptance, rebase)`.
 See xref:recipe-author/harness.adoc#per-task[A different agent per task].
 
@@ -299,13 +306,13 @@ See xref:recipe-author/acceptance-checks.adoc[Acceptance checks].
 |required
 |The acceptance check's command, one element per argument.
 `+{output}+` and `+{root}+` expand as in recipe steps.
-Otherwise: `acceptance.run must be a non-empty array of strings`.
+Missing, empty, or with a non-string element: `acceptance.run must be a non-empty array of strings`.
 
 |`acceptance.exit`
 |integer
 |`0`
 |The expected exit code.
-Otherwise: `acceptance.exit must be an integer`.
+Not an integer: `acceptance.exit must be an integer`.
 
 |`acceptance.match`
 |string
@@ -318,7 +325,7 @@ Invalid: `acceptance.match is not a valid regular expression: <reason>`.
 |number
 |`300`
 |Seconds before debaser kills the acceptance check; a timed-out check fails.
-Otherwise: `acceptance.timeout must be a positive number`.
+Zero, negative, or not a number: `acceptance.timeout must be a positive number`.
 |===
 
 An acceptance check passes when it does not time out, exits with `exit`, and its output matches `match` when set.
@@ -327,7 +334,7 @@ An acceptance check passes when it does not time out, exits with `exit`, and its
 == Retired entries
 
 Each element of `retired` has the keys and rules of a patch entry, plus these.
-`debaser remove` writes both.
+`debaser remove` moves the entry here and writes `retired` and `reason`.
 See xref:user/patch-list.adoc#retire[Retire a patch].
 
 [cols="1,1,2,3",options="header"]
@@ -353,7 +360,7 @@ See xref:user/patch-list.adoc#retire[Retire a patch].
 
 |`debaser add`
 |Every successful add.
-The first add creates the file with `version`, `upstream`, `branch` `debaser`, `rebase` `all`, the new patch in `patches`, and an empty `retired`.
+The first add creates the file with `version`, `upstream`, `"branch": "debaser"`, `"rebase": "all"`, the new patch in `patches`, and an empty `retired`.
 
 |`debaser remove`
 |Every successful remove.
@@ -362,10 +369,11 @@ The first add creates the file with `version`, `upstream`, `branch` `debaser`, `
 |When the patch list has no `tree`: they record the default build directory.
 |===
 
-Every writer saves the whole patch list debaser holds after reading the file and making the command's change, not the original text:
+Every writer rewrites the whole file from the patch list as debaser read it, plus the command's change.
+Your original text is not kept:
 
 * Keys debaser does not know are dropped, at the top level and inside entries.
-* Defaults that the reading filled in are written out: `version` `1`, `upstream.remote`, `upstream.branch`, `branch`, `added`, and for retired entries `retired` and `reason`.
+* Defaults that the reading filled in are written out: `"version": 1`,`upstream.remote`, `upstream.branch`, `branch`, `added`, and for retired entries `retired` and `reason`.
 * `harness.attempts` is written rounded down.
 * The key order is debaser's own and can differ from yours; for example, the first add writes `rebase` before `patches`, and a recorded `tree` goes last.
 * The JSON is indented by two spaces and ends with a newline.

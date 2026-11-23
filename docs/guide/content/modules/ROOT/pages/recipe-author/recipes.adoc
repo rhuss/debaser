@@ -15,6 +15,7 @@
 // debaser:src/core/paths.ts:27-30
 // debaser:src/core/errors.ts:4-5
 // debaser:src/core/errors.ts:22-25
+// debaser:src/core/context.ts:10-13
 // debaser:src/recipes/builtin/index.ts:1-16
 // debaser:src/recipes/builtin/embed.ts:4-15
 // debaser:src/recipes/builtin/bun-ts.toml:1-22
@@ -30,8 +31,10 @@
 
 A recipe tells debaser how to check, build, and install a project.
 It is a TOML file with named steps that debaser runs in order.
-It can name an install step with the files that trigger it, the build output, the path to install it at, a command to run after the build, and overrides for the prompts an agent gets.
-It can also set the project's name and, under `leftovers`, globs of temporary files the build leaves, which debaser never commits with a fix.
+It can name an xref:recipe-author/steps.adoc#the-install-step[install step] and the files that trigger it.
+It can also set the build output, the path of the installed artifact, a command to run after the build, and overrides for the prompts an agent gets.
+Two more keys set the project's name and, under `leftovers`, globs for temporary files the build leaves behind.
+debaser never commits those files when it commits a fix.
 debaser rejects a recipe with a key it does not know, and the message names the file and the key.
 
 debaser assembles the effective recipe from up to four layers, each extending the one below it.
@@ -45,26 +48,27 @@ From the bottom up, the layers are:
 generic recipe::
 A recipe for a type of project, such as Bun and TypeScript or Rust with Cargo.
 debaser picks one, if any, as described in <<generic,How debaser chooses the generic recipe>>.
-`debaser recipe` names it `generic:<name>`.
+In `debaser recipe` output, the LAYER column shows it as `generic:<name>`.
 
 built-in project recipe::
 A recipe for one upstream repository.
 debaser uses it when the patch list's `upstream.repo` matches the recipe's `owner/repo`, regardless of case.
-`debaser recipe` names it `project:<owner>/<repo>`.
+In `debaser recipe` output, the LAYER column shows it as `project:<owner>/<repo>`.
 
 the project's recipe::
 The file `.debaser/recipe.toml` that the upstream project commits.
-debaser reads it with Git from the fetched upstream commit, never from a patch or from the merged result, and uses it only once you trust it (see <<trust,Trust the project's recipe>>).
-`debaser recipe` names it `repo:.debaser/recipe.toml@<commit>`.
+debaser reads this file from the fetched upstream commit, never from a patch or the merged result.
+It uses the file only after you trust it (see <<trust,Trust the project's recipe>>).
+In `debaser recipe` output, the LAYER column shows it as `repo:.debaser/recipe.toml@<commit>`.
 
 local recipe::
-The file `recipe.toml` in the data directory, next to `patches.json`.
+The file `recipe.toml` in the xref:overview/concepts.adoc[data directory], next to `patches.json`.
 By default the data directory is `debaser` inside your clone's shared Git directory; `--dir` or `DEBASER_DIR` moves it.
-xref:overview/concepts.adoc[Key concepts] defines the data directory.
-`debaser recipe` names this layer `local`.
+In `debaser recipe` output, the LAYER column shows this layer as `local`.
 
 Any layer can be missing.
-Once the project's recipe is trusted, it wins over a built-in project recipe, and the local recipe wins over both.
+Where two layers set the same setting or the same step, the higher layer applies: the project's recipe, once trusted, over a built-in project recipe, and the local recipe over both.
+Only the `leftovers` lists combine across layers.
 
 === How a layer extends the one below
 
@@ -73,7 +77,9 @@ For each key, a higher layer changes the result in one of these ways:
 
 * `steps`: a step with the name of a lower layer's step replaces that step at its place in the order.
 The higher layer's step replaces the lower one as a whole, so the lower step's `parser`, `timeout`, or `tests` do not carry over.
-A step with a new name goes before or after the step it names with `before` or `after`, or at the end.
+A step with a new name goes where its `before` or `after` key places it, or at the end if it sets neither.
+That key must name a step from a lower layer or an earlier step of the same layer.
+Otherwise debaser stops with `step <name> is placed before <other>, which no lower layer has` (or `after`).
 `steps_replace = true` drops the steps of all lower layers first.
 * `install` and `artifact`: each key (`install.step`, `install.triggers`, `install.marker`, `artifact.output`, `artifact.install`) replaces the lower layer's value on its own, and the keys a layer leaves out stay as they were.
 * `project_name`, `after_build`, and each entry under `prompts`: the higher layer's value replaces the lower one.
@@ -81,8 +87,6 @@ A step with a new name goes before or after the step it names with `before` or `
 
 After the merge, the recipe needs at least one step, and `install.step` must name one of the steps.
 Otherwise debaser stops with `the recipe has no steps` or `the install step <name> is not one of the recipe's steps`.
-A step must be placed before or after a name among the steps merged so far: the lower layers' steps and the earlier steps of its own layer.
-Otherwise debaser stops with `step <name> is placed before <other>, which no lower layer has` (or `after`).
 
 When no layer sets `project_name`, debaser uses the repository part of the patch list's `upstream.repo`.
 
@@ -93,15 +97,16 @@ debaser takes the first of these that names a generic recipe:
 
 . `recipe` in `patches.json`.
 . `recipe` in the local `recipe.toml`.
-. `extends` in the lowest layer above the generic one.
+. `extends` in the lowest non-generic layer present.
 . Detection: each generic recipe lists file names under `detect`, and debaser looks for them at the fetched upstream commit.
-When nothing of upstream has been fetched yet, it looks in the working tree debaser runs in.
+If upstream has not been fetched yet, debaser looks in the working tree it runs in.
 
-Only the lowest layer above the generic recipe may set `extends`.
+Only the lowest non-generic layer present may set `extends`.
 In a higher layer, debaser stops with `<layer>: extends is only allowed in the lowest non-generic layer (<lowest layer>)`.
 
 When debaser finds no generic recipe, it still builds as long as another layer exists, and the effective recipe has no generic layer.
-These cases stop the command with exit 1; in a build, before any patch is merged:
+The following cases stop the command with exit 1.
+In a build, debaser stops before it merges any patch.
 
 [cols="1,2",options="header"]
 |===
@@ -119,7 +124,7 @@ These cases stop the command with exit 1; in a build, before any patch is merged
 
 == The built-in recipes
 
-debaser embeds its recipes in the binary when it is bundled and never fetches them.
+The built-in recipes are part of the debaser binary, and debaser never fetches them.
 A built-in recipe whose `name` has the form `owner/repo` is a project recipe; any other is a generic recipe.
 
 [cols="1,1,3",options="header"]
@@ -171,16 +176,17 @@ xref:reference/recipe-toml.adoc[Recipe file] lists every key of a recipe with it
 == Trust the project's recipe
 
 A recipe runs commands on your machine.
-For the recipe a project commits, debaser asks before it runs them: it uses `.debaser/recipe.toml` only once you trust it.
+debaser runs the commands of the project's recipe only after you trust that recipe.
 
 debaser records the trust per upstream repository in `trust.json` in the data directory, together with a SHA-256 fingerprint.
 The fingerprint covers the recipe file and the prompt files it names (`.md` paths, read from `.debaser/` at the same upstream commit).
 A change to the recipe or to one of those prompt files changes the fingerprint, and debaser asks again.
 
-When a run reads a recipe that is not trusted yet, or changed since you trusted it, it does one of these:
+When a run reads the project's recipe and that recipe is not trusted yet or has changed since you trusted it, debaser does one of the following:
 
 * With `--trust-recipe`, it trusts the recipe, records the trust, and prints `trusting .debaser/recipe.toml at <commit> (--trust-recipe)` as a progress line.
-* On a terminal, it shows what the recipe runs: each step with its command, and the after-build command, install path, and prompt files when the recipe sets them, followed by `Trust it? [y/N]`.
+* On a terminal, it lists each step with its command.
+It adds the after-build command, install path, and prompt files when the recipe sets them, then asks `Trust it? [y/N]`.
 Control characters in the commands appear as `\u` escapes.
 `y` or `yes` records the trust; any other answer stops the run with `the project's recipe .debaser/recipe.toml was not trusted; nothing was changed`.
 * Without a terminal, it stops with exit 1: `the project's recipe .debaser/recipe.toml at <commit> is not trusted yet` (or `changed since you trusted it`).
@@ -204,7 +210,7 @@ debaser trust
 
 . Show the effective recipe.
 +
-Check: no note about an untrusted recipe appears below the tables.
+Check: the output has no note that `.debaser/recipe.toml` is not trusted.
 +
 [source,bash]
 ----
@@ -228,7 +234,8 @@ It leaves an untrusted `.debaser/recipe.toml` out without asking, and adds the n
 The output has three parts:
 
 * A line that names the layers from the bottom up, separated by `<`.
-A built-in layer appears as its layer id followed by `(built-in)`, for example `generic:bun-ts (built-in)`, the project's recipe as `repo .debaser/recipe.toml at upstream <commit>`, and the local recipe as `local <path>`.
+The layers line shows a built-in layer as its layer ID followed by `(built-in)`, for example `generic:bun-ts (built-in)`.
+It shows the project's recipe as `repo .debaser/recipe.toml at upstream <commit>` and the local recipe as `local <path>`.
 * A table of the steps in order, with the columns `STEP`, `COMMAND`, `PARSER`, and `LAYER`.
 The command shows the step's `+{tests}+` list and its timeout when the step sets them.
 * A table with the columns `VALUE`, `SETTING`, and `LAYER` for `project_name`, the `install` and `artifact` keys, `after_build`, `leftovers`, and each overridden prompt.
