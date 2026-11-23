@@ -9,7 +9,6 @@
 // debaser:src/cli/main.ts:62-71,92-98
 // debaser:src/run/rebase-phase.ts:47-52,235-238
 // debaser:src/rebase/rebase.ts:445-446
-// debaser:src/harness/invoke.ts:39,50,80
 // debaser:src/core/errors.ts:1-15
 // debaser:src/core/context.ts:10-15
 // debaser:src/harness/select.ts:7-52
@@ -75,7 +74,7 @@ Without `kind`, the command runs as `plain`; task entries do not inherit it (see
 
 |`timeoutSeconds`
 |positive number
-|How long one call of the agent may run.
+|How long one call of the agent may run, in seconds.
 The default is 900.
 
 |`attempts`
@@ -93,7 +92,7 @@ See <<per-task>>.
 
 debaser reads and checks the patch list when a command starts.
 A key with a wrong value stops the command with exit 1.
-The message names the key, for example `harness.kind must be one of claude, codex, pi, opencode, plain` or `harness.timeoutSeconds must be a positive number`.
+The message names the file and the key, for example `harness.kind must be one of claude, codex, pi, opencode, plain` or `harness.timeoutSeconds must be a positive number`.
 
 [#command-and-prompt-file]
 == The command and the prompt file
@@ -151,8 +150,8 @@ Each adapter adds its flags only when your command does not already contain the 
 |none
 |===
 
+A failure in the last column counts like a non-zero exit code, as <<limits>> explains.
 With `plain`, debaser logs the agent's output line by line as it comes.
-A failure in the stream counts like a non-zero exit code, as <<limits>> explains.
 
 [IMPORTANT]
 ====
@@ -207,6 +206,7 @@ debaser adds `--json` right after `exec`.
 
 debaser adds `--mode json`.
 Here `+{prompt_file}+` is part of the argument `+@{prompt_file}+`.
+pi would read standard input if it were a pipe, but debaser closes it, so pi takes the prompt from the file.
 
 === OpenCode
 
@@ -245,15 +245,16 @@ The attempt counts as rejected with the reason `it timed out after <n>s`.
 debaser also kills the group when the call ends and when you interrupt the run.
 
 `attempts` bounds how many attempts the agent gets for one problem, for example one conflict, one failing step, or one failing acceptance check.
-A call that ends normally or times out, but whose result debaser rejects, uses up one attempt, and the agent tries again.
+A call that ends normally or times out, but whose result debaser rejects, uses up one attempt, and the agent tries again while attempts are left.
 A call that exits with a non-zero code, or whose event stream reports a failure, and leaves no acceptable result is different.
 debaser treats the harness as broken and ends its attempts for that problem at once.
 
 debaser also caps the total number of fixes the agent makes in one run.
 The cap is `attempts` multiplied by the sum of the recipe steps and the acceptance checks.
 Only the acceptance checks of patches the build does not skip count toward that sum.
-When the agent uses up its attempts or reaches that cap at a merge conflict, a failing step, or a failing acceptance check, the run stops with exit 5.
-The `rebase` task, which rebases one of your own branches (see <<per-task>>), behaves differently.
+When the agent uses up its attempts at a merge conflict, a failing step, or a failing acceptance check, the run stops with exit 5.
+Once the cap is reached, the next failing step or acceptance check also stops the run with exit 5.
+The `rebase` task, which handles problems while debaser rebases one of your own branches (see <<per-task>>), behaves differently.
 During a build, a branch the agent cannot rebase keeps its old tip, and the build goes on.
 `debaser rebase` stops with exit 5 at a conflict the agent gave up on.
 xref:recipe-author/harness-verification.adoc[What the agent is asked and how its work is checked] explains how the attempts are judged and counted, and xref:user/stops.adoc#exit-5[Exit 5: the agent gives up] how to go on.
@@ -331,12 +332,13 @@ At a merge conflict, a failing step, or a failing acceptance check, debaser then
 
 == Add a harness to `patches.json`
 
-Set up a harness when you want debaser to try a conflict, a failing recipe step, or a failing acceptance check with an agent before it stops for you.
+Set up a harness when you want debaser to hand a conflict, a failing recipe step, or a failing acceptance check to an agent before it stops for you.
 No debaser command writes the `harness` section, so you add it to `patches.json` in a text editor.
 `harness` is a key debaser knows, so it is kept when a later command writes the file again.
 
 . Check that the agent's program is on your `PATH`.
 Replace `<agent>` with the program name from your command, for example `claude`.
+For a program given as a path, check instead that the file is executable where <<command-and-prompt-file>> says debaser looks for it.
 +
 Check: the command prints the path of the program.
 +
@@ -347,7 +349,7 @@ command -v <agent>
 // expect: exit 0
 
 . Open `patches.json` in a text editor.
-The command assumes the default xref:overview/concepts.adoc[data directory]; with `--dir` or `DEBASER_DIR`, open `<data directory>/patches.json` instead.
+The command assumes the default xref:overview/concepts.adoc#data-directory[data directory]; with `--dir` or `DEBASER_DIR`, open `<data directory>/patches.json` instead.
 +
 [source,bash]
 ----

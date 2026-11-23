@@ -22,42 +22,33 @@
 // debaser:src/core/patchlist.ts:9-10
 // debaser:src/core/lock.ts:45-52
 // debaser:src/git/git.ts:80-96
-// debaser:src/run/build.ts:88
+// debaser:src/run/build.ts:87-99
 // debaser:src/run/rebase-phase.ts:104-117
-// debaser:src/cli/commands/index.ts:81
 // debaser:src/run/rebase-phase.ts:173-177
-// debaser:src/run/build.ts:99
-// debaser:src/run/common.ts:77-85
 // debaser:src/run/rebase-phase.ts:258-261
+// debaser:src/run/common.ts:77-85
 // debaser:src/run/resume.ts:28-32
 // debaser:src/run/finish.ts:38
+// debaser:src/run/finish.ts:72-76
+// debaser:src/run/rollback.ts:23-39
 // debaser:src/run/rollback.ts:60-79
 // debaser:src/run/rollback.ts:142-145
+// debaser:src/run/end.ts:10-18
 // debaser:src/recipes/load.ts:9-24
 // debaser:src/recipes/trust.ts:69-107
+// debaser:src/rebase/rebase.ts:94
+// debaser:src/rebase/rebase.ts:228-247
 // debaser:src/live/worker.ts:18-21
 // debaser:src/live/worker.ts:50-61
-// debaser:src/views/list.ts:32-72
-// debaser:src/run/end.ts:10-18
-// debaser:src/rebase/rebase.ts:94,239
 // debaser:src/live/live.ts:119
-// debaser:src/cli/commands/index.ts:128-130,164-176
-// debaser:src/run/build.ts:87
-// debaser:src/run/rebase-phase.ts:116
-// debaser:src/cli/commands/index.ts:101-110
-// debaser:src/run/finish.ts:72-76
-// debaser:src/cli/main.ts:52-54
-// debaser:src/cli/main.ts:92-98
-// debaser:src/cli/commands/index.ts:164-182
-// debaser:src/cli/commands/rebase.ts:13-15
-// debaser:src/rebase/rebase.ts:228-247
-// debaser:src/cli/commands/add.ts:61-65
+// debaser:src/views/list.ts:32-72
 
 A debaser command line has the form `debaser [--dir <path>] <command> [options]`.
 `debaser --help` prints the usage text.
 debaser accepts a few options that the usage text leaves out.
-The global options table says which forms `--help` lists, and the options table marks the others "(not in `--help`)".
+The <<global-options,global options table>> says which forms `--help` lists, and the <<options,options table>> marks the others "(not in `--help`)".
 
+[#global-options]
 == Global options
 
 [cols="2,5,1",options="header"]
@@ -65,10 +56,10 @@ The global options table says which forms `--help` lists, and the options table 
 |Option |Effect |In `--help`
 
 |`--dir <path>`, `--dir=<path>`
-|Sets the xref:overview/concepts.adoc[data directory].
+|Sets the xref:overview/concepts.adoc#data-directory[data directory].
 debaser finds the option anywhere on the command line, before or after the command.
-A relative path counts from the current directory.
-Without `--dir`, debaser uses `DEBASER_DIR`, else `<git-common-dir>/debaser`.
+Without `--dir`, debaser uses the `DEBASER_DIR` environment variable when it is set, else `<git-common-dir>/debaser`.
+A relative path in `--dir` or `DEBASER_DIR` counts from the current directory.
 |yes
 
 |`--version`, `-V`
@@ -108,6 +99,8 @@ A missing value is a usage error: `--<name> needs a value`.
 Command options have no short forms.
 |===
 
+For example, `debaser --dir /tmp/db build --rebase=conflicting --push` and `debaser build --push --dir /tmp/db --rebase conflicting` mean the same.
+
 `--version`, `--help`, and their short forms work only in place of the command.
 After a command, `--version` and `--help` are leftover words, so `debaser build --help` is a usage error.
 `add` and `remove` take `-V` and `-h` as positionals, for example as `<source>`.
@@ -141,7 +134,7 @@ The refusal `not inside a git repository` always goes to standard error as a pla
 
 |A free run lock
 |commands that take the lock
-|`another debaser command is running in this checkout: <command> (pid <pid>, since <time>)`
+|`another debaser command is running in this checkout: <command> (pid <pid>, since <time>)`, or `another debaser command is starting in this checkout (<path>)` while another command is still taking the lock
 |===
 
 debaser releases the lock when the command ends, also after Ctrl-C, a hangup, or a kill.
@@ -149,7 +142,7 @@ xref:user/headless.adoc[Running headless] covers the lock for scheduled runs, an
 
 == Commands
 
-"Terminal questions" lists what a command can ask when standard input is a terminal.
+The last column lists what a command can ask when standard input is a terminal, followed by notes on the command.
 When standard input is not a terminal, debaser asks nothing; xref:user/headless.adoc[Running headless] gives the fallback for each question.
 
 [cols="3,4,2,6",options="header"]
@@ -194,7 +187,7 @@ See xref:user/patch-list.adoc[Managing the patch list].
 |Lock: yes +
 JSON: yes
 |Asks to trust a new or changed xref:recipe-author/recipes.adoc#trust[project recipe], which `--trust-recipe` answers.
-Asks to force-push your rebased xref:overview/concepts.adoc[own branches], which `--push` answers.
+Asks to force-push your rebased xref:overview/concepts.adoc#own-patch[own branches], which `--push` answers.
 Works in the build directory.
 See xref:user/first-build.adoc[Your first build] and xref:user/build-directory.adoc[The build directory].
 
@@ -209,7 +202,7 @@ See xref:user/first-build.adoc[Your first build] and xref:user/build-directory.a
 |Lock: yes +
 JSON: yes
 |Asks the same questions as `build`, answered by the same options.
-Only rebases the own branches onto upstream.
+Only rebases your own branches onto upstream.
 `rebase --skip-branch` is another spelling of `continue --skip-branch`.
 See xref:user/own-branches.adoc[Rebasing your own branches].
 
@@ -222,6 +215,7 @@ JSON: no
 |Asks the same questions as `build`, and `--trust-recipe` answers the trust question.
 If the stopped run was started with `--push`, `continue` pushes without asking.
 Resumes a stopped run.
+A stopped build goes on in the build directory.
 See xref:user/stops.adoc#continue[Continue a stopped run].
 
 |`rollback`
@@ -230,6 +224,7 @@ See xref:user/stops.adoc#continue[Continue a stopped run].
 JSON: no
 |Asks to trust a new or changed project recipe; no option answers it.
 Undoes a stopped run, or restores the previous build.
+A build is undone or restored in the build directory.
 See xref:user/stops.adoc#rollback[Roll back].
 
 |`status`
@@ -249,18 +244,22 @@ JSON: yes
 |Terminal questions: none.
 Only reads.
 The effective recipe it prints leaves out an untrusted project recipe, and the command does not ask to trust it.
-See xref:recipe-author/recipes.adoc[Recipes and their layers].
+xref:recipe-author/recipes.adoc#see-the-effective-recipe[See the effective recipe] describes its output.
 
 |`trust`
 |none
 |Lock: yes +
 JSON: no
-|Asks for the trust confirmation; without a terminal, the command refuses.
+|Asks to confirm the trust when the project recipe is new or changed; without a terminal, the command then refuses.
 Fetches the upstream branch, shows the commands of the project recipe, and records the trust after a yes.
 See xref:recipe-author/recipes.adoc#trust[Trust the project's recipe].
 |===
 
+[#options]
 == Options
+
+Each row is one option for the commands it names.
+An option with a different effect per command, such as `--verbose`, has one row for each effect.
 
 [cols="2,2,5,2",options="header"]
 |===
@@ -275,7 +274,7 @@ See xref:user/patch-list.adoc#pin[Pin a patch].
 |`--upstream <owner>/<repo>`
 |`add`
 |Names the upstream repository when this `add` creates the patch list.
-Any other form than `owner/repo` is a usage error.
+Any form other than `owner/repo` is a usage error.
 Once the patch list exists, `add` ignores the option.
 |the repository of the `upstream` remote
 
@@ -283,11 +282,11 @@ Once the patch list exists, `add` ignores the option.
 |`add` (not in `--help`)
 |Sets the description of the patch.
 It wins over the second positional.
-|the pull request title, or the branch name
+|the second positional, else the pull request title or the branch name
 
 |`--reason <text>`
 |`remove`
-|The reason stored with the retired patch.
+|Sets the reason stored with the retired patch.
 |asked on a terminal
 
 |`--verbose`
@@ -307,7 +306,7 @@ It wins over the second positional.
 
 |`--verbose`
 |`rollback`
-|On a color terminal, shows the install's output in place of the checklist.
+|On a color terminal, shows the output of the recipe's install step in place of the checklist.
 |off
 
 |`--json`
@@ -338,6 +337,7 @@ See xref:user/own-branches.adoc#in-worktree[Rebase a branch in its own worktree]
 |`--trust-recipe`
 |`build`, `rebase` (not in `--help`), `continue` (not in `--help`)
 |Trusts a new or changed project recipe without asking, and records the trust.
+See xref:recipe-author/recipes.adoc#trust[Trust the project's recipe].
 |asked on a terminal, else refused
 
 |`--trust-recipe`
@@ -349,6 +349,7 @@ See xref:user/own-branches.adoc#in-worktree[Rebase a branch in its own worktree]
 |`continue`, `rebase`
 |Gives up the own branch where a stopped `debaser rebase` run halted.
 With any other stopped run, including a stopped `build`, debaser refuses the option.
+See xref:user/own-branches.adoc#conflicts[Conflicts inside a build and in a rebase run].
 |off
 
 |`--fetch`
@@ -359,6 +360,8 @@ See xref:user/status.adoc#fetch[Check against the latest upstream].
 |===
 
 == Terminal behavior
+
+The table says when debaser asks questions, when it uses color, and which display it draws.
 
 [cols="2,5",options="header"]
 |===
@@ -391,13 +394,13 @@ A command that ends in an error before it has a result, such as a refusal, print
 |Command |Content and where it is described
 
 |`list --json`
-|The patch list with `config`, `upstream`, `branch`, `patches`, and `retired`; xref:user/patch-list.adoc[Managing the patch list].
+|An object with `config`, `upstream`, `branch`, `patches`, and `retired`; xref:user/patch-list.adoc[Managing the patch list].
 
 |`status --json`
 |The state of every patch and of upstream; xref:user/status.adoc#json[Reading status].
 
 |`recipe --json`
-|The effective recipe with the layer of each value; xref:recipe-author/recipes.adoc[Recipes and their layers].
+|The effective recipe with the layer of each value; xref:recipe-author/recipes.adoc#see-the-effective-recipe[See the effective recipe].
 
 |`build --json`, `rebase --json`
 |The run's `result.json`; xref:user/headless.adoc#json[Running headless] and xref:reference/files-and-codes.adoc[Files, exit codes, and environment].

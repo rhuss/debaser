@@ -2,9 +2,7 @@
 
 // Sources:
 // debaser:README.md:3-8
-// debaser:package.json:10
 // debaser:README.md:99-119
-// debaser:src/run/verifyloop.ts:78-94
 // debaser:src/run/stop.ts:51-52
 // debaser:src/harness/invoke.ts:13-14
 // debaser:src/plugins/harness/claude.ts:4
@@ -35,19 +33,22 @@
 // debaser:src/core/context.ts:41-44
 
 A recipe tells debaser how to check and build a project: named steps run in order, the build output, and where to install it.
-debaser ships generic recipes for Bun and TypeScript projects (`bun-ts`) and for Rust projects built with Cargo (`rust-cargo`), plus recipes for two specific projects.
-When none of them matches and no other recipe is in place, a build stops with "no recipe matches this project".
-This section shows you how to write one, as a local `recipe.toml` next to your patch list or as a `.debaser/recipe.toml` the project commits.
+debaser ships generic recipes for Bun and TypeScript projects (`bun-ts`) and for Rust projects built with Cargo (`rust-cargo`), plus project recipes for two upstream repositories, `tals/corgi` and `rtk-ai/rtk`.
+When none of them matches and no other recipe is in place, a build stops with exit 1 and the error "no recipe matches this project".
+This section shows you how to write your own recipe, as a local `recipe.toml` next to your patch list or as a `.debaser/recipe.toml` the project commits.
 
 The recipe steps show that the combined build works, but not that each patch still does what it is for.
 An acceptance check covers that: a command you attach to one patch, which debaser runs after every recipe step has passed.
 
-Without a harness, debaser stops the build at a merge conflict, or at a recipe step or acceptance check that your patches break, and you fix the problem yourself.
-A harness, the `harness` section of `patches.json`, hands such a problem to a coding agent.
-A coding agent is a command-line program that changes code from a written task, such as Claude Code, Codex, pi, OpenCode, or any command you name.
+A build can run into a merge conflict, or into a recipe step or acceptance check that your patches break.
+Without a harness, debaser stops there and you fix the problem yourself.
+A harness, the `harness` section of `patches.json`, hands such a problem to a coding agent instead.
+A coding agent is a command-line program that changes code from a written task.
+The harness can run Claude Code, Codex, pi, OpenCode, or any other command you name.
 debaser checks the agent's result itself.
-It commits an accepted fix as a separate commit, and records an accepted conflict resolution in the patch's merge commit.
-When the agent cannot finish, the run stops with exit 5, and you can fix the problem yourself and run `debaser continue`.
+It records an accepted fix as a separate commit and an accepted conflict resolution in the patch's merge commit.
+When the agent cannot finish, the run stops with exit 5.
+You can then fix the problem yourself and run `debaser continue`.
 
 These pages assume a clone with a patch list; xref:user/first-build.adoc[Your first build] sets one up.
 
@@ -60,7 +61,7 @@ Read these pages first, in this order:
 
 . xref:recipe-author/quickstart.adoc[Quickstart: write a recipe]: write a local recipe for a project no built-in recipe covers, check it with `debaser recipe`, build with it, and share it with the project.
 . xref:recipe-author/recipes.adoc[Recipes and their layers]: the four layers a recipe is assembled from, how debaser picks the generic recipe, how you trust a recipe the project commits, and how `debaser recipe` shows where each value comes from.
-. xref:recipe-author/steps.adoc[Steps, install, and artifact]: write the steps, place them among the ones a lower layer defines, and set the install step, the build output, and where debaser installs it.
+. xref:recipe-author/steps.adoc[Steps, install, and artifact]: write the steps and place them among the ones a lower layer defines, then set the install step, the build output, where debaser installs it, and an after-build command.
 
 Add these when you need them:
 

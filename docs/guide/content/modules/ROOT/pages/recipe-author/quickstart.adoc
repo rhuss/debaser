@@ -15,7 +15,6 @@
 // debaser:src/steps/run.ts:42-46
 // debaser:src/steps/run.ts:69-79
 // debaser:src/core/context.ts:46-52
-// debaser:src/cli/commands/trust.ts:15-27
 // debaser:src/core/context.ts:41-45
 // debaser:src/core/paths.ts:4-16
 // debaser:src/core/paths.ts:27-29
@@ -51,11 +50,14 @@
 // debaser:src/recipes/trust.ts:73-107
 // debaser:src/cli/commands/trust.ts:12-28
 // debaser:src/cli/main.ts:92-98
+// debaser:src/core/patchlist.ts:33
+// debaser:src/core/patchlist.ts:117
+// debaser:src/views/list.ts:48
 
 debaser needs a recipe to know how to check, build, and install your project.
 Its generic recipes cover Bun and TypeScript projects (`bun-ts`) and Rust projects built with Cargo (`rust-cargo`).
 When neither generic recipe matches your project and no other recipe is in place, a build stops with `no recipe matches this project; debaser has bun-ts, rust-cargo`.
-This page writes a local `recipe.toml` for an example project, checks it with `debaser recipe`, builds with `debaser build`, and shows how to hand the recipe to the project.
+On this page, you write a local `recipe.toml` for an example project, check it with `debaser recipe`, build with `debaser build`, and hand the recipe to the project.
 
 You need a clone with a patch list.
 Without one, debaser refuses with `+there is no patch list yet; add a patch first with `debaser add <source>`+`; xref:user/first-build.adoc[Your first build] sets one up.
@@ -63,18 +65,19 @@ Without one, debaser refuses with `+there is no patch list yet; add a patch firs
 == The example project
 
 The example is `example/notes`, a fictional Python command-line tool; every detail of it on this page is made up.
-notes manages its dependencies with `uv` (`pyproject.toml` and `uv.lock`).
+It manages its dependencies with `uv` (`pyproject.toml` and `uv.lock`).
 Its tests live in the `tests` directory and run with `python -m pytest`.
 Its build script `build.py` writes the tool as a single file to the path after `--output`.
-notes has no `bun.lock`, `bun.lockb`, or `Cargo.toml`, so neither generic recipe detects it, and notes commits no recipe of its own.
+The project has no `bun.lock`, `bun.lockb`, or `Cargo.toml`, so neither generic recipe detects it, and it commits no recipe of its own.
 
 Replace the commands below with the ones your project uses.
 
+[#step-1-find-the-place-for-the-local-recipe]
 == Step 1: find the place for the local recipe
 
-A local recipe is the file `recipe.toml` in the data directory, next to `patches.json`.
-debaser reads a local recipe as it is.
-A recipe the project commits needs your approval first; Step 6 shows how to trust one.
+A local recipe is the file `recipe.toml` in the xref:overview/concepts.adoc#data-directory[data directory], next to `patches.json`.
+debaser uses a local recipe without asking for your approval.
+A recipe the project commits needs your approval first; <<step-6-optional-share-the-recipe-with-the-project,Step 6>> shows how to trust one.
 By default the data directory is `debaser` inside your clone's shared Git directory (`.git/debaser` in a plain clone); `--dir` or `DEBASER_DIR` moves it.
 
 . In your clone, show where the data directory is.
@@ -88,15 +91,16 @@ debaser list
 // expect: contains "local recipe: none"
 +
 When the `config` line names a path instead of `none`, a local recipe exists already.
-Edit that file instead, and skip the `cat` command in Step 2, which would overwrite it.
+Edit that file instead, and skip the `cat` command in <<step-2-write-the-recipe,Step 2>>, which would overwrite it.
 
+[#step-2-write-the-recipe]
 == Step 2: write the recipe
 
-The recipe for notes defines three steps: `install`, `test`, and `build`.
+The recipe for notes defines three recipe steps: `install`, `test`, and `build`.
 It also marks `install` as the install step, sets the build output and the installed artifact, and lists one glob for temporary files.
 
 . Write the recipe to `recipe.toml` in the data directory.
-With a data directory other than the default (Step 1), adjust the path.
+With a data directory other than the default (<<step-1-find-the-place-for-the-local-recipe,Step 1>>), adjust the path.
 +
 [source,bash]
 ----
@@ -134,20 +138,20 @@ What each part does:
 * `project_name` is the name debaser puts into the prompts for a coding agent.
 * `leftovers` lists globs of temporary files that debaser never commits with a fix.
 * `[install]` names the step that installs the dependencies.
-debaser runs it when `.venv` is missing from the build directory.
-debaser also runs the install step when `uv.lock` or `pyproject.toml` differs between the merged result and the commit the build directory started the run on.
+debaser runs that step when the `marker` path (`.venv`) is missing from the build directory.
+It also runs the step when one of the `triggers` files (`uv.lock` or `pyproject.toml`) differs between the merged result and the commit the build directory started the run on.
 Otherwise it skips the install step.
 * `[artifact]` sets two different paths.
 `output` is where the build step writes, and steps get it as `+{output}+`.
-`install` is where debaser copies that file once every step has passed, and every acceptance check too (Step 5 adds one).
+`install` is where debaser copies that file once every step and every acceptance check has passed (<<step-5-optional-add-an-acceptance-check,Step 5>> adds one).
 Both paths are relative to the build directory, and debaser installs only when both keys are set.
 * Each `+[[steps]]+` table is a step, and debaser runs them in this order.
 `run` is the command with one argument per array element.
-* On a full run, `+{tests}+` becomes the step's `tests` list, here `tests`.
 * None of the steps sets `parser`, so debaser reads their logs with the generic scan, which picks out path-like words from the log.
 * When a step fails, debaser runs it once more in case the failure is flaky.
 Only the `bun-test` parser narrows that rerun to the failing files, so here a failing `test` step reruns the whole command.
-* `timeout = 600` kills the `test` step after 600 seconds.
+* `+{tests}+` becomes the step's `tests` list, here `tests`, on every run that is not narrowed.
+* `timeout = 600` makes debaser kill the `test` step after 600 seconds and count it as failed.
 
 xref:recipe-author/steps.adoc[Steps, install, and artifact] explains every one of these keys.
 
@@ -174,6 +178,8 @@ xref:recipe-author/recipes.adoc#see-the-effective-recipe[See the effective recip
 
 == Step 4: build with the recipe
 
+`debaser build` now runs the three recipe steps on the patched build and copies the build output to `dist/notes-custom.pyz`.
+
 . Build.
 +
 Check: the end of the output names the installed artifact.
@@ -187,8 +193,9 @@ debaser build
 ----
 // expect: exit 0 and contains "dist/notes-custom.pyz"
 
-When `dist/notes.pyz` does not exist after the build, debaser installs nothing, warns `warning: the build output dist/notes.pyz does not exist; nothing was installed`, and the summary names the integration branch instead.
+When `dist/notes.pyz` does not exist after the build, debaser installs nothing, warns `warning: the build output dist/notes.pyz does not exist; nothing was installed`, and the summary names the integration branch (`debaser` by default) instead.
 
+[#step-5-optional-add-an-acceptance-check]
 == Step 5 (optional): add an acceptance check
 
 The recipe's steps show that the combined build works.
@@ -209,9 +216,10 @@ The `acceptance` object for that patch looks like this:
 `+{output}+` is the build output, `dist/notes.pyz` in the build directory.
 The acceptance check passes when the command exits with 0 and `match` is found in its output.
 
-. Open the patch list and add the object as a key of your patch's entry, next to `source`, `description`, and `added`, with a comma after the key before it.
+. Open the patch list and add the `acceptance` key with this object to your patch's entry, next to `source`, `description`, and `added`.
+Separate it from the key before it with a comma.
 Save the file.
-As in Step 2, the path assumes the default data directory.
+As in <<step-2-write-the-recipe,Step 2>>, the path assumes the default data directory.
 +
 [source,bash]
 ----
@@ -228,8 +236,9 @@ debaser list
 ----
 // expect: exit 0 and contains "(with check)"
 
-xref:recipe-author/acceptance-checks.adoc[Acceptance checks] covers the other keys and what happens when a check fails.
+xref:recipe-author/acceptance-checks.adoc[Acceptance checks] covers the other keys and what happens when an acceptance check fails.
 
+[#step-6-optional-share-the-recipe-with-the-project]
 == Step 6 (optional): share the recipe with the project
 
 A project can commit a recipe as `.debaser/recipe.toml`.
@@ -244,6 +253,8 @@ In the commands below:
 * `<upstream-remote>` is the remote debaser fetches it from.
 
 That remote is `upstream` by default, or `origin` when the clone has no `upstream` remote.
+`debaser list` shows both in its title line, which ends with `merged in this order onto <upstream-remote>/<upstream-branch>`.
+As in <<step-2-write-the-recipe,Step 2>>, the paths to your local recipe assume the default data directory.
 
 . Put the recipe on a new branch based on upstream and commit it.
 +
@@ -270,12 +281,11 @@ debaser trust
 ----
 // expect: exit 0 and matches /debaser: trusted|already trusted/
 +
-Without a terminal, skip this step: `debaser trust` needs one for its question.
-The next `debaser build` then asks the same question when it runs on a terminal.
-Without a terminal, that build stops with exit 1 unless you pass `--trust-recipe`.
+`debaser trust` needs a terminal for its question; without one, skip this step.
+The next `debaser build` then asks the same question on a terminal, and without a terminal it stops with exit 1 unless you pass `--trust-recipe`.
 
 . Optional: remove your local recipe.
-Your local recipe stays the top layer: its steps and keys replace those of the project's recipe, and its `leftovers` add to them.
+Your local recipe stays the top layer: its steps and keys replace those of the same name in the project's recipe, and its `leftovers` add to them.
 Remove it when you want the project's recipe to apply as committed.
 +
 [source,bash]

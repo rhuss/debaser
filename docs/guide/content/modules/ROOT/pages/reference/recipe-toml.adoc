@@ -45,13 +45,16 @@
 // debaser:src/run/stop.ts:115-120
 // debaser:src/rebase/rebase.ts:450
 // debaser:src/rebase/rebase.ts:697
+// debaser:src/rebase/rebase.ts:725
 // debaser:src/report/handoff.ts:84-85
 
-A recipe file is a TOML file that tells debaser how to check, build, and install a project.
+A recipe file is a TOML file that tells debaser how to test, build, and install a project.
 This page lists its keys, their merge rule across layers, and the built-in recipes.
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains the layers, trust, and `debaser recipe`.
 xref:recipe-author/steps.adoc[Steps, install, and artifact] explains steps, placeholders, the install step, `after_build`, and `leftovers`, plus the build output and the installed artifact.
+xref:recipe-author/steps.adoc#write-a-local-recipe[Write a local recipe] shows a complete file.
 
+[#layers]
 == Layers
 
 From the lowest to the highest layer:
@@ -76,14 +79,14 @@ From the lowest to the highest layer:
 |`.debaser/recipe.toml at <commit>`
 
 |local recipe
-|`recipe.toml` in the xref:overview/concepts.adoc[data directory]
+|`recipe.toml` in the xref:overview/concepts.adoc#data-directory[data directory]
 |`local`
 |The file's path
 |===
 
-`<commit>` is the first seven characters of the upstream commit.
+`<commit>` is the first seven characters of the fetched upstream commit's hash.
 xref:recipe-author/recipes.adoc#the-four-layers[The four layers] says when each layer is present.
-The lowest non-generic layer is the lowest layer above the generic recipe that is present.
+The lowest non-generic layer is the lowest present layer above the generic recipe.
 
 == Top-level keys
 
@@ -141,8 +144,9 @@ One match is enough.
 |`steps_replace`
 |boolean
 |not set
-|Applies to its own layer: `true` drops the steps of all lower layers before the layer's steps are added.
-|`steps_replace must be true or false`
+|Applies to its own layer only.
+|`true` drops the steps of all lower layers before the layer's steps are added.
+`steps_replace must be true or false`
 
 |`[install]`
 |table
@@ -178,6 +182,7 @@ A failure only warns.
 |none
 |The lists of all layers combine, without duplicates.
 |Globs of temporary files the build leaves, matched against paths relative to the build directory.
+For a fix on one of your own branches after its rebase, the paths are relative to that branch's working tree.
 debaser never commits a matching file with a fix.
 `leftovers must be an array of strings`
 |===
@@ -186,7 +191,7 @@ debaser never commits a matching file with a fix.
 == Step keys
 
 Each `+[[steps]]+` table is one step.
-Messages start with the step's place, `steps[<index>]`.
+The step's messages name it by its place, `steps[<index>]`, which counts from 0 within its file.
 
 A step with the same `name` as a step in a lower layer replaces that step as a whole and takes its place in the order.
 debaser ignores the replacing step's `before` and `after`.
@@ -208,7 +213,7 @@ See xref:recipe-author/steps.adoc#place-a-step-among-the-inherited-ones[Place a 
 |`run`
 |non-empty array of strings, required
 |none
-|The command and its arguments, with the placeholders `+{output}+`, `+{root}+`, and `+{tests}+` (see xref:recipe-author/steps.adoc#placeholders-in-commands[Placeholders in commands]).
+|The command and its arguments, which can use the placeholders `+{output}+`, `+{root}+`, and `+{tests}+` (see xref:recipe-author/steps.adoc#placeholders-in-commands[Placeholders in commands]).
 `steps[<index>].run must be a non-empty array of strings`
 
 |`parser`
@@ -246,6 +251,7 @@ See xref:recipe-author/steps.adoc#place-a-step-among-the-inherited-ones[Place a 
 == `[install]` keys
 
 Each key replaces the lower layer's value on its own; keys a layer leaves out stay as they were.
+A recipe without an `[install]` table runs every step on every build.
 xref:recipe-author/steps.adoc#the-install-step[The install step] gives the rules for running or skipping it.
 
 [cols="1,1,1,4",options="header"]
@@ -260,8 +266,8 @@ xref:recipe-author/steps.adoc#the-install-step[The install step] gives the rules
 
 |`install.triggers`
 |array of strings
-|empty
-|Files whose change between the build directory's commit at the run's start and the merged result makes the install step run.
+|empty (without `install.marker` either, the install step runs on every build)
+|Files that make the install step run when they changed between the build directory's commit at the run's start and the merged result.
 `install.triggers must be an array of strings`
 
 |`install.marker`
@@ -270,8 +276,6 @@ xref:recipe-author/steps.adoc#the-install-step[The install step] gives the rules
 |A path in the build directory whose absence makes the install step run.
 `install.marker must be a string`
 |===
-
-A recipe without an `[install]` table runs every step on every build.
 
 [#artifact-keys]
 == `[artifact]` keys
@@ -288,7 +292,7 @@ xref:recipe-author/steps.adoc#build-output-and-installed-artifact[Build output a
 
 |`artifact.output`
 |string
-|`+{output}+` stands for `debaser-output` in the tree the step runs in.
+|none (`+{output}+` then stands for `debaser-output` in the tree the step runs in)
 |The path the build writes, given to steps as `+{output}+`.
 `artifact.output must be a string`
 
@@ -305,7 +309,7 @@ debaser installs only when `artifact.output` is set too.
 
 Each entry replaces the shipped template of the same name; a higher layer's entry replaces a lower one's.
 A single-line value that ends in `.md` is a file path.
-In the local recipe, the path is relative to the data directory.
+In the local recipe, a relative path resolves against the data directory.
 In the project's recipe, debaser reads the file from `.debaser/` at the fetched upstream commit.
 Any other value is the template text.
 Every entry must be a string: `prompts.<name> must be a string`.
@@ -316,19 +320,19 @@ xref:recipe-author/harness-verification.adoc#prompts[What each prompt says] list
 |Key |Template for
 
 |`prompts.conflict`
-|The agent call for a merge conflict, and `fix-conflict.md` at a stop.
+|The agent call for a merge conflict, and `fix-conflict.md` when a run stops.
 
 |`prompts.check`
-|The agent fix of a failing step, and `fix-<step>.md` at a stop.
+|The agent call that fixes a failing step, and `fix-<step>.md` when a run stops.
 
 |`prompts.acceptance`
-|The agent fix of a failing acceptance check.
+|The agent call that fixes a failing acceptance check.
 
 |`prompts.rebase_conflict`
 |The agent call for a conflict while rebasing one of your own branches.
 
 |`prompts.rebase_check`
-|The agent fix of a failing step on one of your own branches after its rebase.
+|The agent call that fixes a failing step on one of your own branches after its rebase.
 
 |`prompts.handoff`
 |The per-patch handoff files in the report.
@@ -336,7 +340,7 @@ xref:recipe-author/harness-verification.adoc#prompts[What each prompt says] list
 
 == Reading and checking
 
-debaser reads the recipe files when it resolves the effective recipe.
+debaser reads the recipe files when it merges the present layers into the effective recipe.
 Every error below stops the command with exit 1 and shows the message in the table.
 
 [cols="1,3",options="header"]
@@ -371,6 +375,8 @@ For a nested key, `<key>` carries its place, such as `install.<key>`, `artifact.
 |A prompt path that does not exist
 |`<layer>: prompt file <path> does not exist`
 |===
+
+In these messages, `<file>` comes from the column "File name in messages" of the table in <<layers>>, and `<layer>` and `<lowest layer>` come from its column "Name in `debaser recipe`".
 
 The messages for choosing the generic recipe are in xref:recipe-author/recipes.adoc#generic[How debaser chooses the generic recipe].
 
