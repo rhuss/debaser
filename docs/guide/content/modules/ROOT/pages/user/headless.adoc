@@ -1,6 +1,13 @@
 = Running headless
 
 // Sources:
+// debaser:src/run/rebase-phase.ts:152
+// debaser:src/run/build.ts:102
+// debaser:src/rebase/push.ts:1-3
+// debaser:src/rebase/rebase.ts:208-227
+// debaser:src/cli/commands/status.ts:60-81
+// debaser:src/run/resume.ts:44
+// debaser:src/cli/commands/trust.ts:19-25
 // debaser:src/cli/main.ts:34-35
 // debaser:src/cli/main.ts:61-88
 // debaser:src/cli/main.ts:92-98
@@ -81,7 +88,7 @@ Off a terminal, each one falls back to a fixed behavior, and a flag gives the an
 |Question |Asked by |Without a terminal |Flag
 
 |Trust the project's committed recipe `.debaser/recipe.toml`, when it is not trusted yet or changed since you trusted it: `Trust it? [y/N]`
-|`debaser build`, `debaser rebase`
+|`debaser build`, `debaser rebase`, `debaser continue`
 |The run refuses with exit 1, before it writes a report: `the project's recipe .debaser/recipe.toml at <commit> is not trusted yet` (or `changed since you trusted it`), followed by `+review it, then run `debaser trust`, or pass --trust-recipe+`.
 |`--trust-recipe`
 
@@ -98,7 +105,7 @@ The summary holds a `push:` line with the push command for each branch, the push
 |===
 
 `debaser trust` has no flag in place of its question.
-Without a terminal, it refuses with `trusting a recipe needs a terminal to confirm on`, followed by `or pass --trust-recipe to build`.
+When the recipe is not trusted yet, it refuses without a terminal with `trusting a recipe needs a terminal to confirm on`, followed by `or pass --trust-recipe to build`.
 
 === Trust the project's recipe
 
@@ -212,7 +219,7 @@ The `result.json` of a build or rebase run has these top-level keys:
 |`ref` and `tip` of the fetched upstream branch, and `newCommits`, the number of upstream commits (merges not counted) between the integration branch at the start of the run and the fetched tip
 
 |`patches`
-|One entry per patch, retired patches included; `state` is `merged`, `not-merged`, `skipped-merged`, `skipped-contained`, or `retired`
+|In a build run, one entry per patch, retired patches included; a rebase run lists only the retired patches; `state` is `merged`, `not-merged`, `skipped-merged`, `skipped-contained`, or `retired`
 
 |`steps`
 |One entry per recipe step with `name`, `result`, and `log` (empty in a rebase run)
