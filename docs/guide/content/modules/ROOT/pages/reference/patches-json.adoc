@@ -1,0 +1,432 @@
+= `patches.json`
+
+// Sources:
+// debaser:src/core/patchlist.ts:9-189
+// debaser:src/core/paths.ts:4-16,28
+// debaser:src/core/runstate.ts:153-157
+// debaser:src/core/context.ts:41-52
+// debaser:src/core/errors.ts:5
+// debaser:src/cli/main.ts:47-68
+// debaser:src/cli/main.ts:92-98
+// debaser:src/cli/commands/add.ts:13
+// debaser:src/cli/commands/add.ts:26-49
+// debaser:src/cli/commands/add.ts:71-76
+// debaser:src/cli/commands/remove.ts:11-26
+// debaser:src/core/tree.ts:32-40
+// debaser:src/core/tree.ts:111-153
+// debaser:src/run/build.ts:61
+// debaser:src/run/build.ts:88
+// debaser:src/run/build.ts:100
+// debaser:src/run/rebase-phase.ts:177
+// debaser:src/run/rollback.ts:143-153
+// debaser:src/run/accept.ts:36-38,56-69,75,79-82
+// debaser:src/run/fetch.ts:44-61
+// debaser:src/run/common.ts:66-69
+// debaser:src/harness/select.ts:11-22
+// debaser:src/harness/invoke.ts:47
+// debaser:src/plugins/harness/registry.ts:8-14
+// debaser:src/plugins/sources/types.ts:1-5
+// debaser:src/plugins/sources/fork-branch.ts:9-19
+// debaser:src/recipes/resolve.ts:102-104,113-117
+// debaser:src/recipes/builtin/bun-ts.toml:2
+
+`patches.json` holds the patch list and the per-project settings.
+It lives in debaser's data directory, by default `<git-common-dir>/debaser/patches.json` (see xref:user/patch-list.adoc#where[Where the patch list lives]).
+For editing it by hand, see xref:user/patch-list.adoc#edit-by-hand[Edit `patches.json` by hand].
+
+== Reading and checking
+
+[cols="1,3",options="header"]
+|===
+|Case |Behavior
+
+|When debaser reads it
+|When a command starts.
+`--version`, `--help`, their short forms, and an unknown command skip it.
+
+|No file
+|`debaser add` creates it.
+A command that needs the patch list stops with `+there is no patch list yet; add a patch first with `debaser add <source>`+`.
+
+|Not valid JSON
+|Exit 1 with `debaser: <path>: <parser message>`.
+
+|Not a JSON object
+|Exit 1 with `debaser: <path>: expected an object`.
+
+|A key breaks a rule
+|Exit 1 with `debaser: <path>: <message>`.
+The tables below give each message.
+For a patch entry, the message starts with its place, such as `patches[2]:` or `retired[0]:`.
+For an acceptance check, the place adds the patch, such as `patches[0] (example/widget#12):`.
+|===
+
+== Top-level keys
+
+[cols="1,1,2,3",options="header"]
+|===
+|Key |Type |Default |Rule and message
+
+|`version`
+|number
+|`1`
+|A number greater than 1 is refused: `version <n> is newer than this debaser understands (1); upgrade debaser`.
+Any other value reads as version 1.
+
+|`upstream`
+|object
+|required
+|See <<upstream>>.
+
+|`branch`
+|string
+|`debaser`
+|The integration branch.
+Must differ from `upstream.branch`: `branch must differ from upstream.branch`.
+A missing or empty value takes the default.
+
+|`recipe`
+|string
+|none: debaser detects the generic recipe
+|Names a generic recipe, such as `bun-ts`.
+An empty or non-string value: `recipe must name a generic recipe`.
+An unknown name stops the recipe resolution with `no generic recipe named <name>; debaser has <names>`.
+See xref:recipe-author/recipes.adoc#generic[How debaser chooses the generic recipe].
+
+|`rebase`
+|string
+|absent means `all`; the first `debaser add` writes `"all"`
+|The rebase mode for own branches: `all`, `conflicting`, or `off`.
+Other values: `rebase must be one of all, conflicting, off`.
+`build` and `rebase` use it when `--rebase` is not given.
+See xref:user/own-branches.adoc#modes[Rebase modes].
+
+|`tree`
+|string
+|`../<main worktree name>-debaser`, written by the first build
+|The build directory, absolute or relative to the main worktree.
+debaser keeps the value as written.
+An empty or non-string value: `tree must be a non-empty path to the build directory`.
+See xref:user/build-directory.adoc[The build directory].
+
+|`harness`
+|object
+|none: no agent
+|See <<harness>>.
+
+|`patches`
+|array
+|`[]`
+|The live patches.
+debaser merges them in array order.
+See <<patch-entries>>.
+
+|`retired`
+|array
+|`[]`
+|Removed patches.
+See <<retired-entries>>.
+|===
+
+A non-array `patches` or `retired` reads as an empty list.
+
+[#upstream]
+== `upstream`
+
+[cols="1,1,2,3",options="header"]
+|===
+|Key |Type |Default |Rule and message
+
+|`upstream.repo`
+|string
+|required
+|The upstream repository as `<owner>/<repo>`.
+Otherwise: `upstream.repo must be owner/repo`.
+It also selects a built-in project recipe when debaser has one for that repository.
+
+|`upstream.remote`
+|string
+|`upstream`
+|The Git remote debaser fetches upstream from.
+A missing or empty value takes the default.
+At run time, when the value is `upstream` and the clone has no such remote, debaser uses `origin` if it exists.
+
+|`upstream.branch`
+|string
+|`main`
+|The upstream branch debaser builds on.
+A missing or empty value takes the default.
+The first `debaser add` writes the `upstream` remote's default branch: its recorded `HEAD`, else what the remote advertises, else `main`.
+|===
+
+[#harness]
+== `harness`
+
+When `harness` is present, it needs `command`.
+See xref:recipe-author/harness.adoc[Setting up the agent].
+
+[cols="1,1,2,3",options="header"]
+|===
+|Key |Type |Default |Rule and message
+
+|`harness.command`
+|array of strings
+|required
+|The agent command, one element per argument.
+`+{prompt_file}+` in an argument becomes the prompt file's path.
+Empty or not strings: `harness.command must be a non-empty array of strings`.
+
+|`harness.kind`
+|string
+|`plain`
+|The adapter: `claude`, `codex`, `pi`, `opencode`, or `plain`.
+Other values: `harness.kind must be one of claude, codex, pi, opencode, plain`.
+
+|`harness.timeoutSeconds`
+|number
+|`900`
+|Must be positive: `harness.timeoutSeconds must be a positive number`.
+Applies to every task.
+
+|`harness.attempts`
+|number
+|`3`
+|Must be positive: `harness.attempts must be a positive number`.
+debaser rounds a fraction down.
+Applies to every task.
+
+|`harness.tasks`
+|object
+|none: every task uses the top-level `command` and `kind`
+|Keys: `conflict`, `check`, `acceptance`, `rebase`.
+Other keys: `harness.tasks.<name> is not a task (conflict, check, acceptance, rebase)`.
+See xref:recipe-author/harness.adoc#per-task[A different agent per task].
+
+|`harness.tasks.<task>.command`
+|array of strings
+|required in a task entry
+|As `harness.command`; the message names the task: `harness.tasks.<task>.command must be a non-empty array of strings`.
+
+|`harness.tasks.<task>.kind`
+|string
+|`plain`, not the top-level `kind`
+|As `harness.kind`.
+|===
+
+[#patch-entries]
+== Patch entries
+
+Each element of `patches` is an object with these keys.
+
+[cols="1,1,2,3",options="header"]
+|===
+|Key |Type |Default |Rule and message
+
+|`source`
+|object
+|required
+|Where the patch comes from; one of the shapes in <<sources>>.
+An incomplete or unknown shape: `invalid source`.
+
+|`description`
+|string
+|required
+|A single line.
+Missing, not a string, or with a line break: `description must be a single line`.
+
+|`added`
+|string
+|`""`
+|The date `debaser add` recorded, as `YYYY-MM-DD` in UTC.
+debaser reads any value as text.
+
+|`pin`
+|string
+|none
+|A full commit SHA: 40 lowercase hex characters.
+Otherwise: `pin must be a full commit SHA`.
+See xref:user/patch-list.adoc#pin[Pin a patch].
+
+|`acceptance`
+|object
+|none
+|The patch's acceptance check; see <<acceptance>>.
+|===
+
+[#sources]
+=== `source` shapes
+
+[cols="1,2,3",options="header"]
+|===
+|`kind` |Keys |Rule and message
+
+|`pr`
+|`repo` (string), `number` (integer)
+|A pull request.
+`repo` non-empty, `number` greater than 0.
+
+|`fork-branch`
+|`repo` (string) or `url` (string), `branch` (string)
+|A branch of another repository, by `<owner>/<repo>` on GitHub or by Git URL.
+Both `repo` and `url`: `a fork-branch source has exactly one of repo or url`.
+A URL with a password, or an `http` or `https` URL with a user name: `<url> carries credentials; drop them from the URL and use a git credential helper`.
+
+|`branch`
+|`name` (string)
+|An own branch of your clone.
+`name` non-empty.
+|===
+
+[#acceptance]
+=== `acceptance`
+
+See xref:recipe-author/acceptance-checks.adoc[Acceptance checks].
+
+[cols="1,1,2,3",options="header"]
+|===
+|Key |Type |Default |Rule and message
+
+|`acceptance.run`
+|array of strings
+|required
+|The check command, one element per argument.
+`+{output}+` and `+{root}+` expand as in recipe steps.
+Otherwise: `acceptance.run must be a non-empty array of strings`.
+
+|`acceptance.exit`
+|integer
+|`0`
+|The expected exit code.
+Otherwise: `acceptance.exit must be an integer`.
+
+|`acceptance.match`
+|string
+|none
+|A regular expression the output must contain; `^` and `$` match at line boundaries.
+Not a string: `acceptance.match must be a string`.
+Invalid: `acceptance.match is not a valid regular expression: <reason>`.
+
+|`acceptance.timeout`
+|number
+|`300`
+|Seconds before debaser kills the check; a timed-out check fails.
+Otherwise: `acceptance.timeout must be a positive number`.
+|===
+
+A check passes when it does not time out, exits with `exit`, and its output matches `match` when set.
+
+[#retired-entries]
+== Retired entries
+
+Each element of `retired` has the keys and rules of a patch entry, plus these.
+`debaser remove` writes both.
+See xref:user/patch-list.adoc#retire[Retire a patch].
+
+[cols="1,1,2,3",options="header"]
+|===
+|Key |Type |Default |Meaning
+
+|`retired`
+|string
+|`""`
+|The date of the removal, as `YYYY-MM-DD` in UTC.
+
+|`reason`
+|string
+|`""`
+|Why the patch was removed.
+|===
+
+== What writes the file
+
+[cols="1,3",options="header"]
+|===
+|Writer |When
+
+|`debaser add`
+|Every successful add.
+The first add creates the file with `version`, `upstream`, `branch` `debaser`, `rebase` `all`, and empty `patches` and `retired`.
+
+|`debaser remove`
+|Every successful remove.
+
+|`debaser build`, and `debaser rollback` without a stopped run
+|When the patch list has no `tree`: they record the default build directory.
+|===
+
+Every writer saves the whole patch list as debaser read it, not the original text:
+
+* Keys debaser does not know are dropped, at the top level and inside entries.
+* Defaults that the reading filled in are written out: `version` `1`, `upstream.remote`, `upstream.branch`, `branch`, `added`, and for retired entries `retired` and `reason`.
+* `harness.attempts` is written rounded down.
+* The key order is debaser's own: `version`, `upstream`, `branch`, `patches`, `retired`, then `recipe`, `tree`, `rebase`, `harness` when set.
+* The JSON is indented by two spaces and ends with a newline.
+
+== Full example
+
+A valid `patches.json` for the fictional project `example/widget`, with one patch of each source kind and a retired patch.
+The SHA is fictional.
+
+[source,json]
+----
+{
+  "version": 1, <1>
+  "upstream": { "repo": "example/widget", "remote": "upstream", "branch": "main" }, <2>
+  "branch": "debaser", <3>
+  "recipe": "bun-ts", <4>
+  "rebase": "conflicting", <5>
+  "tree": "../widget-debaser", <6>
+  "harness": { <7>
+    "command": ["claude", "-p", "Follow the instructions in {prompt_file}", "--allowedTools", "Read,Edit,Bash(bun test:*)"],
+    "kind": "claude",
+    "timeoutSeconds": 900,
+    "attempts": 3,
+    "tasks": {
+      "rebase": { "command": ["codex", "exec", "--sandbox", "workspace-write", "Follow the instructions in {prompt_file}"], "kind": "codex" } <8>
+    }
+  },
+  "patches": [
+    {
+      "source": { "kind": "pr", "repo": "example/widget", "number": 12 }, <9>
+      "description": "Add a --quiet option",
+      "added": "2026-11-02",
+      "pin": "4b6e0f2c9a1d7e3b8c5f0a2d6e9b1c4f7a3d8e05", <10>
+      "acceptance": { "run": ["bun", "run", "src/cli.ts", "--quiet", "status"], "exit": 0, "match": "^ok$", "timeout": 60 } <11>
+    },
+    {
+      "source": { "kind": "fork-branch", "repo": "contributor/widget", "branch": "faster-startup" }, <12>
+      "description": "Start without loading plugins eagerly",
+      "added": "2026-11-09"
+    },
+    {
+      "source": { "kind": "branch", "name": "fix-config-path" }, <13>
+      "description": "Read the config from XDG_CONFIG_HOME",
+      "added": "2026-11-16"
+    }
+  ],
+  "retired": [
+    {
+      "source": { "kind": "fork-branch", "url": "https://git.example.com/widget.git", "branch": "color-output" }, <14>
+      "description": "Color the status output",
+      "added": "2026-10-05",
+      "retired": "2026-11-20", <15>
+      "reason": "Merged upstream"
+    }
+  ]
+}
+----
+<1> The only version this debaser reads.
+<2> Upstream is `example/widget`, fetched from the remote `upstream`, branch `main`.
+<3> The integration branch; it differs from `upstream.branch`.
+<4> Skips detection and uses the generic recipe `bun-ts`.
+<5> Rebases only own branches that no longer merge cleanly onto upstream.
+<6> The build directory, relative to the main worktree.
+<7> Claude Code for every task, with the default limits written out.
+<8> Codex for rebasing; the entry sets its own `kind`.
+<9> A pull request of the upstream repository.
+<10> Merges exactly this commit, even after the pull request moves on.
+<11> Passes on exit 0 with an output line that is exactly `ok`, within 60 seconds.
+<12> A branch of another GitHub repository.
+<13> An own branch of the clone.
+<14> A branch of another repository by Git URL, without credentials.
+<15> `debaser remove` wrote the date and the reason.

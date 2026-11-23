@@ -153,3 +153,11 @@ rules:
       - '\brecipe\b'
       - '\btrust\b'
       - '--dir'
+  - glob: content/modules/ROOT/pages/reference/patches-json.adoc
+    require:
+      - 'upstream\.repo'
+      - '"rebase"'
+      - '"tree"'
+      - '"harness"'
+      - '"retired"'
+      - '"acceptance"'
