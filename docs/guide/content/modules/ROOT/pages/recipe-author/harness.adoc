@@ -6,7 +6,10 @@
 // debaser:src/core/patchlist.ts:140-164
 // debaser:src/core/patchlist.ts:168-184
 // debaser:src/core/paths.ts:4-16,27-28
-// debaser:src/cli/main.ts:62-68,92-98
+// debaser:src/cli/main.ts:62-71,92-98
+// debaser:src/run/rebase-phase.ts:47-52,235-238
+// debaser:src/rebase/rebase.ts:445-446
+// debaser:src/harness/invoke.ts:39,50,80
 // debaser:src/core/errors.ts:1-15
 // debaser:src/core/context.ts:10-15
 // debaser:src/harness/select.ts:7-52
@@ -109,7 +112,7 @@ For `debaser build` and `debaser continue` that is the build directory, and for 
 
 The `kind` picks an adapter.
 The adapter adds the flags that make the agent print its work as a stream of JSON events, and it reads that stream.
-The agent's text goes into the call's log, and the raw stream is kept next to it as a `.jsonl` file.
+The agent's text goes into the call's log, and for every kind except `plain` the raw stream is kept next to it as a `.jsonl` file.
 The token counts go into the report.
 Each adapter adds its flags only when your command does not already contain the option.
 
@@ -234,8 +237,9 @@ When the time runs out, debaser kills that whole group, so processes the agent s
 debaser also kills the group when the call ends and when you interrupt the run.
 
 `attempts` bounds the tries for one problem, for example one conflict, one failing step, or one failing acceptance check.
-The fixes the agent makes in one run are bounded as well, by `attempts` multiplied by the number of recipe steps plus the acceptance checks of patches the build does not skip.
-When the agent uses up its attempts or reaches that bound, the run stops with exit 5.
+The fixes the agent makes in one run are bounded as well, by `attempts` times the sum of the recipe steps and the acceptance checks of patches the build does not skip.
+When the agent uses up its attempts or reaches that bound at a merge conflict, a failing step, or a failing acceptance check, the run stops with exit 5.
+The `rebase` task differs: during a build, a branch the agent cannot rebase keeps its old tip and the run goes on, while `debaser rebase` stops with exit 5 at a conflict the agent gave up on.
 xref:recipe-author/harness-verification.adoc[What the agent is asked and how its work is checked] explains how the tries are judged and counted, and xref:user/stops.adoc#exit-5[Exit 5: the agent gives up] how to go on.
 
 [#per-task]
@@ -307,13 +311,13 @@ Without a usable harness, a merge conflict stops the run with exit 2, a step tha
 xref:user/stops.adoc[When a build stops] describes each stop.
 
 A program that runs but exits with a non-zero code and leaves no acceptable result is a different case.
-debaser ends its attempts for that problem at once and stops the run with exit 5, naming the exit code and the last line the agent printed.
+debaser ends its attempts for that problem at once; at a merge conflict, a failing step, or a failing acceptance check it stops the run with exit 5, naming the exit code and the last line the agent printed.
 
 == Add a harness to the patch list
 
 Set up a harness when you want debaser to try a conflict or a failing check with an agent before it stops for you.
 No debaser command writes the `harness` section, so you add it to `patches.json` in a text editor.
-`harness` is a key debaser knows, so it stays in place when a later command writes the file again.
+`harness` is a key debaser knows, so it is kept when a later command writes the file again.
 
 . Check that the agent's program is on your `PATH`.
 Replace `<agent>` with the program name from your command, for example `claude`.
