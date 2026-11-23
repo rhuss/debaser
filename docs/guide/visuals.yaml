@@ -79,3 +79,17 @@ visuals:
       # The container's home and temporary paths.
       - {pattern: "/root(?=/|\\b)", replacement: "~"}
       - {pattern: "/tmp/[^\\s:;,)]+", replacement: "/tmp/widget"}
+
+  # The effective recipe with each value's layer (debaser:src/views/recipe.ts:4-54):
+  # the project's committed recipe at the fetched upstream tip, then the local
+  # override in the data directory, which adds smoke after test.
+  recipe:
+    kind: cli
+    env: widget
+    command: debaser recipe
+    exit: 0
+    # The layers line is about 102 columns wide; at 100 it would wrap.
+    width: 110
+    masks:
+      # The upstream commit in `at upstream <sha7>` and `repo:...@<sha7>`.
+      - {pattern: "\\b[0-9a-f]{7,40}\\b", replacement: "0000000"}
