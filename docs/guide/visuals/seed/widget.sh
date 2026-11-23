@@ -29,21 +29,26 @@ HELPER=/srv/forks/helper/widget.git
 WORK=/work/widget
 SCRATCH=/tmp/widget-seed
 
-rm -rf /srv/upstream /srv/origin /srv/forks "$SCRATCH"
-mkdir -p "$WORK" "$SCRATCH"
+# Idempotent: a second run starts from scratch, clone and build directory included.
+cd /
+rm -rf /srv/upstream /srv/origin /srv/forks "$SCRATCH" "$WORK" "$WORK-debaser"
+mkdir -p "$SCRATCH" "$(dirname "$WORK")"
 for bare in "$UP" "$ORIGIN" "$HELPER"; do
   git init --quiet --bare "$bare"
 done
 
-# Upstream main: the tool, its test, and the project's own debaser recipe.
+# Upstream main: the tool, its scripts, and the project's own debaser recipe.
+# The steps take fixed times (lint 1s, test 2s, smoke 1s, build 1s), so the
+# verify phase dominates the build and the live view's timeline bar keeps its
+# proportions from capture to capture.
 git init --quiet "$SCRATCH/up"
 cd "$SCRATCH/up"
 cat > widget.sh <<'EOF'
 #!/bin/sh
 # widget: greets whoever is named on the command line.
 
-# Seconds widget waits before it starts.
-START_DELAY=2
+# Seconds widget waits before it starts (the environment may set it).
+START_DELAY="${START_DELAY:-2}"
 
 NAME="${1:-world}"
 
@@ -56,11 +61,25 @@ cat > test.sh <<'EOF'
 #!/bin/sh
 # Tiny test: widget greets the name it is given.
 set -e
-out=$(START_DELAY=0 sh widget.sh tester)
+out=$(START_DELAY=2 sh widget.sh tester)
 case "$out" in
   *"Hello, tester"*) echo "ok - widget greets by name" ;;
   *) echo "not ok - widget greets by name: $out"; exit 1 ;;
 esac
+EOF
+cat > lint.sh <<'EOF'
+#!/bin/sh
+# Stands in for a linter that takes a second: checks the syntax of widget.sh.
+sleep 1
+sh -n widget.sh
+EOF
+cat > build.sh <<'EOF'
+#!/bin/sh
+# Builds widget: copies widget.sh to the output path ($1); takes a second.
+set -e
+sleep 1
+mkdir -p "$(dirname "$1")"
+cp widget.sh "$1"
 EOF
 printf 'dist/\n' > .gitignore
 mkdir -p .debaser
@@ -73,7 +92,7 @@ install = "dist/widget-custom"
 
 [[steps]]
 name = "lint"
-run = ["sh", "-n", "widget.sh"]
+run = ["sh", "lint.sh"]
 
 [[steps]]
 name = "test"
@@ -81,7 +100,7 @@ run = ["sh", "test.sh"]
 
 [[steps]]
 name = "build"
-run = ["sh", "-c", "mkdir -p dist && cp widget.sh {output}"]
+run = ["sh", "build.sh", "{output}"]
 EOF
 git add -A
 git commit --quiet -m "Add widget, its test, and a debaser recipe"
@@ -95,8 +114,8 @@ cat > widget.sh <<'EOF'
 #!/bin/sh
 # widget: greets whoever is named on the command line.
 
-# Seconds widget waits before it starts.
-START_DELAY=2
+# Seconds widget waits before it starts (the environment may set it).
+START_DELAY="${START_DELAY:-2}"
 
 NAME="${1:-world}"
 
@@ -116,7 +135,7 @@ git fetch --quiet upstream
 
 # Own branch fast-start, pushed to origin.
 git checkout --quiet -b fast-start upstream/main
-sed 's/^START_DELAY=2$/START_DELAY=0/' widget.sh > widget.sh.new && mv widget.sh.new widget.sh
+sed 's/^START_DELAY="\${START_DELAY:-2}"$/START_DELAY="${START_DELAY:-0}"/' widget.sh > widget.sh.new && mv widget.sh.new widget.sh
 git commit --quiet -am "Start without the delay"
 git push --quiet origin fast-start
 git checkout --quiet main
@@ -133,7 +152,7 @@ cat > "$DATA/recipe.toml" <<'EOF'
 [[steps]]
 name = "smoke"
 after = "test"
-run = ["sh", "-c", "START_DELAY=0 sh widget.sh smoke"]
+run = ["sh", "-c", "START_DELAY=1 sh widget.sh smoke"]
 EOF
 
 case "$mode" in
@@ -156,8 +175,8 @@ case "$mode" in
   conflict)
     # Own branch rename-flag edits the line fast-start edits.
     git checkout --quiet -b rename-flag upstream/main
-    sed 's/^START_DELAY=2$/WIDGET_DELAY=2/; s/"\$START_DELAY"/"$WIDGET_DELAY"/' widget.sh > widget.sh.new && mv widget.sh.new widget.sh
-    sed 's/START_DELAY=0/WIDGET_DELAY=0/' test.sh > test.sh.new && mv test.sh.new test.sh
+    sed 's/START_DELAY/WIDGET_DELAY/g' widget.sh > widget.sh.new && mv widget.sh.new widget.sh
+    sed 's/START_DELAY=/WIDGET_DELAY=/' test.sh > test.sh.new && mv test.sh.new test.sh
     git commit --quiet -am "Rename START_DELAY to WIDGET_DELAY"
     git push --quiet origin rename-flag
     git checkout --quiet main

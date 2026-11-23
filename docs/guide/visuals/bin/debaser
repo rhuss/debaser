@@ -7,6 +7,8 @@
 # capture's width, waits for it to end, and prints the pane's final screen with
 # its colors; the exit status is the real command's. Without a terminal on
 # stdout (seed steps, pipes) it runs the real debaser directly.
+# stdin is not forwarded to the pane: never capture an interactive command
+# (debaser trust, a build that asks about a push) through this wrapper.
 set -u
 real=/usr/local/libexec/debaser
 [ -t 1 ] || exec "$real" "$@"

@@ -34,6 +34,10 @@ environments:
         files: [seed/widget.sh]
 
 visuals:
+  # The card's timeline bar splits about 70 cells by stage time
+  # (debaser:src/live/render.ts:794-802). The seed's fixed step times keep verify
+  # at about 5 of 5.4 seconds; the git stages stay near one cell each, so a rare
+  # one-cell shift on the bar line is rounding, not a content change.
   build-regular:
     kind: cli
     env: widget-build
@@ -49,7 +53,7 @@ visuals:
       # Run ids (report directories, yyyymmdd-hhmmss) before commit ids, which they would match.
       - {pattern: "\\b\\d{8}-\\d{6}(-\\d+)?\\b", replacement: "20260105-090000"}
       - {pattern: "\\b\\d+:\\d\\d(:\\d\\d)?\\b", replacement: "0:01"}
-      - {pattern: "\\b\\d+(\\.\\d+)?\\s?(ms|s|m|h)\\b", replacement: "1s"}
+      - {pattern: "\\b\\d+(\\.\\d+)?(ms|s|m|h)\\b", replacement: "1s"}
       - {pattern: "\\d{4}-\\d{2}-\\d{2}", replacement: "2026-01-05"}
       # Commit ids; the lookahead keeps the masked run id above intact.
       - {pattern: "\\b(?!\\d{8}-\\d{6}\\b)[0-9a-f]{7,40}\\b", replacement: "0000000"}

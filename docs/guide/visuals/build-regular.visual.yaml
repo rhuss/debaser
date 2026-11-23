@@ -6,13 +6,13 @@ image: content/modules/ROOT/images/visuals/build-regular.svg
 environment:
   name: widget-build
   image: localhost/debaser-visuals:0.1.0
-  digest: sha256:017021d71fd5cff8a9e5ad2b343fb34c3677e19fe338fa1bd6961b73f779c3a3
+  digest: sha256:be5fcf857fe61e3b02a17f4fa1e72fcefdea8cd4e18c0931895d9edf24cc297c
   platform: linux/arm64
   source: debaser
   source_commit: b46fcb260a1eb248a046999317cbfa98f73cb31b
-fingerprint: 08fe6bbdb715afb7
+fingerprint: 26f82bd1c9c2e05a
 capture_env: 4278a241e451
-captured_at: '2026-11-23T11:28:44Z'
+captured_at: '2026-11-23T11:36:41Z'
 redaction:
   rules:
   - home-path
@@ -40,11 +40,11 @@ redaction:
 masks: 8
 scripts: []
 highlights: []
-style: 7d69c437e5b9c3bb
+style: 3552c0f504d667d4
 text: |-
   $ debaser build --trust-recipe
   ✓ built dist/widget-custom on upstream 0000000 with 2 patches in 0:01
-   ▕████████████████████████████▏▕████████████████▏▕█████████████▏▕██████████▏▕██▏
+   ▕█▏▕█▏▕█▏▕████████████████████████████████████████████████████████████████████▏▕█▏
    fetch 0:01 · rebase 0:01 · merge 0:01 · verify 0:01 · accept 0:01
    branches  ■ 1 current
    patches   ■■ 2 merged
