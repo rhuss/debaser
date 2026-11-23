@@ -1,0 +1,452 @@
+= What the agent is asked and how its work is checked
+
+// Sources:
+// debaser:src/harness/select.ts:7-22
+// debaser:src/run/rebase-phase.ts:43
+// debaser:src/core/runstate.ts:47
+// debaser:src/harness/invoke.ts:13-58,97-107
+// debaser:src/run/common.ts:47-53
+// debaser:src/core/paths.ts:36
+// debaser:src/run/harness-merge.ts:18-95
+// debaser:src/run/harness-fix.ts:22-185
+// debaser:src/run/accept.ts:86-217
+// debaser:src/steps/install.ts:16-26
+// debaser:src/run/verifyloop.ts:78-99
+// debaser:src/run/build.ts:117,136-151
+// debaser:src/run/mergeloop.ts:56-79
+// debaser:src/run/common.ts:18-19,56-59
+// debaser:src/run/leftover.ts:1-11
+// debaser:src/git/merge.ts:28-44
+// debaser:src/harness/verify.ts:9-58
+// debaser:src/harness/prompts.ts:9-32
+// debaser:src/recipes/types.ts:1-2,18
+// debaser:src/recipes/schema.ts:56-61
+// debaser:src/recipes/resolve.ts:10-12,44-48,72-85,100-107
+// debaser:src/recipes/trust.ts:38-50,73-84
+// debaser:src/views/recipe.ts:50
+// debaser:src/cli/main.ts:92-98
+// debaser:src/prompts/conflict.md:1-42
+// debaser:src/prompts/check.md:1-36
+// debaser:src/prompts/acceptance.md:1-34
+// debaser:src/prompts/rebase-conflict.md:1-32
+// debaser:src/prompts/rebase-check.md:1-37
+// debaser:src/prompts/handoff.md:1-28
+// debaser:src/rebase/rebase.ts:393-408
+// debaser:src/rebase/rebase.ts:410-525
+// debaser:src/rebase/rebase.ts:570-628
+// debaser:src/rebase/rebase.ts:684-756
+// debaser:src/git/rebase.ts:19-21,37-39
+// debaser:src/run/rebase-phase.ts:106-112
+// debaser:src/run/resume.ts:51-98
+// debaser:src/run/resume.ts:104-143
+// debaser:src/run/harness-resume.ts:13-48
+// debaser:src/run/stop.ts:88-133
+// debaser:src/report/report.ts:18-35
+// debaser:src/report/report.ts:41-63
+// debaser:src/report/report.ts:108-131
+// debaser:src/report/report.ts:193-201
+// debaser:src/report/handoff.ts:13-168
+// debaser:src/steps/attribute.ts:11-52
+
+A harness lets debaser hand a conflict or a failing check to a coding agent, but debaser never takes the agent's word for the result.
+For every call it writes the task into a prompt, runs the agent, and then checks what the agent left in the working tree.
+Only an accepted result is kept, and debaser commits it itself.
+Knowing these rules helps you write prompt overrides that fit them and read a report that lists accepted and rejected attempts.
+
+This page covers the five tasks and their prompts, where debaser keeps each call's prompt and log, how it judges a conflict resolution and a fix, and what happens to a rejected attempt.
+It lists the commit messages and trailers for each case and explains the handoffs debaser writes per patch.
+It ends with the steps to override a prompt.
+xref:recipe-author/harness.adoc[Setting up the agent] shows how to configure the harness itself: the command, the kinds, the limits, and a different agent per task.
+
+== The five tasks
+
+debaser asks the agent for five kinds of work.
+The `tasks` key of the harness section groups them into four entries, because both rebase tasks use the `rebase` entry.
+For the rebase tasks, the name in `DEBASER_TASK` and in the prompt file names uses a hyphen, while the prompt override key in the recipe uses an underscore.
+
+[cols="2,3,1,1,1,2",options="header"]
+|===
+|Task |When debaser asks |`tasks` entry |`DEBASER_TASK` |Prompt override |Where the agent works
+
+|Merge conflict
+|Merging a patch conflicts, and Git's recorded resolutions (rerere) leave files unresolved.
+|`conflict`
+|`conflict`
+|`conflict`
+|the build directory
+
+|Failing step
+|A recipe step fails twice and passes on plain upstream.
+|`check`
+|`check`
+|`check`
+|the build directory
+
+|Failing acceptance check
+|An acceptance check fails twice; debaser hands over the first failing check in patch list order.
+|`acceptance`
+|`acceptance`
+|`acceptance`
+|the build directory
+
+|Rebase conflict
+|Replaying a commit of one of your own branches conflicts.
+|`rebase`
+|`rebase-conflict`
+|`rebase_conflict`
+|the rebase worktree
+
+|Failing check of a rebased branch
+|A recipe step fails on one of your own branches after its rebase.
+|`rebase`
+|`rebase-check`
+|`rebase_check`
+|the rebase worktree
+|===
+
+debaser does not ask the agent about a step that fails on plain upstream too.
+That run stops with exit 4 first, as xref:user/stops.adoc#exit-4[Exit 4: upstream is broken] explains.
+The rebase worktree is a throwaway worktree in debaser's `work` directory, or the branch's own worktree with `--in-worktree`; xref:user/own-branches.adoc[Rebasing your own branches] describes both.
+
+[#prompts]
+== What each prompt says
+
+debaser ships one Markdown template per task and fills it before each call.
+Each task prompt starts with a title that names the project, for example `# Fix a failing step in a patched <project> build`, where `<project>` is the recipe's `project_name`.
+Each of the five task templates ends with rules for the agent: leave the changes in the working tree, do not commit, and stop when done with a short account of what it changed.
+The conflict templates also forbid Git commands that change refs or the index, such as `commit`, `merge`, `rebase`, `reset`, `checkout`, `stash`, and `add`, because debaser stages and commits the result itself.
+
+The table lists the placeholders each template gets.
+A prompt override may use the same names, written as `+{{name}}+`.
+
+[cols="1,4",options="header"]
+|===
+|Template |Placeholders
+
+|`conflict`
+|`project`, `tree` (the build directory), `patch`, `description`, `prLink`, `prBody` (the pull request's description), `files` (the conflicted files), `upstream` (the upstream commit as one line), `mergedSoFar` (the patches merged before this one)
+
+|`check`
+|`project`, `tree`, `step`, `command`, `failing` (the parser's summary of the failure), `cause`, `attempt` (for example `1 of 3`), `patches` (the patches merged in this run), `log` (the path of the step's full log), `logExcerpt` (its last 200 lines), `finish` (the closing instruction)
+
+|`acceptance`
+|`project`, `tree`, `patch`, `description`, `prLink`, `command`, `expected` (the expected exit code and output pattern), `artifact` (the build output, or `none (the check runs against the tree)`), `attempt`, `logExcerpt`
+
+|`rebase_conflict`
+|`project`, `patch`, `description`, `branch`, `commit` (the commit being replayed), `upstream`, `files`
+
+|`rebase_check`
+|`project`, `patch`, `description`, `branch`, `upstream`, `step`, `command`, `failing`, `attempt`, `logExcerpt`, `base` and `from` (the upstream commit now and the one the branch was last based on, for the `git log` commands the prompt suggests)
+
+|`handoff`
+|`kind`, `patch`, `description`, `link`, `upstream`, `tree`, `problem`, `cause`, `fix`, `checkout`, `task` (see <<handoffs>>)
+|===
+
+debaser fills a list placeholder as one `- item` line per entry, and an empty list as `- none`.
+A value that is empty or unknown becomes `none`.
+A placeholder the template uses but debaser does not set stays in the prompt as written.
+
+The same `conflict` and `check` templates also produce the prompt files a stop writes, `fix-conflict.md` and `fix-<step>.md` in the report directory.
+For those, debaser adds a note that the agent works in the build directory and must not run debaser itself, because you run `debaser continue` afterwards.
+The `run it:` line of a stop runs an agent on that file, as xref:user/stops.adoc[When a build stops] describes.
+
+== Where prompts, logs, and raw streams are kept
+
+A run that calls the agent keeps its files in the run's report directory, under `reports` in the data directory.
+debaser numbers the agent calls of a run and writes three files per call into the report directory's `prompts` folder:
+
+* `NN-<task>.md` holds the prompt, where `NN` is the call number with at least two digits and `<task>` is the value of `DEBASER_TASK`, for example `03-check.md`.
+* `NN-<task>.log` starts with the command line debaser ran, after `$ `, followed by the agent's readable output.
+Its last line is `(exit <code>)`, or `(killed after <n>s)` when the call timed out.
+* `NN-<task>.jsonl` holds the raw event stream, for every kind except `plain`.
+
+The report's `Harness` section has one line per call, with what the call was about, the try number, `accepted` or `rejected: <reason>`, and the tokens.
+The `Agent-resolved merges` section lists the merges the agent resolved, and `Fix commits` lists every fix commit with `(agent)` or `(user)`.
+
+== How debaser checks a conflict resolution
+
+debaser records the commit and the state of the working tree before each call.
+After the call, it accepts a conflict resolution only when all of these hold, and rejects it with the reason shown otherwise:
+
+[cols="3,2",options="header"]
+|===
+|Condition |Reason when it fails
+
+|The agent made no commit: `HEAD` is where it was before the call.
+|`it committed`
+
+|The merge, or the rebase, is still in progress.
+|`it ended the merge or rebase`
+
+|Only the conflicted files changed.
+|`it changed files outside the conflict: <files>`
+
+|No conflicted file has a line that starts with `<<<<<<< ` or `>>>>>>> `, or is exactly `=======`.
+|`conflict markers remain in <file>`
+
+|After debaser stages the conflicted files, Git reports no unmerged path.
+|`still unmerged: <files>`
+|===
+
+debaser stages the files itself.
+For a merge conflict, it then commits the merge with the trailer `Resolved-By: harness` and goes on with the next patch.
+For a rebase conflict, it continues the rebase, as <<rebase-exception>> explains.
+
+== How debaser checks a fix
+
+The `check`, `acceptance`, and `rebase-check` tasks ask for a fix.
+When the agent made a commit anyway, debaser moves `HEAD` back to where it was and keeps the commit's changes in the working tree.
+It then accepts the fix when at least one file changed.
+Temporary files a build leaves, such as the recipe's `leftovers`, do not count.
+When nothing else changed, the fix is rejected with `it changed nothing`.
+
+The check does not require the failing step to pass.
+debaser commits the accepted fix and then runs the step again to see whether it helped, as <<fix-loop>> describes.
+
+[#verdict]
+=== Timeouts and failed calls
+
+Before it looks at the working tree, debaser checks how the call ended:
+
+* A call that timed out is rejected with `it timed out after <n>s`.
+* A call that left an acceptable result is accepted, whatever its exit code.
+* A call that left no acceptable result and exited with a non-zero code is rejected with `it exited <code>: <last line>`.
+The same applies when the adapter saw a failure in the event stream.
+debaser treats such a harness as broken and ends its attempts for that problem at once.
+
+== What a rejected attempt does
+
+A rejected attempt counts as one of the harness's `attempts`.
+What debaser undoes before the next one depends on the task:
+
+Merge conflict::
+debaser aborts the merge, resets the build directory to the commit before the call, and removes the files the attempt created.
+It then merges the patch again, so the conflict markers are back.
+Git forgets any recorded resolution for the conflicted files, so a rejected resolution is never replayed, and files rerere resolved stay staged.
+The next attempt starts from the fresh conflict.
+
+Failing step and failing acceptance check::
+After a timeout or a broken call, debaser resets to the commit before the call and removes the files the attempt created.
+A fix rejected because it changed nothing leaves nothing to undo.
+
+Rebase conflict::
+debaser aborts the rebase and, in a throwaway worktree, removes untracked files.
+It then replays the branch again from the commit that conflicted, onto the commits already replayed, so resolutions accepted for earlier commits stay.
+The `attempts` count separately for each replayed commit.
+
+Failing check of a rebased branch::
+debaser resets the worktree to the commit before the call, unless the fix changed nothing.
+The `attempts` count once per branch, over all its checks.
+debaser does not ask the agent while the branch's own worktree has changes of yours, so a rejected attempt cannot erase them.
+
+[#fix-loop]
+== Fixes that leave a step failing
+
+An accepted fix stays committed even when the step still fails.
+The next attempt starts from that commit, with the new failure.
+For a step, debaser keeps the log each fix answered as `steps/<step>-failed-<n>.log` in the report directory.
+
+After an accepted step fix, debaser runs the steps before the failing step again, and then the step itself.
+It skips the install step when debaser finds that the install is not needed, for example because none of its trigger files changed.
+When the step passes, verification starts over from the first step, because a fix can break a step that passed before it.
+When an earlier step fails, verification starts over from the first step too, and that step goes through the same handling as any failing step.
+
+After an accepted acceptance fix, every recipe step runs again from the first one, followed by every acceptance check.
+The attempts for an acceptance check carry over to the next pass and reset only when the check passes.
+
+On a rebased branch, every check runs again from the first after an accepted fix.
+
+== The fix bound and exit 5
+
+Accepted fixes that keep breaking each other could otherwise go on in a loop.
+debaser bounds them for the whole run at `attempts` multiplied by the sum of the recipe steps and the acceptance checks of patches the build does not skip.
+Step fixes and acceptance fixes count toward the same bound, also when they left the step failing.
+Fixes you make yourself and fixes on rebased branches do not count.
+Once the bound is reached, the next failing step or acceptance check stops the run with exit 5 at once.
+The reason reads `<step> fails again after the harness's <n> fixes`, or `the acceptance check of <patch> fails again after the harness's <n> fixes`.
+
+A merge conflict, a failing step, or a failing acceptance check also stops the run with exit 5 when the agent uses up its attempts or the harness is broken.
+xref:recipe-author/harness.adoc[Setting up the agent] describes how a rebase differs, and xref:user/stops.adoc#exit-5[Exit 5: the agent gives up] how to go on.
+When you run `debaser continue` after such a stop, the agent gets a fresh set of attempts for the conflict or the check, unless the bound is reached.
+
+=== An interrupted agent call
+
+When a run is interrupted while the agent works on a merge conflict, a step, or an acceptance check, `debaser continue` checks what the agent left with the same rules as for a finished call.
+debaser commits an accepted result as the agent's, with the message and trailer from <<commits>>.
+A rejected result stops the run at the conflict with exit 2, at the step with exit 3, or at the acceptance check with exit 6.
+
+[#commits]
+== Commit messages and trailers
+
+Every change debaser commits for an agent carries a trailer, except the resolution of a rebase conflict.
+Changes you commit through `debaser continue` carry none.
+In the table, `<patch>` is the patch's display name, `<description>` its description (the `: <description>` part is left out when the patch has none), and `<upstream>` the fetched upstream commit.
+
+[cols="2,3,1",options="header"]
+|===
+|Case |Commit message |Trailer
+
+|A patch merges cleanly, or rerere resolves every conflict
+|`Merge <patch>: <description>`
+|none
+
+|The agent resolves a merge conflict
+|`Merge <patch>: <description>`
+|`Resolved-By: harness`
+
+|You resolve a merge conflict and run `debaser continue`
+|`Merge <patch>: <description>`
+|none
+
+|The agent fixes a step
+|`debaser: fix <step> (agent)`
+|`Fixed-By: harness`
+
+|The agent fixes an acceptance check
+|`debaser: fix acceptance <patch> (agent)`
+|`Fixed-By: harness`
+
+|You fix a step and run `debaser continue`
+|`debaser: fix <step> (user)`
+|none
+
+|You fix an acceptance check and run `debaser continue`
+|`debaser: fix acceptance <patch> (user)`
+|none
+
+|The agent fixes a check of a rebased branch
+|`fix: pass <step> on upstream <first 7 characters of upstream>`, with the body `Made by debaser's harness after rebasing onto <upstream commit and subject>.`
+|`Fixed-By: harness`
+
+|The agent resolves a rebase conflict
+|no commit of its own: the replayed commit keeps its message
+|none
+|===
+
+When you commit the merge yourself before `debaser continue`, debaser takes your commit with your message.
+
+[#rebase-exception]
+=== The rebase-conflict exception
+
+An accepted rebase-conflict resolution does not get a commit of its own.
+debaser continues the rebase with `git rebase --continue` and lets Git keep the replayed commit's message, so the resolution becomes part of that commit.
+Nothing in the branch's history marks it as the agent's work.
+The build summary shows `harness` as the way the branch was rebased, and the report's `Harness` section lists the call.
+A replayed commit that ends up empty because upstream already has its change is dropped.
+
+A fix for a rebased branch's check is a separate commit on the branch.
+Before it pushes the branch or offers to, debaser asks you to review it: `review <branch> before pushing: the harness fixed its checks in <commits>`.
+
+== Fixes stay in the build
+
+The integration branch starts again from the upstream commit on every build, so the fixes on it never reach the next build.
+A step fix applies to this build only, and the `check` prompt tells the agent so.
+The lasting fix belongs in the patch's branch, and the handoffs say what it is.
+Fixes on your own rebased branches are the exception: they are commits on the branch itself.
+
+[#handoffs]
+== Handoffs per patch
+
+When debaser writes a report, it writes one handoff per affected patch into the report directory's `handoffs` folder, as `<patch>.md` with the patch name made safe for a file name.
+A patch with several problems gets one file that lists each problem with its kind.
+A stopped run that you continue writes the set again.
+xref:overview/concepts.adoc[Key concepts] explains what a handoff is for.
+
+A handoff has one of these kinds:
+
+[cols="1,3",options="header"]
+|===
+|Kind |When
+
+|`rebase`
+|The patch no longer merges cleanly onto upstream alone, or the rebase of one of your own branches stopped.
+
+|`rebase-checks`
+|One of your own branches was rebased, but a step fails on it alone; the branch keeps its old tip.
+
+|`build-drift`
+|A step failed in the patched build, and it fails with this patch merged alone onto upstream.
+
+|`build-clash`
+|A step failed in the patched build, and no implicated patch fails alone: the patches fail only together.
+
+|`acceptance`
+|The patch's acceptance check failed in the patched build.
+|===
+
+To find the patches behind a failing step, debaser looks for merged patches whose changed files the fix changed or the failure names.
+It runs the step with each of them merged alone onto upstream.
+It does this at a stop on a failing step, and for an agent's fix when it writes the report.
+A fix that no merged patch can be tied to gets no handoff; the report notes this next to the fix commit.
+
+The handoff's `Fix applied in the patched build` section shows the fix commit with its changed files, or `none` with a short note, for example `none; the patched build stopped on it`.
+Its prompt asks for the change in the patch's own branch, never in the integration branch.
+A conflict between patches that each merge cleanly onto upstream alone gets no handoff, only a note in the report that names the patches merged before it that touch the same files.
+
+== Override a prompt
+
+Override a prompt when the shipped wording does not fit your project, for example to point the agent at the project's contribution rules.
+The `[prompts]` table of a recipe takes the keys `conflict`, `check`, `acceptance`, `rebase_conflict`, `rebase_check`, and `handoff`.
+A value is the template itself, or the path of a Markdown file:
+
+* A value on one line that ends in `.md` is a file path.
+In the local recipe, a relative path starts from the data directory.
+In the project's `.debaser/recipe.toml`, the path is read from the `.debaser` directory at the fetched upstream commit.
+* Any other value is the template text, for example a TOML multi-line string.
+
+An override replaces the whole shipped template.
+A higher layer's override replaces a lower one's, as xref:recipe-author/recipes.adoc[Recipes and their layers] explains.
+
+[IMPORTANT]
+====
+The prompt files a project's recipe names are part of what you trust.
+A change to one of them changes the recipe's fingerprint, and debaser asks again, as xref:recipe-author/recipes.adoc#trust[Trust the project's recipe] describes.
+====
+
+These steps override the `check` prompt in your local recipe.
+They assume the default data directory; with `--dir` or `DEBASER_DIR`, use `<data directory>` instead of the `git rev-parse` part.
+
+. Create a directory for your prompts in the data directory.
++
+[source,bash]
+----
+mkdir -p "$(git rev-parse --git-common-dir)/debaser/prompts"
+----
+
+. Write the template into `prompts/check.md` there.
+Use the placeholders of the `check` template from <<prompts>>, and keep the rule that the agent leaves its changes uncommitted.
++
+[source,bash]
+----
+"${EDITOR:-vi}" "$(git rev-parse --git-common-dir)/debaser/prompts/check.md"
+----
+
+. Open the local recipe.
++
+[source,bash]
+----
+"${EDITOR:-vi}" "$(git rev-parse --git-common-dir)/debaser/recipe.toml"
+----
+
+. Add the `[prompts]` table with the path of your template, and save the file.
++
+[source,toml]
+----
+[prompts]
+check = "prompts/check.md"
+----
+
+. Show the effective recipe.
+debaser reads the template when it merges the layers.
+A path that does not exist stops the command with `debaser: local: prompt file prompts/check.md does not exist`.
++
+Check: the table lists `prompts.check` as `overridden`, from the layer `local`.
++
+[source,bash]
+----
+debaser recipe
+----
+// expect: contains "prompts.check"
+
+The next call for a failing step uses your template, and so does the `fix-<step>.md` prompt of a stop.
+Open the call's `NN-check.md` in the report's `prompts` folder to see the filled prompt.

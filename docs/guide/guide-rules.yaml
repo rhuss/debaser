@@ -134,3 +134,9 @@ rules:
       - 'attempts'
       - '"kind"'
       - 'plain'
+  - glob: content/modules/ROOT/pages/recipe-author/harness-verification.adoc
+    require:
+      - 'Resolved-By: harness'
+      - 'Fixed-By: harness'
+      - 'DEBASER_TASK'
+      - 'rebase_conflict'
