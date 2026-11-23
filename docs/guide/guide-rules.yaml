@@ -169,3 +169,12 @@ rules:
       - 'artifact\.install'
       - 'rtk-ai/rtk'
       - 'tals/corgi'
+  - glob: content/modules/ROOT/pages/reference/files-and-codes.adoc
+    require:
+      - '\block\b'
+      - 'work/'
+      - 'result\.json'
+      - 'DEBASER_DIR'
+      - '129'
+      - '130'
+      - '143'
