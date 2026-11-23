@@ -1,7 +1,7 @@
 # Brainstorm: A dedicated build worktree and visible configuration
 
 **Date:** 2026-11-22
-**Status:** active
+**Status:** spec-created (specs/002-build-worktree, merged in 8070090)
 
 ## Problem Framing
 
