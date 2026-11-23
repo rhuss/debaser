@@ -161,3 +161,11 @@ rules:
       - '"harness"'
       - '"retired"'
       - '"acceptance"'
+  - glob: content/modules/ROOT/pages/reference/recipe-toml.adoc
+    require:
+      - 'steps_replace'
+      - 'leftovers'
+      - 'install\.triggers'
+      - 'artifact\.install'
+      - 'rtk-ai/rtk'
+      - 'tals/corgi'
