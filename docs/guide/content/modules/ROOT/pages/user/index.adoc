@@ -15,9 +15,9 @@
 // debaser:src/cli/usage.ts:33-34
 // debaser:src/cli/usage.ts:40-43
 // debaser:src/cli/commands/status.ts:66
-// debaser:src/cli/main.ts:124-126
 // debaser:src/cli/commands/index.ts:152-155
 // debaser:src/core/tree.ts:32-40
+// debaser:src/run/rollback.ts:57-58
 
 This section takes you from installing debaser to a patched build that you refresh with one command, `debaser build`, whenever upstream moves.
 When a build stops, debaser tells you the reason and where to look, and the previous build stays as a fallback.
@@ -29,13 +29,13 @@ xref:overview/how-it-works.adoc[How a build works] follows one run step by step,
 Start with these two pages, in this order:
 
 . xref:user/install.adoc[Install debaser]: build debaser from source with Bun, the toolchain that compiles it into one executable, and check that your Git is version {debaser-git-min} or newer.
-. xref:user/first-build.adoc[Your first build]: set up a clone of the project with an `upstream` remote for the original and an `origin` remote for your fork, add your first patches, and run `debaser build`.
+. xref:user/first-build.adoc[Your first build]: set up a clone of the project with an `upstream` remote for the original repository and an `origin` remote for your fork, add your first patches, and run `debaser build`.
 
 Come back to these once your build runs:
 
 * xref:user/patch-list.adoc[Managing the patch list]: add patches (pull requests, branches of other repositories, or your own branches), list them, and retire the ones you no longer need.
 * xref:user/build-directory.adoc[The build directory]: where debaser builds the project (a second working directory next to your clone, `../<clone>-debaser` by default) and how to move it.
-* xref:user/stops.adoc[When a build stops]: what each stop's exit code means, and how to finish a stopped run with `debaser continue` or return to the last successful build with `debaser rollback`.
+* xref:user/stops.adoc[When a build stops]: what each stop's exit code means, and how to resume a stopped run with `debaser continue` or return to the last successful build with `debaser rollback`.
 * xref:user/status.adoc[Reading status]: see each patch's state and how far upstream moved, without changing anything.
 * xref:user/own-branches.adoc[Rebasing your own branches]: how debaser rebases your own branches onto upstream, during a build or with `debaser rebase` alone, and pushes them to your fork when you ask.
-* xref:user/headless.adoc[Running headless]: run debaser without a terminal, for example from a script, read its result as JSON, and act on its exit code.
+* xref:user/headless.adoc[Running headless]: run debaser without a terminal (for example, from a script), read its result as JSON, and act on its exit code.

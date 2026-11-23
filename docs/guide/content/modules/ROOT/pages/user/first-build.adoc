@@ -48,7 +48,7 @@
 // debaser:src/cli/commands/index.ts:101-110
 // visual:build-regular
 
-This page takes you from a plain clone of a project to its first patched build.
+This page takes you from a clone of a project to its first patched build.
 You give the clone an `upstream` remote for the original repository, add your first patches to the patch list, and build once.
 When upstream moves later, you run the same build command again to refresh the build.
 
@@ -99,7 +99,7 @@ git fetch upstream
 
 == Add your first patches
 
-The first `debaser add` creates the patch list, `patches.json` in debaser's data directory, which by default lives in the clone's shared Git directory.
+The first `debaser add` creates the patch list, `patches.json`, in debaser's data directory, which by default lives in the clone's shared Git directory.
 It takes the upstream repository, `<owner>/<repo>`, from the URL of the `upstream` remote, and the upstream branch from that remote's default branch.
 The integration branch, the branch debaser builds, is `debaser`.
 Every later `debaser add` appends a patch at the end of the list, and debaser merges the patches in the order of the list.
@@ -150,7 +150,7 @@ debaser add <fork-owner>/<fork-repo>:<branch>
 // expect: contains "added"
 
 . Show the patch list.
-The output starts with three lines: the data directory (`data`), the patch list file (`config`), and the build directory (`build`), which is marked as not created yet before the first build.
+The output starts with three lines: the data directory (`data`), the patch list file (`config`), and the build directory (`build`), which debaser marks as `not created yet` until the first build.
 The patches follow in the order debaser merges them.
 +
 Check: the `config` line names the patch list, `patches.json`.
@@ -168,7 +168,7 @@ xref:user/patch-list.adoc[Managing the patch list] covers every source form and 
 
 == Check the recipe
 
-A recipe tells debaser how to check, build, and install the project.
+A recipe lists the steps debaser runs on the merged code, such as tests and a build, and can name a build output for debaser to install.
 debaser assembles it from layers: a generic recipe for the type of project, a built-in recipe for a known upstream repository, the project's own `.debaser/recipe.toml`, and a local `recipe.toml` in the data directory.
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains how the layers combine.
 
@@ -198,7 +198,7 @@ It shows what the recipe runs and installs, followed by `Trust it? [y/N]`.
 Any answer other than `y` or `yes` stops the build with nothing changed.
 `--trust-recipe` trusts the recipe without the question and records the trust for later runs.
 Without a terminal to ask on and without `--trust-recipe`, the build refuses with exit 1.
-xref:recipe-author/recipes.adoc[Recipes and their layers] covers trust in detail.
+xref:recipe-author/recipes.adoc#trust[Trust the project's recipe] covers trust in detail.
 
 == Run the build
 
@@ -215,7 +215,7 @@ The recipe's build output and installed artifact live in the build directory, un
 On a color terminal, debaser shows a live view of the run, a progress card that it redraws in place.
 Piped into a file or another program, or with `--json`, it prints plain progress lines instead.
 At its start, the build prints a line that names the build directory and the patch list it uses.
-The plain progress lines always include it; the live view shows it only with `--verbose`.
+The plain progress lines always include that line; the live view shows it only with `--verbose`.
 +
 Check: the build finishes with exit 0, and its summary names what was `built`: the installed artifact's path relative to the build directory, or the integration branch when the recipe installs nothing.
 +
@@ -236,9 +236,9 @@ git worktree list
 // expect: contains "-debaser"
 
 . Confirm that the installed artifact exists.
-If `artifact.install` is a relative path, `<install>` is that value, relative to the build directory.
-If it is absolute, run `ls` on that path itself.
 If `debaser recipe` shows no `artifact.install`, as with the generic recipes, skip this step.
+If `artifact.install` is a relative path, use it as `<install>` in the command below.
+If it is absolute, run `ls` on that path itself.
 +
 Check: the file exists.
 +
@@ -253,7 +253,7 @@ Its successful build, started with `debaser build --trust-recipe`, ends with thi
 
 image::visuals/build-regular.svg["Live view at the end of debaser build --trust-recipe for the widget project: built dist/widget-custom with 2 patches, the phases fetch, rebase, merge, verify, and accept, one current branch, two merged patches, the report path, and the artifact path",role=expand]
 
-The first line names what was built, `dist/widget-custom`, which is the installed artifact relative to the build directory.
+The line below the command names what was built, `dist/widget-custom`, which is the installed artifact relative to the build directory.
 It also names the upstream commit and the number of patches, 2.
 Below the timeline, the view lists the phases, one current branch, and two merged patches.
 The report lies under `.git/debaser/reports/` in the clone `/work/widget`.

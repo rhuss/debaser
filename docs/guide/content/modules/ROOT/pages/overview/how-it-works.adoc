@@ -44,25 +44,28 @@
 // debaser:src/run/rebase-phase.ts:104-124
 // debaser:src/run/harness-fix.ts:33-40
 // debaser:src/harness/select.ts:11-21
+// debaser:src/live/render.ts:939
+// debaser:src/report/report.ts:99,132
 // visual:build-regular
 
 `debaser build` runs its phases in a fixed order.
 It fetches upstream and the patches, rebases your own branches, resets the integration branch, and merges the patches onto it.
 Then it runs the recipe's steps and the acceptance checks, and only after all of them pass does it install the build output.
 Most phases can stop the run, and the exit code names the kind of stop.
+xref:overview/concepts.adoc[Key concepts] defines the terms this page uses.
 
 A run that gets through every phase ends with a summary like this one:
 
-image::visuals/build-regular.svg["Output of a successful debaser build: the installed artifact, a timeline of the fetch, rebase, merge, verify, and accept phases, one current branch, two merged patches, the report path, and the artifact path",role=expand]
+image::visuals/build-regular.svg["Output of a successful debaser build: the installed artifact, a timeline of the fetch, rebase, merge, verify, and accept phases, one current branch, two merged patches, the report path, and the path of the installed artifact",role=expand]
 
-The first line of the summary names what was built, the upstream commit it was built on, and the number of patches.
+The first line of the summary names what was built, the upstream commit it was built on, the number of merged patches, and how long the run took.
 What was built is the installed artifact, as a path relative to the build directory, or the integration branch when nothing is installed.
 Below the timeline, the summary lists the time of each phase, the branches (one current), and the patches (two merged).
 The last lines give the report path and the path of the installed artifact.
 
 == The phases
 
-image::build-pipeline.svg["One run of debaser build from lock and preflight to report, with the points where a coding agent steps in and the exit code of each kind of stop",role=expand]
+image::build-pipeline.svg["One run of debaser build from lock and preflight to report, with the Git refs and branches the phases write, the points where a coding agent steps in, and the exit code of each kind of stop",role=expand]
 
 The diagram shows the phases in order, the Git refs and branches they write, and the stops that branch off.
 The sections below follow the same order and name what can stop each phase.
@@ -72,10 +75,11 @@ xref:user/stops.adoc[When a build stops] explains how to read a stop and how to 
 === Lock and preflight
 
 `build` is one of the commands that change your clone or debaser's files, so it first takes the run lock in debaser's xref:overview/concepts.adoc[data directory].
-While another live debaser process holds that lock, `build` refuses to start; a lock left by a process that ended is taken over.
-`build` also refuses when an earlier run is stopped or still in progress, and it says where that run stopped and which commands go on from there.
+While another live debaser process holds that lock, `build` refuses to start.
+It takes over a lock left by a process that has ended.
+`build` also refuses when an earlier run is stopped or still in progress, and it says where that run stopped and which commands resume or undo it.
 
-The preflight checks the Git version, the name of the integration branch, and the remote that upstream is fetched from.
+The preflight checks the Git version, the name of the integration branch, and the remote that debaser fetches upstream from.
 That remote is the one the patch list names; when the patch list names `upstream` and no such remote exists, debaser uses `origin`.
 With `--push`, the preflight also requires an `origin` remote that pushes to a repository of your own, not to the upstream repository.
 debaser prepares the build directory only after every preflight check passes, so a refusal leaves no directory behind.
@@ -87,7 +91,7 @@ What stops it: a refusal, with exit 1 and nothing changed.
 debaser fetches the upstream branch first.
 Then it fetches each patch of the patch list in order.
 A pull request or a branch of another repository is fetched into a private ref under `refs/debaser/`; a pull request lands in `refs/debaser/<owner>/<repo>/pull/<number>`.
-Your own branches are used as they are, as the local branch or the copy on `origin`.
+debaser uses your own branches as they are, as the local branch or the copy on `origin`.
 debaser reads the project's own recipe (`.debaser/recipe.toml`) from the fetched upstream, never from a patch.
 
 The fetch also decides which patches to merge.
@@ -100,9 +104,9 @@ A xref:overview/concepts.adoc[pinned patch] (one that the patch list fixes to a 
 
 === Rebase own branches
 
-Before the reset, debaser rebases your own branches onto the new upstream and runs the recipe steps on each rebased branch.
+Before the reset, debaser rebases your own branches onto the fetched upstream commit and runs the recipe steps on each rebased branch.
 The merge then uses their new tips.
-The rebase mode decides which branches it touches: `all` (the default), `conflicting` (only branches that no longer merge cleanly), or `off`.
+The rebase mode decides which branches the rebase touches: `all` (the default), `conflicting` (only branches that no longer merge cleanly), or `off`.
 The `--rebase` option overrides the patch list's `rebase` setting for one run.
 A pinned patch is never rebased.
 
@@ -114,7 +118,7 @@ The run goes on.
 === Reset
 
 debaser points the integration branch at the fetched upstream commit with `git checkout -B` in the build directory.
-If the reset fails, debaser forgets the run before anything is merged.
+If the reset fails, debaser discards the run's state before anything is merged, so no stopped run is left behind.
 
 What stops it: a failed reset, with exit 1 and no report.
 
@@ -123,7 +127,7 @@ What stops it: a failed reset, with exit 1 and no report.
 debaser merges the patches onto the integration branch one by one, in the order of the patch list.
 Each merge is a merge commit titled `Merge <patch>: <description>`, or `Merge <patch>` when the patch has no description.
 The branch history says what each patch is.
-Git records how conflicts were resolved and replays those resolutions on the next run.
+Git's rerere records how conflicts were resolved and replays those resolutions on the next run.
 
 When a conflict has no recorded resolution, debaser hands it to the agent that the harness runs for conflicts.
 If debaser accepts the agent's resolution, it goes on with the next patch.
@@ -134,6 +138,7 @@ When the agent cannot resolve the conflict, the run stops with exit 5.
 === Recipe steps
 
 debaser runs the recipe's steps in order in the build directory.
+The summary and the diagram call this phase verify.
 A step that fails runs once more, in case it is flaky.
 When it fails a second time, debaser runs it on plain upstream: the fetched upstream commit without any patches merged.
 That run uses a throwaway worktree and first runs the recipe's install step and every step before the failing one.
@@ -149,6 +154,7 @@ A step that fails only with the patches stops the run with exit 3 when no harnes
 === Acceptance checks
 
 After every step has passed, debaser runs the acceptance check of each merged patch that has one.
+The summary and the diagram call this phase accept.
 When the recipe names a build output, the check finds it through the `DEBASER_ARTIFACT` environment variable.
 A failing check runs once more, in case it is flaky.
 
@@ -160,13 +166,13 @@ When the agent runs out of attempts on the check, or the run reaches its limit o
 
 === Install and finish
 
-Before the install, debaser pushes your rebased branches to `origin` when you pass `--push` or confirm on a terminal.
+Before the install, debaser pushes your rebased branches to `origin` when you pass `--push` or confirm the prompt on a terminal.
 Otherwise it prints the push commands.
 Only now does the installed artifact change.
-The build output replaces the installed artifact, and the installed artifact from the start of the run is kept as `<target>.prev`.
+The build output replaces the installed artifact, and debaser keeps the one from the start of the run as `<target>.prev`, where `<target>` is the install path.
 When the build output does not exist, debaser warns and installs nothing.
-The branch `<branch>-prev` moves to where the integration branch was when the run started, so `debaser rollback` finds the previous integration branch next to the previous installed artifact.
 When the recipe names no install path, debaser installs nothing.
+The branch `<branch>-prev` moves to where the integration branch was when the run started, so `debaser rollback` finds the previous integration branch next to the previous installed artifact.
 
 When the recipe sets an after-build command, it runs next.
 A failing after-build command is a warning; the build itself succeeded.
@@ -177,9 +183,9 @@ A failed push only makes the run end with exit 1 instead of 0.
 
 === Report
 
-A run that finishes, or stops at a merge, a step, or an acceptance check, writes a report.
+A run that finishes, or stops at a merge, a recipe step, or an acceptance check, writes a report.
 The report goes into its own directory under `reports` in debaser's data directory, which by default lives in the clone's shared Git directory.
-The report and the run's result carry the final exit code.
+The report and the `result.json` next to it carry the final exit code.
 A refusal, a failed fetch, or a failed reset ends the run with exit 1 and no report.
 
 A stop names the reason, the build directory, and the report, and it offers `debaser continue` and `debaser rollback`.
