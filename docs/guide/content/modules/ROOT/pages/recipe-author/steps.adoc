@@ -1,6 +1,8 @@
 = Steps, install, and artifact
 
 // Sources:
+// debaser:src/run/build.ts:113
+// debaser:src/run/build.ts:138
 // debaser:src/recipes/schema.ts:5-91
 // debaser:src/recipes/types.ts:4-5
 // debaser:src/recipes/types.ts:20-21
@@ -312,7 +314,8 @@ From a URL with a scheme, such as `https://`, debaser removes the user name and 
 |`DEBASER_MANIFEST`
 |The path of `manifest.json` in the data directory.
 debaser writes it when the steps start in the build directory, with `version`, `upstream` (`repo`, `branch`, `tip`), `commit`, `fork`, and `patches`.
-Its `commit` is the build directory's commit, also when a step runs in another tree.
+On plain upstream, its `commit` is still the build directory's commit.
+The checks of your own branches run before debaser writes the file in that run, so they see the previous build's file or none.
 |===
 
 Steps get these variables in the build directory, on plain upstream, and in the checks of your own branches after a rebase.
@@ -434,7 +437,7 @@ xref:recipe-author/recipes.adoc[Recipes and their layers] explains the output.
 . Build.
 +
 Check: the end of the output names the installed artifact.
-In plain output, the summary starts with `debaser: built dist/gadget-custom`; on a color terminal, the last line is `build done · artifact` followed by the absolute path, ending in `dist/gadget-custom`.
+In plain output, the summary starts with `debaser: built dist/gadget-custom`; on a color terminal, the last line contains `build done · artifact` followed by the absolute path, ending in `dist/gadget-custom`.
 Skip this check when the build stops; xref:user/stops.adoc[When a build stops] explains each stop.
 +
 [source,bash]
