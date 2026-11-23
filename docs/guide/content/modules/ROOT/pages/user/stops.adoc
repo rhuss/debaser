@@ -77,7 +77,7 @@ The lines below it name what you need to go on:
 * `build directory:` is where you fix the problem, not the checkout you started debaser from.
 * `report:` is the run's `report.md`, whose result line reads `Result: stopped (exit <code>): <reason>`.
 * `handoff:` names a file per patch the stop points at, with the problem, its cause, and a task for fixing that patch.
-* One or more lines say what to do next, for example `resolve the conflicts, `git add` the files, then continue`.
+* One or more lines say what to do next, for example `+resolve the conflicts, `git add` the files, then continue+`.
 * `prompt for an agent:` and `run it:` appear for a merge conflict or a failing recipe step.
 They name a prompt file in the report directory and a command that runs an agent on it in the build directory.
 * `continue: debaser continue` and `undo the run: debaser rollback` close the message.

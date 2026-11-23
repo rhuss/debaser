@@ -169,7 +169,7 @@ The message is `<name> is already in the list`.
 Retired patches do not count, so a source you retired can be added again.
 
 The source is the integration branch or the previous build::
-An own branch named like the integration branch (default `debaser`) or its backup `<integration branch>-prev` is refused, because debaser resets both on every run.
+One of your own branches named like the integration branch (default `debaser`) or its backup `<integration branch>-prev` is refused, because debaser resets both on every run.
 The message ends with `rename it or set another branch`.
 `debaser build` refuses such a patch too, should it get into `patches.json` by an edit.
 
@@ -185,7 +185,7 @@ debaser refuses such a URL in `patches.json` as well.
 == Pin a patch
 
 A pin holds a patch at one commit.
-debaser merges exactly that commit, even after the source moves on, and never rebases a pinned patch, not even an own branch.
+debaser merges exactly that commit, even after the source moves on, and never rebases a pinned patch, not even one of your own branches.
 When the source cannot be fetched any more, for example a deleted branch, the build merges the pinned commit and adds a warning to the run.
 When the pinned commit is not in your clone, the build tries to fetch it by its id from where the patch comes from (for your own branch, from `origin`; without `origin` it does not try).
 If that fails too, the build stops with `cannot find the pinned commit <sha> of <name>`.

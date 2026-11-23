@@ -70,7 +70,7 @@ The harness is the configured integration that runs a coding agent, and the reba
 An own patch is a patch whose branch debaser may rebase and push to `origin`.
 Three kinds of patch qualify:
 
-* An own branch (`branch`), a local branch of your clone.
+* A local branch of your clone (`branch`).
 * A pull request whose head repository is the repository `origin` pushes to.
 debaser considers a pull request only when `origin` pushes to GitHub (the host in `GH_HOST`, default `github.com`) or to a local path.
 It asks the GitHub CLI (`gh`) for the pull request's head repository.

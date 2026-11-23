@@ -130,6 +130,8 @@ Only one debaser command that changes things runs at a time per data directory, 
 
 == Where to go next
 
+* xref:overview/how-it-works.adoc[How a build works]: each phase of a `debaser build`, and what can stop it.
+* xref:overview/concepts.adoc[Key concepts]: the terms the rest of the guide uses.
 * xref:user/index.adoc[User guide]: keep a patched build of a project, from the first patch list to recovering from a stopped run.
 * xref:recipe-author/index.adoc[Recipe author guide]: write the recipe that tells debaser how to check, build, and install a project.
 

@@ -276,19 +276,30 @@ A script that runs the build and reports how it ended could look like this:
 [source,bash]
 ----
 #!/bin/sh
-cd <clone> || exit 1
-debaser build --json --push < /dev/null > <result file> 2> <log file>
+clone=/path/to/your/clone
+result=/tmp/debaser-result.json
+log=/tmp/debaser.log
+
+cd "$clone" || exit 1
+debaser build --json --push < /dev/null > "$result" 2> "$log"
 code=$?
 case $code in
   0) ;;
-  1) echo "debaser refused or failed, see <log file>" >&2 ;;
+  1)
+    if [ -s "$result" ]; then
+      echo "debaser finished, but a push failed or was refused, see $result and $log" >&2
+    else
+      echo "debaser refused or failed, see $log" >&2
+    fi
+    ;;
   129|130|143) echo "debaser was interrupted" >&2 ;;
-  *) echo "debaser stopped with exit $code, see <result file>" >&2 ;;
+  *) echo "debaser stopped with exit $code, see $result" >&2 ;;
 esac
 exit $code
 ----
 
-`<clone>` is your clone, `<result file>` the file that receives the JSON, and `<log file>` the file that receives the progress and summary lines.
+Set `clone` to your clone, `result` to the file that receives the JSON, and `log` to the file that receives the progress and summary lines.
+A refusal or an error writes no JSON, so the script tells an exit 1 with a result file (a finished build whose push failed or was refused) from one without.
 
 [#reports]
 == Reports and `latest`

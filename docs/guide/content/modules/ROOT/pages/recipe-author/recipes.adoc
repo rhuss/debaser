@@ -222,7 +222,7 @@ Run it after you add or change a layer, to see what your change did before a bui
 
 The command only reads.
 It does not fetch: it uses the upstream commit you fetched last.
-It leaves an untrusted project recipe out without asking, and adds the note `+.debaser/recipe.toml at <commit> is not trusted and not used; `debaser trust` reviews it+`.
+It leaves an untrusted `.debaser/recipe.toml` out without asking, and adds the note `+.debaser/recipe.toml at <commit> is not trusted and not used; `debaser trust` reviews it+`.
 
 The output has three parts:
 

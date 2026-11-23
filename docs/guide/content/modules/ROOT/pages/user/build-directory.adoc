@@ -220,7 +220,7 @@ git worktree list
 ----
 // expect: contains "[debaser]"
 
-The `not-contains "-debaser"` expectation in step 2 fits the default name; with your own `tree`, look for your old path instead.
+With the default `tree`, the old path ends in `-debaser`; with your own `tree`, look for the path you had set.
 
 == Build in place
 
@@ -368,7 +368,7 @@ git -C <main checkout> branch --show-current
 ----
 // expect: not-contains "debaser"
 
-The expectation fits the default integration branch name, `debaser`.
+If your integration branch has another name than `debaser`, look for that name instead.
 
 === The integration branch checked out in another worktree
 
