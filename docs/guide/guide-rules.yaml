@@ -53,3 +53,13 @@ rules:
       - 'bun install'
       - 'bun run build'
       - 'debaser --version'
+  - glob: content/modules/ROOT/pages/user/first-build.adoc
+    require:
+      - '^Check:'
+      - 'visuals/build-regular\.svg'
+      - '--upstream'
+    require_order:
+      - 'git remote add upstream'
+      - 'debaser add'
+      - 'debaser build'
+      - 'debaser status'
