@@ -81,7 +81,8 @@ A step with a new name goes before or after the step it names with `before` or `
 
 After the merge, the recipe needs at least one step, and `install.step` must name one of the steps.
 Otherwise debaser stops with `the recipe has no steps` or `the install step <name> is not one of the recipe's steps`.
-A step placed before or after a name that is not among the steps merged so far (the lower layers' steps and the earlier steps of its own layer) stops it with `step <name> is placed before <other>, which no lower layer has` (or `after`).
+A step must be placed before or after a name among the steps merged so far: the lower layers' steps and the earlier steps of its own layer.
+Otherwise debaser stops with `step <name> is placed before <other>, which no lower layer has` (or `after`).
 
 When no layer sets `project_name`, debaser uses the repository part of the patch list's `upstream.repo`.
 

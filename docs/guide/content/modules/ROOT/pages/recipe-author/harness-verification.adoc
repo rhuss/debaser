@@ -120,7 +120,8 @@ The rebase worktree is a throwaway worktree in debaser's `work` directory, or th
 == What each prompt says
 
 debaser ships one Markdown template per task and fills it before each call.
-Each task prompt starts with a title that names the project, for example `# Fix a failing step in a patched <project> build`, where `<project>` is the recipe's `project_name`, or the repository part of the patch list's `upstream.repo` when the recipe sets none.
+Each task prompt starts with a title that names the project, for example `# Fix a failing step in a patched <project> build`.
+`<project>` is the recipe's `project_name`, or the repository part of the patch list's `upstream.repo` when the recipe sets none.
 Each of the five task templates ends with rules for the agent: do not commit, and stop when done with a short account of what it changed; the fix templates also tell it to leave the changes in the working tree.
 The conflict templates also forbid Git commands that change refs or the index, such as `commit`, `merge`, `rebase`, `reset`, `checkout`, `stash`, and `add`, because debaser stages the result itself and then commits the merge or continues the rebase.
 

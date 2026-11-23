@@ -88,56 +88,7 @@ When the `config` line names a path instead of `none`, a local recipe exists alr
 
 == Step 2: write the recipe
 
-The recipe for notes has three steps, an install step, the build output with its installed copy, and one glob for temporary files:
-
-[source,toml]
-----
-project_name = "notes CLI"
-leftovers = ["**/__pycache__/**"]
-
-[install]
-step = "install"
-triggers = ["uv.lock", "pyproject.toml"]
-marker = ".venv"
-
-[artifact]
-output = "dist/notes.pyz"
-install = "dist/notes-custom.pyz"
-
-[[steps]]
-name = "install"
-run = ["uv", "sync"]
-
-[[steps]]
-name = "test"
-run = ["uv", "run", "python", "-m", "pytest", "{tests}"]
-tests = ["tests"]
-timeout = 600
-
-[[steps]]
-name = "build"
-run = ["uv", "run", "python", "build.py", "--output", "{output}"]
-----
-
-What each part does:
-
-* `project_name` is the name debaser puts into the prompts for a coding agent.
-* `leftovers` lists globs of temporary files that debaser never commits with a fix.
-* `[install]` names the step that installs the dependencies.
-debaser runs it when `.venv` is missing from the build directory.
-It also runs it when `uv.lock` or `pyproject.toml` changed between the commit the build directory had at the start of the run and the merged result, and skips it otherwise.
-* `[artifact]` sets two different paths.
-`output` is where the build step writes, and steps get it as `+{output}+`.
-`install` is where debaser copies that file once every step and every acceptance check has passed.
-Both paths are relative to the build directory, and debaser installs only when both keys are set.
-* Each `+[[steps]]+` table is a step, and debaser runs them in this order.
-`run` is the command with one argument per array element.
-* On a full run, `+{tests}+` becomes the step's `tests` list, here `tests`.
-Only the `bun-test` parser narrows a rerun to the failing files, so the rerun of a failing `test` step here runs the whole command again.
-* None of the steps sets `parser`, so debaser reads their logs with the generic scan, which picks out path-like words from the log.
-* `timeout = 600` kills the `test` step after 600 seconds.
-
-xref:recipe-author/steps.adoc[Steps, install, and artifact] explains every one of these keys.
+The recipe for notes has three steps, an install step, the build output with its installed copy, and one glob for temporary files.
 
 . Write the recipe to `recipe.toml` in the data directory.
 The command assumes the default data directory; with `--dir` or `DEBASER_DIR`, write to `<data directory>/recipe.toml` instead.
@@ -172,6 +123,26 @@ name = "build"
 run = ["uv", "run", "python", "build.py", "--output", "{output}"]
 EOF
 ----
+
+What each part does:
+
+* `project_name` is the name debaser puts into the prompts for a coding agent.
+* `leftovers` lists globs of temporary files that debaser never commits with a fix.
+* `[install]` names the step that installs the dependencies.
+debaser runs it when `.venv` is missing from the build directory.
+It also runs it when `uv.lock` or `pyproject.toml` changed between the commit the build directory had at the start of the run and the merged result, and skips it otherwise.
+* `[artifact]` sets two different paths.
+`output` is where the build step writes, and steps get it as `+{output}+`.
+`install` is where debaser copies that file once every step and every acceptance check has passed.
+Both paths are relative to the build directory, and debaser installs only when both keys are set.
+* Each `+[[steps]]+` table is a step, and debaser runs them in this order.
+`run` is the command with one argument per array element.
+* On a full run, `+{tests}+` becomes the step's `tests` list, here `tests`.
+Only the `bun-test` parser narrows a rerun to the failing files, so the rerun of a failing `test` step here runs the whole command again.
+* None of the steps sets `parser`, so debaser reads their logs with the generic scan, which picks out path-like words from the log.
+* `timeout = 600` kills the `test` step after 600 seconds.
+
+xref:recipe-author/steps.adoc[Steps, install, and artifact] explains every one of these keys.
 
 == Step 3: check the recipe
 
@@ -256,7 +227,13 @@ A project can commit a recipe as `.debaser/recipe.toml`.
 debaser reads that file with Git from the fetched upstream commit, never from a patch, so it takes effect only once it is on the upstream branch your patch list follows.
 Unlike your local recipe, debaser uses it only after you trust it.
 
-In the commands below, `<branch>` is a new branch name of your choice, `<upstream-branch>` is the upstream branch your patch list follows, and `<upstream-remote>` is the remote debaser fetches it from: `upstream` by default, or `origin` when the clone has no `upstream` remote.
+In the commands below:
+
+* `<branch>` is a new branch name of your choice.
+* `<upstream-branch>` is the upstream branch your patch list follows.
+* `<upstream-remote>` is the remote debaser fetches it from.
+
+That remote is `upstream` by default, or `origin` when the clone has no `upstream` remote.
 
 . Put the recipe on a new branch based on upstream and commit it.
 +

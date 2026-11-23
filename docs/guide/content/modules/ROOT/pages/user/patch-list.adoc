@@ -163,7 +163,8 @@ xref:user/install.adoc[Install debaser] lists what else changes without `gh`.
 
 The source is already in the list::
 debaser compares sources by what they name, not by how you typed them.
-A pull request counts by its repository, in any letter case, and its number, so `<number>`, `#<number>`, `<owner>/<repo>#<number>`, and the pull request's URL name the same patch when `<owner>/<repo>` is upstream.
+A pull request counts by its repository in any letter case and its number.
+So `<number>`, `#<number>`, `<owner>/<repo>#<number>`, and the pull request's URL name the same patch when `<owner>/<repo>` is upstream.
 A branch of another repository counts by the last two parts of the repository's path and the branch, so `<owner>/<repo>:<branch>`, its tree URL, and `\https://github.com/<owner>/<repo>.git#branch=<branch>` name the same patch.
 The message is `<name> is already in the list`.
 Retired patches do not count, so a source you retired can be added again.
@@ -255,7 +256,8 @@ The usage text does not mention `--retired`, but `debaser list` accepts it.
 
 `--json`::
 Prints a JSON object on standard output with `config`, `upstream`, `branch`, `patches`, and `retired`.
-Each patch is its entry as debaser read it from `patches.json`, plus `display`, the name debaser shows, and in `patches` also `hasCheck`, whether it has an acceptance check.
+Each patch is its entry as debaser read it from `patches.json`, plus `display`, the name debaser shows.
+Each patch in `patches` also has `hasCheck`, whether it has an acceptance check.
 The JSON always holds the retired patches, with or without `--verbose`.
 The table still goes to standard error.
 

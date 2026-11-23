@@ -129,7 +129,9 @@ At the start of a rebase phase, in a build or in `debaser rebase`, debaser remov
 |===
 
 debaser removes each `isolated-*` worktree after use.
-In file and directory names, `<branch>` and `<patch>` stand for the branch name or the patch's display name in lowercase, with every run of other characters than letters and digits replaced by `-`, leading and trailing `-` dropped, and `patch` when nothing is left.
+In file and directory names, `<branch>` and `<patch>` stand for the branch name or the patch's display name in lowercase.
+Every run of other characters than letters and digits is replaced by `-`, and a leading or trailing `-` is dropped.
+When nothing is left, the name is `patch`.
 
 [#reports]
 == Reports
@@ -313,7 +315,7 @@ xref:user/headless.adoc#json[The JSON result] lists the top-level keys.
 |`pr`
 |Present when the source has a GitHub link: `url` and `state`.
 For a pull request, `state` is `OPEN`, `CLOSED`, or `MERGED`, or `UNKNOWN` when `gh` could not tell.
-A branch of another GitHub repository, given other than by Git URL, gets its branch URL with `UNKNOWN`.
+For a branch of another GitHub repository given other than by Git URL, `url` is the branch URL and `state` is `UNKNOWN`.
 
 |`rebase`
 |For an own branch of the rebase phase: `rebased`, `current`, `skipped`, or `failed`
@@ -412,7 +414,10 @@ xref:user/stops.adoc[When a build stops] explains each stop and what to do about
 |The command finished.
 
 |1
-|A usage error; a failed precondition, such as no Git repository, no patch list, Git older than {debaser-git-min}, no matching recipe, an untrusted project recipe, or another command holding the lock; a failed fetch or reset; any other error that ends the command.
+|A usage error. +
+A failed precondition, such as no Git repository, no patch list, Git older than {debaser-git-min}, no matching recipe, an untrusted project recipe, or another command holding the lock. +
+A failed fetch or reset. +
+Any other error that ends the command. +
 Also a finished build or rebase whose push of a rebased branch was refused, and a finished build whose push of the integration branch failed; both write a report.
 
 |xref:user/stops.adoc#exit-2[2]

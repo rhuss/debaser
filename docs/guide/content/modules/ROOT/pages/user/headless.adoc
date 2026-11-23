@@ -219,7 +219,9 @@ The `result.json` of a build or rebase run has these top-level keys:
 |The run's exit code, including a failed push
 
 |`upstream`
-|`ref` and `tip` of the fetched upstream branch, and `newCommits`, the number of upstream commits (merges not counted) between the integration branch at the start of the run and the fetched tip (0 in a rebase run and on a first build, when the integration branch did not exist at the start)
+|`ref` and `tip` of the fetched upstream branch, and `newCommits`.
+`newCommits` counts the upstream commits (merges not counted) between the integration branch at the start of the run and the fetched tip.
+It is 0 in a rebase run and on a first build, when the integration branch did not exist at the start.
 
 |`patches`
 |In a build run, one entry per patch, retired patches included; a rebase run lists only the retired patches; `state` is `merged`, `not-merged`, `skipped-merged`, `skipped-contained`, or `retired`

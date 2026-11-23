@@ -332,49 +332,7 @@ debaser detects it as `bun-ts`, which brings the steps `install`, `typecheck`, a
 gadget commits no recipe of its own.
 Its build script `build.ts` writes the binary to the path after `--outfile`.
 
-The local recipe keeps what `bun-ts` provides and adds what gadget needs:
-
-[source,toml]
-----
-project_name = "gadget CLI"
-after_build = ["./dist/gadget-custom", "--version"]
-leftovers = ["**/*.tmp"]
-
-[artifact]
-output = "dist/gadget"
-install = "dist/gadget-custom"
-
-[[steps]]
-name = "lint"
-run = ["bun", "run", "lint"]
-after = "typecheck"
-
-[[steps]]
-name = "test"
-run = ["bun", "test", "{tests}"]
-parser = "bun-test"
-timeout = 600
-tests = ["src"]
-
-[[steps]]
-name = "build"
-run = ["bun", "build.ts", "--outfile", "{output}"]
-timeout = 300
-----
-
-What each part does:
-
-* `lint` is a new step, placed after the inherited `typecheck`.
-* `test` replaces the step of `bun-ts`.
-It repeats `run` and `parser`, because a replacement does not inherit them, and adds a timeout of 600 seconds.
-With `tests = ["src"]`, a full run tests only `src`; the narrowed rerun still runs only the failing files.
-* `build` is a new step at the end.
-It writes the binary to `+{output}+`, which is `dist/gadget` in the build directory.
-* `[artifact]` makes debaser copy `dist/gadget` to `dist/gadget-custom` after a successful build, keeping the previous copy as `dist/gadget-custom.prev`.
-* `after_build` runs the installed binary with `--version` once the build has succeeded.
-* The install step comes from `bun-ts` unchanged, so the recipe does not mention it.
-
-The effective steps are `install`, `typecheck`, `lint`, `test`, and `build`.
+The local recipe keeps what `bun-ts` provides and adds what gadget needs.
 
 . In your clone, show where the data directory is.
 +
@@ -420,6 +378,22 @@ run = ["bun", "build.ts", "--outfile", "{output}"]
 timeout = 300
 EOF
 ----
++
+--
+What each part does:
+
+* `lint` is a new step, placed after the inherited `typecheck`.
+* `test` replaces the step of `bun-ts`.
+It repeats `run` and `parser`, because a replacement does not inherit them, and adds a timeout of 600 seconds.
+With `tests = ["src"]`, a full run tests only `src`; the narrowed rerun still runs only the failing files.
+* `build` is a new step at the end.
+It writes the binary to `+{output}+`, which is `dist/gadget` in the build directory.
+* `[artifact]` makes debaser copy `dist/gadget` to `dist/gadget-custom` after a successful build, keeping the previous copy as `dist/gadget-custom.prev`.
+* `after_build` runs the installed binary with `--version` once the build has succeeded.
+* The install step comes from `bun-ts` unchanged, so the recipe does not mention it.
+
+The effective steps are `install`, `typecheck`, `lint`, `test`, and `build`.
+--
 
 . Show the effective recipe.
 debaser reads and checks the new layer, and rejects an unknown key or a wrong type with the file and the key.
