@@ -24,6 +24,7 @@
 // debaser:src/git/git.ts:80-96
 // debaser:src/run/build.ts:88
 // debaser:src/run/rebase-phase.ts:104-117
+// debaser:src/cli/commands/index.ts:81
 // debaser:src/run/rebase-phase.ts:173-177
 // debaser:src/run/build.ts:99
 // debaser:src/run/common.ts:77-85
@@ -212,7 +213,7 @@ See xref:user/own-branches.adoc[Rebasing your own branches].
 `--verbose` +
 `--trust-recipe` (no `--help`)
 |yes
-|As for `build`.
+|As for `build` (`--trust-recipe` answers the trust question); the `--push` of the stopped run answers the push question.
 |no
 |Resumes a stopped run.
 See xref:user/stops.adoc#continue[Continue a stopped run].

@@ -35,6 +35,7 @@
 // debaser:src/report/report.ts:129-132
 // debaser:src/report/report.ts:216-224
 // debaser:src/report/report.ts:240-254
+// debaser:src/run/finish.ts:60-61,80-85
 // debaser:src/git/merge.ts:18-24
 // debaser:src/github/gh.ts:3-25
 // debaser:src/github/gh.ts:31-37
@@ -202,9 +203,9 @@ A `?` means debaser has no commit for the patch, or no merge base with upstream.
 |CHECKS
 a|The project checks of the last build, for this patch.
 
-* `pass`: the build finished, or it stopped only on an acceptance check after every step had passed.
+* `pass`: the build ended with exit 0, or it stopped only on an acceptance check after every step had passed.
 * `fail`: the build stopped on a failing step and blamed this patch.
-* `unknown`: the build stopped for another reason, without blaming this patch.
+* `unknown`: any other end that did not blame this patch, such as a stop that blamed another patch or a finished build whose push failed (exit 1).
 * `-`: there is no build result yet, or the last build did not merge the patch.
 
 |PATCH CHECK
@@ -310,7 +311,7 @@ The object has these keys:
 |The command holding the lock with `command`, `pid`, and `startedAt`, or `null`.
 
 |`upstream`
-|`name` (`<remote>/<branch>`), `tip` (the full commit id, or `null` when not fetched), and `newCommitsSinceBuild` (a number, or `null` without a build).
+|`name` (`<remote>/<branch>`), `tip` (the full commit id, or `null` when not fetched), and `newCommitsSinceBuild` (a number, or `null` without a build or before upstream is fetched).
 
 |`patches`
 |One object per table row, or an empty list when upstream is not fetched yet.

@@ -32,9 +32,10 @@
 // debaser:src/run/harness-fix.ts:22-32
 // debaser:src/run/harness-fix.ts:42-79
 // debaser:src/run/accept.ts:203-226
+// debaser:src/core/context.ts:41-44
 
 debaser is a command-line tool that keeps a patched build of someone else's GitHub project.
-The build is the latest upstream version plus your patch list, the ordered list of changes you want on top.
+The build is the latest upstream version (the original repository) plus your patch list, the ordered list of changes you want on top.
 A recipe tells debaser how to check and build that project: named steps run in order, the build output, and where to install it.
 debaser ships generic recipes for Bun and TypeScript projects (`bun-ts`) and for Rust projects built with Cargo (`rust-cargo`), plus recipes for two specific projects.
 When none of them matches and no other recipe is in place, a build stops with "no recipe matches this project".
@@ -50,6 +51,8 @@ When the agent cannot finish, the run stops with exit 5, and you can fix the pro
 
 xref:overview/concepts.adoc[Key concepts] defines the terms these pages use.
 The reference pages xref:reference/recipe-toml.adoc[Recipe file] and xref:reference/patches-json.adoc[`patches.json`] list every key.
+
+These pages assume a clone with a patch list; xref:user/first-build.adoc[Your first build] sets one up.
 
 == Pages in this section
 

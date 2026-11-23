@@ -122,7 +122,7 @@ A rollback of a stopped run restores the installed artifact from it.
 
 |`rebase-<branch>`
 |A throwaway worktree for rebasing one of your own branches.
-At the start of a build, debaser removes `rebase-*` directories that an interrupted run left behind.
+At the start of a rebase phase, in a build or in `debaser rebase`, debaser removes `rebase-*` directories that an interrupted run left behind.
 
 |`todo-editor.sh`
 |The script debaser gives Git as `GIT_SEQUENCE_EDITOR`, see <<set>>.

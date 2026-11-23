@@ -25,6 +25,8 @@
 // debaser:src/recipes/trust.ts:12
 // debaser:src/recipes/trust.ts:63-67
 // debaser:src/recipes/trust.ts:69-107
+// debaser:src/recipes/load.ts:12-19
+// debaser:src/run/rollback.ts:79,145
 // debaser:src/run/common.ts:22-24
 // debaser:src/run/common.ts:47-54
 // debaser:src/run/common.ts:87-95
@@ -33,6 +35,7 @@
 // debaser:src/run/build.ts:31-46
 // debaser:src/run/preflight.ts:8-21
 // debaser:src/run/build.ts:50-57
+// debaser:src/run/build.ts:69
 // debaser:src/run/build.ts:86
 // debaser:src/run/build.ts:95-112
 // debaser:src/run/rebase-phase.ts:104-124
@@ -69,7 +72,7 @@ debaser checks two things when it starts.
 
 * It asks questions only when its standard input is a terminal.
 * It shows the live view for `debaser build`, `debaser rebase`, and `debaser continue` only when standard output is a terminal and the command has no `--json`.
-The variable `NO_COLOR`, or `TERM` set to `dumb`, turns the live view off as well.
+A non-empty `NO_COLOR`, or `TERM` set to `dumb`, turns the live view off as well.
 
 Without the live view, debaser prints plain output.
 Progress lines that start with `debaser:` and the output of the recipe's steps go to stderr.
@@ -88,9 +91,9 @@ Off a terminal, each one falls back to a fixed behavior, and a flag gives the an
 |Question |Asked by |Without a terminal |Flag
 
 |Trust the project's committed recipe `.debaser/recipe.toml`, when it is not trusted yet or changed since you trusted it: `Trust it? [y/N]`
-|`debaser build`, `debaser rebase`, `debaser continue`
+|`debaser build`, `debaser rebase`, `debaser continue`, `debaser rollback`
 |The run refuses with exit 1, before it writes a report: `the project's recipe .debaser/recipe.toml at <commit> is not trusted yet` (or `changed since you trusted it`), followed by `+review it, then run `debaser trust`, or pass --trust-recipe+`.
-|`--trust-recipe`
+|`--trust-recipe` (`build`, `rebase`, `continue`); for `rollback`, trust first with `debaser trust`
 
 |Push the rebased own branches: `Force-push <n> rebased branches to origin (<branches>)? [y/N]`
 |`debaser build`, `debaser rebase`, and `debaser continue` at the end of a run
@@ -156,7 +159,7 @@ Check: debaser reports the recipe as trusted, or says the project has no recipe 
 ----
 debaser trust
 ----
-// expect: matches /trusted|nothing to trust/
+// expect: exit 0 and matches /debaser: trusted|already trusted|nothing to trust/
 
 . Run the build with its standard input taken from `/dev/null`, as a job without a terminal would.
 Add `--push` when the job should push to `origin`, and `--trust-recipe` when you skipped the first step.
@@ -216,7 +219,7 @@ The `result.json` of a build or rebase run has these top-level keys:
 |The run's exit code, including a failed push
 
 |`upstream`
-|`ref` and `tip` of the fetched upstream branch, and `newCommits`, the number of upstream commits (merges not counted) between the integration branch at the start of the run and the fetched tip
+|`ref` and `tip` of the fetched upstream branch, and `newCommits`, the number of upstream commits (merges not counted) between the integration branch at the start of the run and the fetched tip (0 in a rebase run and on a first build, when the integration branch did not exist at the start)
 
 |`patches`
 |In a build run, one entry per patch, retired patches included; a rebase run lists only the retired patches; `state` is `merged`, `not-merged`, `skipped-merged`, `skipped-contained`, or `retired`
@@ -228,7 +231,7 @@ The `result.json` of a build or rebase run has these top-level keys:
 |`calls`, the number of harness calls, and `tokens` with `input` and `output`, or `null` when no call reported its token use
 
 |`artifact`
-|`installed` and `previous` paths, present when a build finished
+|`installed` and `previous`, each a path or `null`, present when a build finished
 
 |`report`
 |The path of the run's `report.md`

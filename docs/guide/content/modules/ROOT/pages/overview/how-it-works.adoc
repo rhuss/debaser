@@ -23,16 +23,21 @@
 // debaser:src/run/harness-fix.ts:22-26,42-71
 // debaser:src/run/accept.ts:86-227
 // debaser:src/run/finish.ts:28-93
+// debaser:src/run/finish.ts:112
 // debaser:src/run/rebase-phase.ts:49-93
+// debaser:src/run/rebase-phase.ts:115-116
 // debaser:src/rebase/rebase.ts:102-105,229-232
 // debaser:src/core/patchlist.ts:9,136-138,188
 // debaser:src/cli/commands/index.ts:63-67
+// debaser:src/cli/commands/index.ts:79
 // debaser:src/cli/main.ts:34-35,83-87,92-98
 // debaser:src/core/lock.ts:25-58
 // debaser:src/core/errors.ts:1-25
 // debaser:src/run/where.ts:23-44
 // debaser:src/run/stop.ts:22-56
 // debaser:src/core/paths.ts:4-16,36
+// debaser:src/core/paths.ts:32
+// debaser:src/cli/main.ts:63
 // visual:build-regular
 
 `debaser build` runs its phases in a fixed order.
@@ -42,9 +47,9 @@ Most phases can stop the run, and the exit code names the kind of stop.
 
 A run that gets through every phase ends with a summary like this one:
 
-image::visuals/build-regular.svg["Output of a successful debaser build: the built output, a timeline of the fetch, rebase, merge, verify, and accept phases, one current branch, two merged patches, the report path, and the artifact path",role=expand]
+image::visuals/build-regular.svg["Output of a successful debaser build: the installed artifact, a timeline of the fetch, rebase, merge, verify, and accept phases, one current branch, two merged patches, the report path, and the artifact path",role=expand]
 
-The first line of the summary names the build output, the upstream commit it was built on, and the number of patches.
+The first line of the summary names what was built (the installed artifact relative to the build directory, or the integration branch when the recipe installs nothing), the upstream commit it was built on, and the number of patches.
 Below the timeline, the summary lists the time of each phase, the branches (one current), and the patches (two merged).
 The last lines give the report path and the artifact path.
 
@@ -59,7 +64,7 @@ xref:user/stops.adoc[When a build stops] explains how to read a stop and how to 
 
 === Lock and preflight
 
-`build` is one of the commands that change the checkout or debaser's files, so it first takes the checkout's run lock.
+`build` is one of the commands that change the checkout or debaser's files, so it first takes the run lock in debaser's data directory.
 While another live debaser process holds that lock, `build` refuses to start; a lock left by a process that ended is taken over.
 `build` also refuses when an earlier run is stopped or still in progress, and it says where that run stopped and which commands go on from there.
 
@@ -144,6 +149,7 @@ When the agent cannot fix the check, or the agent's fixes reach their limit, the
 
 === Install and finish
 
+Before the install, debaser pushes the rebased own branches to `origin` with `--push` or after a yes on a terminal; otherwise it prints the push commands.
 The installed copy changes only at this point, after every step and every acceptance check has passed.
 The build output replaces the installed artifact, and the copy from the start of the run is kept as `<target>.prev`.
 When the build output does not exist, debaser warns and installs nothing.

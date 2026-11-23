@@ -153,7 +153,7 @@ xref:user/own-branches.adoc[Rebasing your own branches] covers the details.
 
 In a new or recreated build directory, the recipe's install step has not run yet.
 When the recipe's `install` section names an install step, the first build there runs it.
-When that section also names trigger files, later builds run the step again only when one of them changed.
+When that section also names trigger files, later builds run the step again when one of them changed, or when the marker the section names is missing.
 
 [#move]
 == Move the build directory

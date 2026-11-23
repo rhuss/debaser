@@ -106,7 +106,7 @@ Without a stopped run, `debaser rollback` restores them.
 build directory::
 The working directory in which debaser builds and which holds the integration branch: by default a linked Git worktree beside your clone, `../<clone>-debaser`.
 The patch list's `tree` setting moves it, and `"tree": "."` builds in place in the main checkout.
-`debaser build`, `debaser continue`, and `debaser rollback` work there, never in the checkout they were started from unless `tree` names the main checkout itself.
+`debaser build`, `debaser continue`, and `debaser rollback` work there, never in the checkout they were started from unless `tree` names that checkout.
 
 data directory::
 Where debaser keeps its own files for a clone, among them the patch list, the optional local recipe `recipe.toml`, the reports, and the state of the current run.

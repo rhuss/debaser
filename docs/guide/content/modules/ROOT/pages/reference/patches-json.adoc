@@ -49,7 +49,7 @@ For editing it by hand, see xref:user/patch-list.adoc#edit-by-hand[Edit `patches
 
 |When debaser reads it
 |When a command starts.
-`--version`, `--help`, their short forms, and an unknown command skip it.
+`--version`, `--help`, `help`, their short forms, a missing command, and an unknown command skip it.
 
 |No file
 |`debaser add` creates it.
@@ -164,6 +164,7 @@ At run time, when the value is `upstream` and the clone has no such remote, deba
 |The upstream branch debaser builds on.
 A missing or empty value takes the default.
 The first `debaser add` writes the `upstream` remote's default branch: its recorded `HEAD`, else what the remote advertises, else `main`.
+With `--upstream` and no `upstream` remote, it writes `main`.
 |===
 
 [#harness]

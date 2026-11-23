@@ -25,6 +25,7 @@
 // debaser:src/cli/main.ts:83-87
 // debaser:src/cli/main.ts:41-46
 // debaser:src/cli/main.ts:62-68
+// debaser:src/cli/main.ts:47-57
 // debaser:src/cli/main.ts:92-98
 // debaser:src/cli/main.ts:124-126
 // debaser:src/core/lock.ts:27-57
@@ -186,7 +187,7 @@ debaser refuses such a URL in `patches.json` as well.
 A pin holds a patch at one commit.
 debaser merges exactly that commit, even after the source moves on, and never rebases a pinned patch, not even an own branch.
 When the source cannot be fetched any more, for example a deleted branch, the build merges the pinned commit and adds a warning to the run.
-When the pinned commit is not in your clone, the build tries to fetch it by its id from where the patch comes from.
+When the pinned commit is not in your clone, the build tries to fetch it by its id from where the patch comes from (for your own branch, from `origin`; without `origin` it does not try).
 If that fails too, the build stops with `cannot find the pinned commit <sha> of <name>`.
 
 . Add the patch with `--pin`.
@@ -343,7 +344,7 @@ Each patch in the `patches` array is an object like this one, from the fictional
 
 Entries in the `retired` array have the same keys plus `retired`, the date, and `reason`.
 
-debaser reads and checks the file at the start of every command; only the help and version output skip it.
+debaser reads and checks the file at the start of every command; `--version`, `--help`, `help`, their short forms, a missing command, and an unknown command skip it.
 A file that is not valid JSON, or breaks a rule, stops the command with exit 1 and a message that names the file and, for a broken entry, its place, such as `patches[2]`.
 Among the rules:
 
@@ -358,5 +359,5 @@ Among the rules:
 [CAUTION]
 ====
 Keep notes for yourself in the descriptions, not in extra keys.
-debaser drops keys it does not know the next time `debaser add`, `debaser remove`, or a run that records `tree` saves the list.
+debaser drops keys it does not know the next time `debaser add`, `debaser remove`, or a build or rollback that records `tree` saves the list.
 ====
