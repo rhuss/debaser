@@ -1,6 +1,10 @@
 = Files, exit codes, and environment
 
 // Sources:
+// debaser:src/report/report.ts:73-75,149,191,216-222
+// debaser:src/run/common.ts:47-49
+// debaser:src/harness/invoke.ts:37-39,50
+// debaser:src/plugins/sources/github.ts:7-13
 // debaser:src/core/paths.ts:4-39
 // debaser:src/core/lock.ts:5-65
 // debaser:src/core/runstate.ts:153-180
@@ -125,7 +129,7 @@ At the start of a build, debaser removes `rebase-*` directories that an interrup
 |===
 
 debaser removes each `isolated-*` worktree after use.
-In file and directory names, `<branch>` and `<patch>` stand for the branch name or the patch's display name in lowercase, with every run of other characters than letters and digits replaced by `-`.
+In file and directory names, `<branch>` and `<patch>` stand for the branch name or the patch's display name in lowercase, with every run of other characters than letters and digits replaced by `-`, leading and trailing `-` dropped, and `patch` when nothing is left.
 
 [#reports]
 == Reports
@@ -135,7 +139,7 @@ In file and directory names, `<branch>` and `<patch>` stand for the branch name 
 |Path under `reports/` |Content
 
 |`<YYYYMMDD>-<HHMMSS>`
-|The directory of one build or rebase run, named after its start in UTC, with `-2` and up added when the name is taken.
+|The directory of one build or rebase run, named after the time debaser created it, in UTC, with `-2` and up added when the name is taken.
 
 |`latest`
 |A symbolic link to the run directory that debaser wrote a report into last.
@@ -191,7 +195,7 @@ xref:user/headless.adoc#reports[Reports and `latest`] says which exits write a r
 |The output of a refused push of a rebased branch.
 
 |`prompts/NN-<task>.md`, `.log`, `.jsonl`
-|The prompt, the log, and the raw stream of each agent call, see xref:recipe-author/harness-verification.adoc[What the agent is asked and how its work is checked].
+|The prompt and the log of each agent call, and the raw stream for every kind except `plain`, see xref:recipe-author/harness-verification.adoc[What the agent is asked and how its work is checked].
 
 |`handoffs/<patch>.md`
 |One handoff per affected patch, see xref:recipe-author/harness-verification.adoc#handoffs[Handoffs per patch].
@@ -205,7 +209,7 @@ xref:user/headless.adoc#reports[Reports and `latest`] says which exits write a r
 
 The first line is `# debaser report, <start time>`, or `# debaser rebase report, <start time>` for a rebase run.
 The result line follows: `Result: built <installed artifact or branch> with <n> patches.` (or `Result: rebased own branches onto upstream <commit>.`), or `Result: stopped (exit <code>): <reason>`.
-A section without entries shows `none`.
+A section without entries shows `none`; `Rebased branches` shows `no own branch needed a rebase` instead.
 
 [cols="2,4,1,1",options="header"]
 |===
@@ -321,7 +325,7 @@ A branch of another GitHub repository, given other than by Git URL, gets its bra
 |Merged patches only: `fail` when the stop blames the patch, `pass` after exit 0 or a stop at an acceptance check, `unknown` otherwise
 
 |`acceptance`
-|`pass`, `fail`, `flaky`, `fixed`, `none` (no check), `not run`, or `skipped` (not merged, and every retired patch)
+|`pass`, `fail`, `flaky`, `fixed`, `none` (no check), `not run`, or `skipped` (patches skipped as merged upstream or already contained, and every retired patch)
 
 |`handoff`
 |The path of the patch's handoff file, when it has one
@@ -339,7 +343,7 @@ Each entry of `steps` has `name`, `log` (the path of `steps/<name>.log`), and `r
 |passed
 
 |`flaky`
-|passed (the first try failed)
+|passed (the failed first try is noted under `Warnings and notes`)
 
 |`fixed`
 |passed after a fix
@@ -472,7 +476,7 @@ The run keeps its state, and debaser releases the lock.
 |
 
 |`DEBASER_GITHUB`
-|The base URL for fetching pull requests and branches of other repositories by `owner/repo`; a test hook, which the source says tests point at local bare repositories
+|The base URL for fetching pull requests and branches of other repositories by `owner/repo`; the source says tests point it at local bare repositories
 |`https://github.com`
 |===
 
