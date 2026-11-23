@@ -30,3 +30,10 @@ rules:
       - '[Mm]erge'
       - '[Aa]cceptance'
       - '[Ii]nstall'
+  - glob: content/modules/ROOT/pages/overview/concepts.adoc
+    require:
+      - 'image::where-things-live\.svg'
+      - 'integration branch'
+      - 'build directory'
+      - 'patch list'
+      - 'acceptance check'
