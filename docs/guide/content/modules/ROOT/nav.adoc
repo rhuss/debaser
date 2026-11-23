@@ -1,2 +1,3 @@
 * Overview
 ** xref:index.adoc[Start here]
+** xref:overview/how-it-works.adoc[How a build works]

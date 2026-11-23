@@ -20,3 +20,13 @@ rules:
       - 'steps\.replace'
       - 'releases/download'
       - 'brew install'
+  - glob: content/modules/ROOT/pages/overview/how-it-works.adoc
+    require:
+      - 'image::build-pipeline\.svg'
+      - 'visuals/build-regular\.svg'
+      - 'xref:user/stops\.adoc'
+    require_order:
+      - '[Ff]etch'
+      - '[Mm]erge'
+      - '[Aa]cceptance'
+      - '[Ii]nstall'
