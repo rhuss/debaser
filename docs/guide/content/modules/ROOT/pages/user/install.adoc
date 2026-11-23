@@ -6,7 +6,7 @@
 // debaser:.github/workflows/ci.yml:49-50
 // debaser:package.json:3
 // debaser:package.json:10
-// debaser:README.md:10-11
+// debaser:README.md:10-14
 // debaser:README.md:21-25
 // debaser:README.md:27-28
 // debaser:src/git/git.ts:86-97
@@ -16,6 +16,9 @@
 // debaser:src/github/gh.ts:14-25
 // debaser:src/plugins/sources/pr.ts:10-12
 // debaser:src/plugins/sources/pr.ts:25-35
+// debaser:src/run/fetch.ts:29-31
+// debaser:src/run/finish.ts:103-106
+// debaser:src/report/report.ts:186-188
 // debaser:src/cli/commands/add.ts:67-74
 // debaser:src/rebase/rebase.ts:130-136,171-173
 // debaser:src/plugins/harness/registry.ts:8
@@ -34,7 +37,7 @@ This page installs debaser version {debaser-version}.
 
 Git {debaser-git-min} or newer::
 debaser needs Git at run time.
-The commands that change something (`add`, `remove`, `build`, `rebase`, `continue`, `rollback`, and `trust`) check the Git version first.
+The commands that change something (`add`, `remove`, `build`, `rebase`, `continue`, `rollback`, and `trust`) check the Git version at start.
 With an older Git they stop with the message `git {debaser-git-min} or newer is required`, followed by the version they found.
 
 Bun::
@@ -46,9 +49,9 @@ The pinned source does not state a minimum Bun version.
 GitHub CLI (`gh`), optional::
 debaser looks for `gh` on your `PATH` and runs it to ask GitHub about a pull request: its state, title, body, merge commit, and head branch.
 debaser fetches and merges pull requests with Git, so they build without `gh` too.
-Without `gh`, or when `gh` cannot answer (not signed in, offline), you lose the following:
+Without `gh`, or when `gh` cannot answer (not signed in, offline), you lose, among other things:
 +
-* The pull request's state and title are unknown, and debaser prints a warning when it fetches the pull request.
+* The pull request's state and title are unknown, and the run's summary and report carry a warning about it.
 * A pull request that upstream merged by squash or rebase is merged again, unless upstream already has its commits.
 * `debaser add` cannot take a pull request's title as its description, so you give one yourself: `debaser add <number> "<description>"`, where `<number>` is the pull request's number.
 * debaser cannot tell whether a pull request comes from a branch of your own fork, so it does not rebase that branch.

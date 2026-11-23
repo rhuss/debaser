@@ -19,7 +19,7 @@
   |---|---|---|
   | `debaser` | https://github.com/rhuss/debaser | `b46fcb260a1eb248a046999317cbfa98f73cb31b` |
 
-- Baseline values available to pages (never type versions or commits): `{debaser-repo}`, `{debaser-commit}`, `{debaser-commit-short}`, `{debaser-blob}`, `{debaser-tree}`, `{debaser-version}` (0.1.0), `{debaser-git-min}` (2.38), `{baseline-date}`, `{baseline-sources}`.
+- Baseline values available to pages (never type versions or commits): `{debaser-repo}`, `{debaser-commit}`, `{debaser-commit-short}`, `{debaser-blob}`, `{debaser-tree}`, `{debaser-version}` (0.1.0), `{debaser-git-min}` (2.38), `{debaser-bun-tested}` (1.4.4, the Bun version CI tests with), `{baseline-date}`, `{baseline-sources}`.
 - Change requests documented as experimental (label only through the adapter snippet): none.
 - Personas and their entry pages: User (`user/index`), Recipe author (`recipe-author/index`).
 - Sections and voices: Overview (`concepts`), User guide (`technical`), Recipe author guide (`technical`), Reference (`reference`).
