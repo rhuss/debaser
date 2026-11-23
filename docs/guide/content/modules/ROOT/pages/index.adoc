@@ -16,6 +16,7 @@
 // debaser:src/run/rollback.ts:141-171
 // debaser:src/git/git.ts:5
 // debaser:src/git/git.ts:89-97
+// debaser:src/git/merge.ts:3-5
 // debaser:src/github/gh.ts:14-38
 // debaser:src/plugins/sources/pr.ts:10-17,25-35
 // debaser:src/plugins/harness/registry.ts:8
@@ -24,9 +25,13 @@
 // debaser:src/core/paths.ts:6-16
 // debaser:src/core/tree.ts:32-40
 // debaser:src/run/rebase-phase.ts:49-55
+// debaser:src/rebase/rebase.ts:255-267
 // debaser:src/run/mergeloop.ts:37-83
 // debaser:src/run/verifyloop.ts:78-109
-// debaser:src/run/accept.ts:29-90
+// debaser:src/run/accept.ts:24-90
+// debaser:src/run/accept.ts:200-206
+// debaser:src/run/harness-merge.ts:84-90
+// debaser:src/run/harness-fix.ts:65-71
 // debaser:src/run/harness-merge.ts:18-23
 // debaser:src/run/harness-fix.ts:23-32
 // debaser:src/cli/commands/remove.ts:22-24
@@ -57,17 +62,16 @@ When a run stops, it says where and why.
 debaser ships as one self-contained executable.
 
 Git::
-The version control system the project lives in.
-debaser does every fetch, merge, and checkout through it and needs Git {debaser-git-min} or newer.
+debaser does every fetch, merge, and checkout of the project through Git.
+It refuses a Git older than {debaser-git-min}.
 
 GitHub CLI (`gh`)::
-GitHub's command-line client.
-debaser asks it for a pull request's title, state, and head branch.
-Without it, pull requests still build, with less information about them.
+debaser runs `gh pr view` to ask GitHub for a pull request's title, state, and head branch.
+Without `gh`, pull requests still build, with less information about them.
 
 Bun::
-A JavaScript and TypeScript runtime whose compiler turns a program into one executable.
-debaser's own build compiles it with Bun, so you need Bun only to build debaser from source.
+The toolchain that compiles debaser's TypeScript source into its single executable (`bun build --compile`).
+You need Bun only to build debaser from source.
 
 Coding agents::
 Command-line programs that change code from a written task: Claude Code, Codex, pi, OpenCode, or any command you name.
@@ -80,11 +84,12 @@ You keep an ordinary clone of the project with two remotes: `upstream` for the o
 debaser stores the patch list inside the clone's Git directory and builds in a second working directory next to the clone, the build directory.
 The checkout you work in stays as it was.
 
-In the build directory, each run fetches upstream and every patch, then rebases your own branches onto upstream.
-It resets the integration branch (the branch debaser builds) to the new upstream tip and merges the patches onto it in order.
+Each run fetches upstream and every patch, then rebases your own branches onto upstream in throwaway working directories.
+In the build directory, it resets the integration branch (the branch debaser builds) to the new upstream tip and merges the patches onto it in order.
 Then it runs the recipe's checks and the patches' acceptance checks, and installs the result.
 A recipe tells debaser how to check and build a project: named steps run in order, the build output, and where to install it.
-An acceptance check is an optional command attached to one patch, and it passes when the command exits as expected.
+An acceptance check is an optional command attached to one patch.
+It passes when the command exits with the expected code and, when the check sets a pattern, its output contains a match.
 
 When a merge conflicts or a check fails, debaser calls the configured coding agent.
 debaser accepts the agent's change only when its checks pass, and commits each accepted change separately.
@@ -93,7 +98,8 @@ Without an agent, or when the agent cannot fix the problem, the run stops with a
 image::build-pipeline.svg["One run of debaser build from fetch to report, with the points where a coding agent steps in and the exit code of each kind of stop",role=expand]
 
 The diagram follows one `debaser build` from fetch to report.
-The exit code tells the kinds of stop apart, so you can tell a merge conflict from a failing check.
+With no agent configured, the exit code names the kind of stop: 2 for a merge conflict, 3 or 4 for a failing recipe step, and 6 for a failing acceptance check.
+When an agent tried and gave up, the run stops with exit 5 instead.
 
 == Compared with one long-lived branch
 
@@ -116,7 +122,7 @@ xref:user/headless.adoc[Run debaser headless] covers that mode.
 == Status and limits
 
 debaser is at version {debaser-version}.
-The pinned source has no release workflow, so this guide installs debaser by building it from source with Bun.
+The debaser source this guide was checked against has no release workflow, so this guide installs debaser by building it from source with Bun.
 Pull request sources work with GitHub only.
 Only one debaser command that changes things runs at a time in a checkout.
 
