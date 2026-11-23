@@ -10,6 +10,8 @@
 // debaser:src/git/git.ts:149-153
 // debaser:src/git/refs.ts:4-6
 // debaser:src/plugins/sources/pr.ts:20,26
+// debaser:src/plugins/sources/fork-branch.ts:36,40
+// debaser:src/plugins/sources/branch.ts:17-27
 // debaser:src/git/merge.ts:3-5
 // debaser:src/run/common.ts:18-19
 // debaser:src/run/common.ts:47-53
@@ -73,7 +75,8 @@ What stops it: a refusal, with exit 1 and nothing changed.
 debaser fetches the upstream branch first.
 The recipe layer that comes from the project repository is read from the fetched upstream, never from a patch.
 Then it fetches each patch of the patch list in order.
-Each patch is fetched into a private ref under `refs/debaser/`; a pull request lands in `refs/debaser/<owner>/<repo>/pull/<number>`.
+A pull request or a branch of another repository is fetched into a private ref under `refs/debaser/`; a pull request lands in `refs/debaser/<owner>/<repo>/pull/<number>`.
+Your own branches are used as they are, as the local branch or the copy on `origin`.
 
 The fetch also decides which patches to merge.
 A pull request that upstream has already merged is skipped.

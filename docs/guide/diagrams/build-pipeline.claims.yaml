@@ -110,13 +110,13 @@ claims:
   - id: ref-debaser
     kind: label
     elements: [r_refs]
-    text: debaser fetches each patch into a private ref under refs/debaser/ (a PR into refs/debaser/<repo>/pull/<n>).
-    sources: ["debaser:src/git/refs.ts:4-6", "debaser:src/run/fetch.ts:11-12", "debaser:src/plugins/sources/pr.ts:20,26"]
+    text: debaser fetches pull requests and branches of other repositories into private refs under refs/debaser/ (a PR into refs/debaser/<repo>/pull/<n>); own branches are used as the local branch or origin's copy.
+    sources: ["debaser:src/git/refs.ts:4-6", "debaser:src/run/fetch.ts:11-12", "debaser:src/plugins/sources/pr.ts:20,26", "debaser:src/plugins/sources/fork-branch.ts:36,40", "debaser:src/plugins/sources/branch.ts:17-27"]
   - id: fetch-writes-refs
     kind: connects
     elements: [a_fetch_refs]
-    text: The fetch writes the fetched patches into private refs under refs/debaser/.
-    sources: ["debaser:src/run/fetch.ts:11-28", "debaser:src/git/refs.ts:3-8"]
+    text: The fetch writes pull requests and branches of other repositories into private refs under refs/debaser/.
+    sources: ["debaser:src/run/fetch.ts:11-28", "debaser:src/git/refs.ts:4-7", "debaser:src/plugins/sources/pr.ts:20,26", "debaser:src/plugins/sources/fork-branch.ts:36,40"]
   - id: ref-own
     kind: label
     elements: [r_own]
