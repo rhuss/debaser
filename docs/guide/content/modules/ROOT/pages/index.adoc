@@ -1,6 +1,128 @@
 = debaser Guide
-:guide-no-sources:
 
-include::partial$baseline-note.adoc[]
+// Sources:
+// debaser:README.md:3-14
+// debaser:README.md:22-28
+// debaser:README.md:32-33
+// debaser:README.md:100-102
+// debaser:README.md:177-179
+// debaser:package.json:3
+// debaser:package.json:10
+// debaser:.github/workflows/ci.yml:1-50
+// debaser:specs/001-standalone-patch-build-tool/spec.md:34
+// debaser:src/run/build.ts:50-157
+// debaser:src/run/finish.ts:38-55
+// debaser:src/run/common.ts:71-74
+// debaser:src/run/rollback.ts:141-171
+// debaser:src/git/git.ts:5
+// debaser:src/git/git.ts:89-97
+// debaser:src/github/gh.ts:14-38
+// debaser:src/plugins/sources/pr.ts:10-17,25-35
+// debaser:src/plugins/harness/registry.ts:8
+// debaser:src/harness/select.ts:41-44
+// debaser:src/harness/verify.ts:16-51
+// debaser:src/core/paths.ts:6-16
+// debaser:src/core/tree.ts:32-40
+// debaser:src/run/rebase-phase.ts:49-55
+// debaser:src/run/mergeloop.ts:37-83
+// debaser:src/run/verifyloop.ts:78-109
+// debaser:src/run/accept.ts:29-90
+// debaser:src/run/harness-merge.ts:18-23
+// debaser:src/run/harness-fix.ts:23-32
+// debaser:src/cli/commands/remove.ts:22-24
+// debaser:src/steps/isolated.ts:15-62
+// debaser:src/core/errors.ts:5-15
+// debaser:tests/integration/tree.test.ts:76
+// debaser:src/core/lock.ts:27-58
+// debaser:src/cli/main.ts:35
+// debaser:src/cli/commands/index.ts:104-109,146-156
+// debaser:src/report/report.ts:259-272
 
-This page is replaced by the guide's start page during the first create run.
+You run a tool built from someone else's GitHub project.
+You also want changes the project has not merged yet: your own branches, and open pull requests from other people.
+Every time the project moves on, you fetch it again, re-apply each change, fix the conflicts, rerun the tests, and rebuild the tool by hand.
+
+debaser turns that chore into one command.
+`debaser build` gives you a runnable build of the latest project plus your changes, applied in the order you chose.
+The new build replaces the installed one only after the project's checks and the checks attached to your changes have passed.
+The build before it stays available as a fallback, and `debaser rollback` returns to it.
+
+== What the parts are
+
+debaser::
+A command-line tool that keeps a patched build of someone else's GitHub project.
+It rebuilds the project from its latest upstream version (the original repository) plus your patch list.
+The patch list is an ordered list of changes: upstream pull requests, branches from other forks, and your own branches.
+When a run stops, it says where and why.
+debaser ships as one self-contained executable.
+
+Git::
+The version control system the project lives in.
+debaser does every fetch, merge, and checkout through it and needs Git {debaser-git-min} or newer.
+
+GitHub CLI (`gh`)::
+GitHub's command-line client.
+debaser asks it for a pull request's title, state, and head branch.
+Without it, pull requests still build, with less information about them.
+
+Bun::
+A JavaScript and TypeScript runtime whose compiler turns a program into one executable.
+debaser's own build compiles it with Bun, so you need Bun only to build debaser from source.
+
+Coding agents::
+Command-line programs that change code from a written task: Claude Code, Codex, pi, OpenCode, or any command you name.
+debaser can hand a merge conflict or a failing check to one, then verifies the agent's result itself.
+They are optional.
+
+== How the parts fit
+
+You keep an ordinary clone of the project with two remotes: `upstream` for the original and `origin` for your fork.
+debaser stores the patch list inside the clone's Git directory and builds in a second working directory next to the clone, the build directory.
+The checkout you work in stays as it was.
+
+In the build directory, each run fetches upstream and every patch, then rebases your own branches onto upstream.
+It resets the integration branch (the branch debaser builds) to the new upstream tip and merges the patches onto it in order.
+Then it runs the recipe's checks and the patches' acceptance checks, and installs the result.
+A recipe tells debaser how to check and build a project: named steps run in order, the build output, and where to install it.
+An acceptance check is an optional command attached to one patch, and it passes when the command exits as expected.
+
+When a merge conflicts or a check fails, debaser calls the configured coding agent.
+debaser accepts the agent's change only when its checks pass, and commits each accepted change separately.
+Without an agent, or when the agent cannot fix the problem, the run stops with a reason, a log, and a ready-to-run prompt.
+
+image::build-pipeline.svg["One run of debaser build from fetch to report, with the points where a coding agent steps in and the exit code of each kind of stop",role=expand]
+
+The diagram follows one `debaser build` from fetch to report.
+The exit code tells the kinds of stop apart, so you can tell a merge conflict from a failing check.
+
+== Compared with one long-lived branch
+
+The obvious alternative is one long-lived branch on your fork that you merge or rebase by hand.
+debaser instead rebuilds the integration branch from upstream on every run.
+Each patch stays separate, and you can retire one without touching the others.
+
+Git records how you resolved a conflict, and debaser replays those resolutions on the next run.
+When a recipe step fails twice, debaser runs it on plain upstream in a throwaway directory.
+A failure there too means upstream is broken (exit 4); a pass means a patch breaks it (exit 3).
+
+== Ways to run it
+
+On a terminal, `debaser build` shows a live view of the run; piped, it prints plain progress lines.
+xref:user/first-build.adoc[Your first build] walks through a run on a terminal.
+
+With `--json`, the run prints its result as JSON on standard output: the outcome, the exit code, each patch's result, and the report's path.
+xref:user/headless.adoc[Run debaser headless] covers that mode.
+
+== Status and limits
+
+debaser is at version {debaser-version}.
+The pinned source has no release workflow, so this guide installs debaser by building it from source with Bun.
+Pull request sources work with GitHub only.
+Only one debaser command that changes things runs at a time in a checkout.
+
+== Where to go next
+
+* xref:user/index.adoc[User guide]: keep a patched build of a project, from the first patch list to recovering from a stopped run.
+* xref:recipe-author/index.adoc[Recipe author guide]: write the recipe that tells debaser how to check, build, and install a project.
+
+include::ROOT:partial$baseline-note.adoc[]
