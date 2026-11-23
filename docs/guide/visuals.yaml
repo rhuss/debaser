@@ -57,3 +57,25 @@ visuals:
       - {pattern: "\\d{4}-\\d{2}-\\d{2}", replacement: "2026-01-05"}
       # Commit ids; the lookahead keeps the masked run id above intact.
       - {pattern: "\\b(?!\\d{8}-\\d{6}\\b)[0-9a-f]{7,40}\\b", replacement: "0000000"}
+
+  # status reads only what was fetched (debaser:src/cli/commands/status.ts:66-74);
+  # the seed of `widget` fetches the new upstream commit, so it shows one.
+  # No PR patches, so gh (absent from the image) is never asked
+  # (status.ts:115 asks only for PR sources).
+  status:
+    kind: cli
+    env: widget
+    command: debaser status
+    exit: 0
+    # The patch table is about 115 columns wide (the fork branch's name sets
+    # the first column); at 100 columns it would wrap.
+    width: 120
+    masks:
+      - {pattern: "\\b\\d{8}-\\d{6}(-\\d+)?\\b", replacement: "20260105-090000"}
+      - {pattern: "\\b\\d+:\\d\\d(:\\d\\d)?\\b", replacement: "0:01"}
+      - {pattern: "\\b\\d+(\\.\\d+)?(ms|s|m|h)\\b", replacement: "1s"}
+      - {pattern: "\\d{4}-\\d{2}-\\d{2}", replacement: "2026-01-05"}
+      - {pattern: "\\b(?!\\d{8}-\\d{6}\\b)[0-9a-f]{7,40}\\b", replacement: "0000000"}
+      # The container's home and temporary paths.
+      - {pattern: "/root(?=/|\\b)", replacement: "~"}
+      - {pattern: "/tmp/[^\\s:;,)]+", replacement: "/tmp/widget"}

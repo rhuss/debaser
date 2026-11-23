@@ -5,7 +5,8 @@
 #             patches (own branch fast-start, the fork branch helper-colors) and
 #             a local recipe override; nothing built yet
 #   built     fresh, one build (which trusts the project recipe), then one new
-#             upstream commit, so upstream moved since the last build
+#             upstream commit, fetched into the clone, so upstream moved since
+#             the last build
 #   conflict  fresh plus own branch rename-flag, which edits the line
 #             fast-start edits, added third
 # Offline: every repository is a local bare repository under /srv.
@@ -170,7 +171,9 @@ case "$mode" in
     git add README.md
     git commit --quiet -m "Add a README"
     git push --quiet "$UP" main
+    # The maintainer fetches it (status reads only what was fetched).
     cd "$WORK"
+    git fetch --quiet upstream
     ;;
   conflict)
     # Own branch rename-flag edits the line fast-start edits.

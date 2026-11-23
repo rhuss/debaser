@@ -1,0 +1,57 @@
+schema: 1
+name: status
+variant: default
+kind: cli
+image: content/modules/ROOT/images/visuals/status.svg
+environment:
+  name: widget
+  image: localhost/debaser-visuals:0.1.0
+  digest: sha256:be5fcf857fe61e3b02a17f4fa1e72fcefdea8cd4e18c0931895d9edf24cc297c
+  platform: linux/arm64
+  source: debaser
+  source_commit: b46fcb260a1eb248a046999317cbfa98f73cb31b
+fingerprint: 2927a3e810ca24a7
+capture_env: 4278a241e451
+captured_at: '2026-11-23T11:41:35Z'
+redaction:
+  rules:
+  - home-path
+  - user-path
+  - user-at
+  - k8s-api
+  - hostname
+  - ipv4
+  - jwt
+  - bearer
+  - api-key
+  - private-key
+  disabled: []
+  replacements:
+    home-path: 0
+    user-path: 0
+    user-at: 0
+    k8s-api: 0
+    hostname: 0
+    ipv4: 0
+    jwt: 0
+    bearer: 0
+    api-key: 0
+    private-key: 0
+masks: 1
+scripts: []
+highlights: []
+style: 7f0da26560f0910f
+text: |-
+  $ debaser status
+  data    /work/widget/.git/debaser
+  config  /work/widget/.git/debaser/patches.json  (local recipe: /work/widget/.git/debaser/recipe.toml)
+  build   /work/widget-debaser
+
+  debaser · no run in progress · upstream upstream/main @ 0000000
+  1 upstream commit since the last build
+
+  PATCH                                        UPSTREAM   OWN BRANCH          PR         BEHIND   CHECKS   PATCH CHECK
+  fast-start                                   ✓ clean    ! behind upstream   not a PR   1        pass     -
+  /srv/forks/helper/widget.git:helper-colors   ✓ clean    -                   not a PR   1        pass     -
+
+  Branches behind upstream: `rebase` updates them.
