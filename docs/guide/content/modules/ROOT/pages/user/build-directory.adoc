@@ -1,6 +1,7 @@
 = The build directory
 
 // Sources:
+// debaser:tests/integration/tree.test.ts:58-60
 // debaser:src/core/tree.ts:1-3
 // debaser:src/core/tree.ts:32-40
 // debaser:src/core/tree.ts:42-50
@@ -49,7 +50,7 @@
 
 A build checks out the integration branch, resets it to upstream, and merges your patches onto it.
 debaser does that work in the build directory, a linked Git worktree of your clone that holds the integration branch.
-Unless you build in place, the checkout you start debaser from stays as it is.
+Unless that checkout is the build directory, as when you build in place, the checkout you start debaser from stays as it is.
 You can keep editing, switch branches, or run a dev server there while a build runs.
 
 This page shows where the build directory lives, how to move it or build in place, which commands use it, and what to do when debaser refuses to use it.
@@ -386,7 +387,12 @@ When that worktree's directory exists, switch it to another branch:
 git -C <worktree> switch <other branch>
 ----
 
-For a registration whose directory is gone, the switch cannot run, and debaser suggests no command.
+For a registration whose directory is gone, the switch cannot run: such a registration stays until it is pruned, so prune it.
+
+[source,bash]
+----
+git worktree prune
+----
 
 === Checks before a rollback of a stopped run
 
