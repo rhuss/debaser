@@ -1,5 +1,5 @@
 import { existsSync, rmSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 import type { Context } from "../core/context";
 import { listOf, recipeOf } from "../core/context";
 import type { Code } from "../core/errors";
@@ -33,7 +33,7 @@ export async function finish(ctx: Context, run: RunState): Promise<Outcome> {
     list = listOf(ctx),
     recipe = recipeOf(ctx),
     target = installPath(ctx),
-    output = recipe.artifact?.output ? join(repo, recipe.artifact.output) : null,
+    output = recipe.artifact?.output ? resolve(repo, recipe.artifact.output) : null,
     warnings: string[] = [];
   const pushed = await rebasePhase.offerPush(ctx, run);
   // The installed copy changes only now, after every check passed.

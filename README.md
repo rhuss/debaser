@@ -56,7 +56,45 @@ live and retired ones.
 
 The list also holds the integration branch name (default `debaser`, with
 `debaser-prev` as the previous build), the rebase mode (`all`, `conflicting`
-or `off`), the harness settings, and optional per-patch acceptance checks.
+or `off`), the harness settings, the build directory (`tree`), and optional
+per-patch acceptance checks.
+
+## Build directory
+
+`build`, `continue` and `rollback` never touch the checkout you start them
+from, unless that checkout is the build directory itself. They work in the
+build directory: a linked worktree of the project that
+holds the integration branch. By default it sits next to the main checkout as
+`../<checkout name>-debaser` (for `~/src/corgi` that is `~/src/corgi-debaser`).
+The first build creates it and records it as `"tree": "../corgi-debaser"` in
+`patches.json`. You can keep editing, switching branches or running a dev
+server in your own checkout while a build runs, and you can start debaser from
+any worktree of the project.
+
+The build output and the installed artifact (the recipe's `artifact.output`
+and `artifact.install`) live in the build directory too, unless the recipe
+gives an absolute path. Stops name the build directory: resolve a conflict or
+fix a step there, then run `debaser continue` from wherever you are.
+
+- Set `tree` yourself to put the directory elsewhere (absolute, or relative to
+  the main checkout). debaser keeps the value as written.
+- Set `"tree": "."` to build in place, in the main checkout itself, as a CI job
+  with a single checkout needs. The checkout must then be clean.
+- debaser refuses to build when the build directory has modified tracked files,
+  sits on another branch, is not a worktree of this repository, or when the
+  integration branch is checked out in another worktree (including your main
+  checkout, which older debaser versions left on it: `git switch main` there
+  first). Untracked files never block.
+- A build directory you deleted is created again by the next build. debaser
+  never deletes it; remove it with `git worktree remove ../corgi-debaser`.
+
+`debaser list` and `debaser status` start with where everything is:
+
+```text
+data    /…/corgi/.git/debaser
+config  /…/corgi/.git/debaser/patches.json  (local recipe: none)
+build   /…/corgi-debaser
+```
 
 ## Recipes
 
@@ -76,7 +114,9 @@ TOML and come in four layers, each extending the one below:
 Steps merge by name: a step with an inherited name replaces it in place, a new
 one goes `before` or `after` a named step (or at the end), and
 `steps_replace = true` drops the inherited list. `debaser recipe` prints the
-effective recipe with the layer of every value.
+effective recipe with the layer of every value, and where each layer came
+from (built-in, the committed file at its upstream commit, or the local
+override's path).
 
 Steps get `DEBASER_PATCHES`, `DEBASER_FORK_URL`, `DEBASER_COMMIT` and
 `DEBASER_MANIFEST` (a JSON manifest with the same data), so a project can stamp
@@ -143,7 +183,7 @@ Only one command that changes things runs per checkout at a time; `status`,
 | Code | Meaning |
 |---|---|
 | 0 | success |
-| 1 | usage or precondition error (dirty checkout, a run stopped or running, git too old, fetch failure, untrusted project recipe in a headless run, no matching recipe), or a refused push of a rebased branch |
+| 1 | usage or precondition error (modified files in the build directory, a run stopped or running, git too old, fetch failure, untrusted project recipe in a headless run, no matching recipe), or a refused push of a rebased branch |
 | 2 | stopped at an unresolved merge conflict, or a rebase conflict in `rebase` |
 | 3 | stopped at a step that fails only on the patched tree |
 | 4 | the step fails on plain upstream too: upstream is broken |

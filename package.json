@@ -7,7 +7,8 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "build": "bun build --compile src/cli/main.ts src/live/worker.ts --outfile dist/debaser"
+    "build": "bun build --compile src/cli/main.ts src/live/worker.ts --outfile dist/debaser",
+    "test:parallel": "scripts/test-parallel.sh"
   },
   "devDependencies": {
     "@types/bun": "latest",

@@ -4,6 +4,7 @@ import type { Context } from "../core/context";
 import { listOf } from "../core/context";
 import { Explained } from "../core/errors";
 import * as runstate from "../core/runstate";
+import * as tree from "../core/tree";
 import type { RunState } from "../core/runstate";
 import type { Outcome } from "../cli/outcome";
 import * as git from "../git/git";
@@ -26,8 +27,7 @@ import { buildLeftover } from "./leftover";
 
 /** Resumes a stopped run once the user resolved the conflict or fixed the step (FR-015). */
 export async function resume(ctx: Context, o: { skipBranch?: boolean } = {}): Promise<Outcome> {
-  const { repo } = ctx,
-    list = listOf(ctx),
+  const list = listOf(ctx),
     run = runstate.loadRun(ctx.dir);
   if (!run) throw new Explained("there is no stopped run to continue");
   if (o.skipBranch && (run.kind !== "rebase" || !run.rebaseStop))
@@ -36,6 +36,11 @@ export async function resume(ctx: Context, o: { skipBranch?: boolean } = {}): Pr
   // The time the run sat stopped isn't its time: counting starts again here.
   timings.resume(run, ms(ctx));
   if (run.kind === "rebase") return rebasePhase.resumeRebase(ctx, run, !!o.skipBranch);
+  // The run goes on in its build directory, wherever continue is started (FR-012).
+  const at = tree.runTree(ctx, run);
+  if (!at) throw new Explained(`the build directory ${run.tree} is gone; undo the run with \`debaser rollback\``);
+  ctx.repo = at;
+  const { repo } = ctx;
   loadRecipe(ctx, run.upstream.tip);
   live.replay(ctx, run, "continue");
   // Merging or committing onto any other branch would change a branch the run doesn't own.
@@ -65,7 +70,11 @@ export async function resume(ctx: Context, o: { skipBranch?: boolean } = {}): Pr
         signal(ctx, { t: "item", stage: "merge", id: p.display, state: "failed", outcome: "stopped", detail: `unmerged files: ${left.join(", ")}` });
         return endRun(ctx, run, {
           code: 2,
-          lines: [`debaser: ${p.display} still has unmerged files: ${left.join(", ")}`, "  resolve them and `git add` them, then continue"],
+          lines: [
+            `debaser: ${p.display} still has unmerged files: ${left.join(", ")}`,
+            `  build directory: ${repo}`,
+            "  resolve them and `git add` them, then continue",
+          ],
         });
       }
       commitMerge(repo, mergeMessage(p));

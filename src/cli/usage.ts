@@ -30,6 +30,9 @@ options:
                         or DEBASER_DIR)
   --version, --help
 
+build, continue and rollback work in the build directory (patch list "tree",
+default ../<checkout>-debaser), never in the checkout they are started from.
+
 On a terminal, build, rebase and continue show a live view; --verbose pins
 it above the full log. rollback shows its steps, and with --verbose the
 install's output instead.

@@ -1,5 +1,5 @@
 import { expect, test, setDefaultTimeout } from "bun:test";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import * as patchlist from "../../src/core/patchlist";
 import { display } from "../../src/plugins/sources/parse";
@@ -57,8 +57,13 @@ test("add creates an ignored config, dates entries, refuses duplicates and takes
     ["other/widget:named", "named", "2026-11-04"],
   ]);
   expect((await run(w, "remove", "other/widget:named", "--reason", "x")).code).toBe(0);
+  // The configuration header first (spec 002, FR-017): no local recipe, no build yet.
   expect((await run(w, "list")).out).toBe(
-    "debaser · 3 patches, merged in this order onto upstream/main\n" +
+    `data    ${dirOf(w)}\n` +
+      `config  ${dirOf(w)}/patches.json  (local recipe: none)\n` +
+      `build   ${realpathSync(w.root)}/clone-debaser  (not created yet)\n` +
+      "\n" +
+      "debaser · 3 patches, merged in this order onto upstream/main\n" +
       "\n" +
       "#  PATCH               ADDED       DESCRIPTION\n" +
       "1  acme/widget#109     2026-11-04  jump to blocked agents\n" +

@@ -11,6 +11,7 @@ one patch fails: the build no longer does what that patch is for.
 - Expected: {{expected}}
 - Build output: {{artifact}}
 - Attempt: {{attempt}}
+- Build directory: {{tree}}
 
 The check's output:
 

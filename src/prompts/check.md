@@ -10,6 +10,7 @@ merges are committed.
 - What fails: {{failing}}
 - Cause: {{cause}}
 - Attempt: {{attempt}}
+- Build directory: {{tree}}
 
 Patches merged in this run:
 

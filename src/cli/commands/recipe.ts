@@ -3,7 +3,8 @@ import { listOf, upstreamRemote } from "../../core/context";
 import * as git from "../../git/git";
 import { loadRecipe } from "../../recipes/load";
 import { loadTrust, readRepoRecipe, repoRecipePath } from "../../recipes/trust";
-import { render } from "../../views/recipe";
+import { paths } from "../../core/paths";
+import { layerSource, render } from "../../views/recipe";
 import type { IO } from "../main";
 import type { Outcome } from "../outcome";
 import type { Options } from "./index";
@@ -17,12 +18,14 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
   const r = loadRecipe(ctx, tip, { peek: true }),
     repo = tip ? readRepoRecipe(ctx.repo, tip) : null,
     untrusted = repo && loadTrust(ctx.dir).trusted[list.upstream.repo]?.sha256 !== repo.sha256,
+    localRecipe = paths.localRecipe(ctx.dir),
     note = untrusted ? `${repoRecipePath} at ${tip!.slice(0, 7)} is not trusted and not used; \`debaser trust\` reviews it` : null;
   return {
     code: 0,
-    lines: render(r, { color: !!io.color, note }),
+    lines: render(r, { color: !!io.color, note, localRecipe }),
     json: {
       layers: r.layers,
+      layerSources: Object.fromEntries(r.layers.map(id => [id, layerSource(id, localRecipe)])),
       generic: r.generic,
       projectName: r.projectName,
       steps: r.steps.map(s => ({ ...s, layer: r.provenance[`steps.${s.name}`] })),

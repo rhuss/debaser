@@ -8,7 +8,11 @@ import type { PatchList } from "./patchlist";
 /** What every command runs with: the checkout, debaser's directory, the patch
  * list, the effective recipe once resolved, and the ways it talks to the user. */
 export type Context = {
+  /** The checkout runs work in: the build directory once `build`, `continue`
+   * or `rollback` resolved it, else the worktree debaser was started from. */
   repo: string;
+  /** The worktree debaser was started from; never changed by a run. */
+  home: string;
   dir: string;
   /** The patch list; null before the first `add`. */
   list: PatchList | null;

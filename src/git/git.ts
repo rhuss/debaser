@@ -99,6 +99,24 @@ export function requireVersion(cwd: string, minimum = "2.38", have = version(cwd
 export function isClean(cwd: string): boolean {
   return must(cwd, ["status", "--porcelain", "--untracked-files=no"]) === "";
 }
+/** Tracked files with staged or unstaged changes; untracked files don't count.
+ * Takes no optional locks, so `status` and `list` never race a running build
+ * for the index lock; throws when git can't tell, rather than answering "clean". */
+export function modifiedFiles(cwd: string): string[] {
+  const out = git(cwd, ["--no-optional-locks", "status", "--porcelain", "-z", "--untracked-files=no"]);
+  if (out.code !== 0) throw Error(`git status in ${cwd} failed: ${out.stderr.trim()}`);
+  // NUL-separated and unquoted; a rename or copy is followed by its source path.
+  const fields = out.stdout.split("\0"),
+    files: string[] = [];
+  for (let i = 0; i < fields.length; i++) {
+    const entry = fields[i];
+    if (entry.length < 4) continue;
+    files.push(entry.slice(3));
+    // Renames and copies, in the index or the work tree, carry their source next.
+    if ("RC".includes(entry[0]) || "RC".includes(entry[1])) i++;
+  }
+  return files;
+}
 export function currentBranch(cwd: string): string | null {
   const out = git(cwd, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
   return out.code === 0 ? out.stdout.trim() : null;

@@ -1,5 +1,5 @@
 import { copyFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 import type { Context } from "../core/context";
 import { recipeOf } from "../core/context";
 import type { Event, RunState } from "../core/runstate";
@@ -65,12 +65,12 @@ export const mergedPatches = (run: RunState) =>
 /** Placeholders for a step run in `tree`. */
 export function stepVars(ctx: Context, tree: string, tests?: string[]): Vars {
   const output = recipeOf(ctx).artifact?.output;
-  return { output: join(tree, output ?? "debaser-output"), root: tree, ...(tests ? { tests } : {}) };
+  return { output: resolve(tree, output ?? "debaser-output"), root: tree, ...(tests ? { tests } : {}) };
 }
-/** The installed artifact's path in the checkout, or null when the recipe installs none. */
-export function installPath(ctx: Context): string | null {
+/** The installed artifact's path in the build directory `tree` (absolute paths as is), or null when the recipe installs none. */
+export function installPath(ctx: Context, tree = ctx.repo): string | null {
   const install = recipeOf(ctx).artifact?.install;
-  return install ? join(ctx.repo, install) : null;
+  return install ? resolve(tree, install) : null;
 }
 /** Resolves the recipe at `tip` for a run, so the wait at a trust prompt
  * isn't the run's time (FR-048). */

@@ -467,3 +467,12 @@ test("a pinned PR merged upstream by squash is still merged at its pin, and surv
   expect(again.out + again.err).toContain("using the pinned commit");
   expect(stamped(w).map(p => p.commit)).toEqual([pinned]);
 });
+
+test("an absolute artifact.install path is used as is", async () => {
+  const w = world(),
+    target = join(fresh("install"), "bin", "widget");
+  branch(w, "mine", { "mine.txt": "mine\n" });
+  configure(w, ["mine"], { artifact: { output: "out/build", install: target } });
+  expect((await run(w, "build")).code).toBe(0);
+  expect(stamped(w, target).map(s => s.source)).toEqual(["mine"]);
+});

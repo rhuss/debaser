@@ -3,6 +3,7 @@
 - Kind: {{kind}}
 - Patch: {{description}} ({{link}})
 - Upstream: {{upstream}}
+- Build directory: {{tree}}
 
 ## Problem
 

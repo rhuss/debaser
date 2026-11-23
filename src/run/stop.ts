@@ -42,6 +42,8 @@ export async function stop(
     lines: [
       `debaser stopped: ${reason[0]}`,
       ...reason.slice(1).map(line => `  ${line}`),
+      // Where to fix it: the build directory, not the checkout debaser was started from (FR-011).
+      `  build directory: ${ctx.repo}`,
       `  report: ${join(run.reportDir, "report.md")}`,
       ...handoffs.map(path => `  handoff: ${path}`),
       ...next.map(line => `  ${line}`),
@@ -92,6 +94,7 @@ function agentHint(ctx: Context, run: RunState, f: StepFailure, stopped: Stopped
     path,
     fill(template("check", recipeOf(ctx).prompts), {
       project: recipeOf(ctx).projectName,
+      tree: ctx.repo,
       step: f.step,
       command: f.command,
       failing: summaryOf(ctx, stopped) ?? "see the output below",
@@ -101,6 +104,7 @@ function agentHint(ctx: Context, run: RunState, f: StepFailure, stopped: Stopped
       log: stopped.log,
       logExcerpt: excerpt,
       finish:
+        `You are working in the build directory ${ctx.repo}. ` +
         "Do not run debaser yourself. When the command passes, stop and say briefly what was wrong and what you changed; the user then runs `debaser continue`, which commits the fix and verifies the build again.",
     }),
   );
@@ -115,6 +119,7 @@ export function conflictHint(ctx: Context, run: RunState, p: Planned, files: str
     path,
     fill(template("conflict", recipeOf(ctx).prompts), {
       project: recipeOf(ctx).projectName,
+      tree: ctx.repo,
       patch: p.display,
       description: p.description,
       prLink: p.prLink,
@@ -122,7 +127,7 @@ export function conflictHint(ctx: Context, run: RunState, p: Planned, files: str
       files,
       upstream: upstreamLine(ctx, run),
       mergedSoFar: run.merged.map(m => `${m.source}: ${m.description}`),
-    }) + "\nThe run stopped at this conflict: do not run debaser yourself. The user stages your resolution and runs `debaser continue`.\n",
+    }) + `\nYou are working in the build directory ${ctx.repo}. The run stopped at this conflict: do not run debaser yourself. The user stages your resolution and runs \`debaser continue\`.\n`,
   );
   return [`prompt for an agent: ${path}`, `run it: cd ${word(ctx.repo)} && ${agentCommand(ctx, path)}`];
 }

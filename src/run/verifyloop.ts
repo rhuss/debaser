@@ -7,7 +7,7 @@ import { forStep } from "../plugins/parsers/registry";
 import type { Step } from "../recipes/types";
 import { writeManifest } from "../report/manifest";
 import { expand } from "../steps/commands";
-import { installNeeded } from "../steps/install";
+import { installNeeded, markInstalled } from "../steps/install";
 import { runIsolated } from "../steps/isolated";
 import { runStep, runWithRetry } from "../steps/run";
 import { endItem, event, save, short, signal, startItem, stepVars } from "./common";
@@ -65,6 +65,8 @@ export async function verifyLoop(ctx: Context, run: RunState): Promise<Outcome |
       });
     endItem(ctx, run, `step:${step.name}`);
     if (tried.ok) {
+      // This worktree has its dependencies now (FR-010).
+      if (recipe.install?.step === step.name) markInstalled(ctx.repo);
       if (tried.flaky) event(run, "flaky", { step: step.name, detail: keep });
       event(run, "passed", { step: step.name });
       save(ctx, run);

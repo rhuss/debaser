@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { Context } from "../core/context";
 import { listOf, recipeOf } from "../core/context";
 import type { PatchList, RebaseMode } from "../core/patchlist";
@@ -569,7 +569,7 @@ async function finish(e: Env, t: RebaseTarget, tree: string, how: How): Promise<
     );
   const recipe = recipeOf(e.ctx),
     checks = recipe.steps,
-    vars = (tests?: string[]) => ({ output: join(tree, recipe.artifact?.output ?? "debaser-output"), root: tree, ...(tests ? { tests } : {}) }),
+    vars = (tests?: string[]) => ({ output: resolve(tree, recipe.artifact?.output ?? "debaser-output"), root: tree, ...(tests ? { tests } : {}) }),
     logs = join(e.reportDir, "rebase"),
     env = e.stepEnv(tree),
     flaky: { step: string; log: string }[] = [],

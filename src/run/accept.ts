@@ -1,5 +1,5 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { Context } from "../core/context";
 import { recipeOf } from "../core/context";
 import type { AcceptanceCheck } from "../core/patchlist";
@@ -95,7 +95,7 @@ export async function acceptLoop(ctx: Context, run: RunState): Promise<Outcome |
   run.acceptance = [];
   const env: Record<string, string | undefined> = { ...stepEnv(ctx, run, ctx.repo) },
     output = recipeOf(ctx).artifact?.output;
-  if (output) env.DEBASER_ARTIFACT = join(ctx.repo, output);
+  if (output) env.DEBASER_ARTIFACT = resolve(ctx.repo, output);
   else delete env.DEBASER_ARTIFACT;
   const failing: { p: Planned; log: string }[] = [];
   for (const p of merged) {
@@ -158,6 +158,7 @@ export async function acceptLoop(ctx: Context, run: RunState): Promise<Outcome |
         recipe = recipeOf(ctx),
         text = fill(template("acceptance", recipe.prompts), {
           project: recipe.projectName,
+          tree: ctx.repo,
           patch: p.display,
           description: p.description,
           prLink: p.prLink,

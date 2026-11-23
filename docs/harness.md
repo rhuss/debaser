@@ -5,6 +5,10 @@ and own-branch rebases to an AI agent. It always checks the agent's result
 itself before accepting it, and every accepted change becomes its own commit
 (`Resolved-By: harness` on a merge, `Fixed-By: harness` on a fix).
 
+For a build, the agent runs in the build directory (`../<checkout>-debaser`
+by default, see the README), and its prompt names it. Own-branch rebases run
+in throwaway worktrees.
+
 ## Configuration
 
 The harness lives in the `harness` section of `patches.json`:

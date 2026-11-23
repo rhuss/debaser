@@ -38,6 +38,7 @@ export async function resolveConflict(ctx: Context, run: RunState, p: Planned, f
       before = snapshot(repo),
       text = fill(template("conflict", recipeOf(ctx).prompts), {
         project: recipeOf(ctx).projectName,
+        tree: ctx.repo,
         patch: p.display,
         description: p.description,
         prLink: p.prLink,

@@ -42,8 +42,9 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      # One bun process per test file; the suite is mostly waiting on git processes.
       - name: Test
-        run: bun test
+        run: bun run test:parallel
 
       - name: Build
         run: bun run build && ./dist/debaser --version

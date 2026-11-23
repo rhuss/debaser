@@ -104,6 +104,7 @@ async function fixWithHarness(ctx: Context, run: RunState, step: Step, failure: 
       before = snapshot(repo),
       text = fill(template("check", recipe.prompts), {
         project: recipe.projectName,
+        tree: ctx.repo,
         step: step.name,
         command: failure.command,
         failing: summaryOf(ctx, { step: step.name, log: failure.log }) ?? "see the output below",

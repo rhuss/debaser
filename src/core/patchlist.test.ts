@@ -74,3 +74,18 @@ test("fork-branch sources have exactly one of repo or url, without credentials",
   one({ kind: "fork-branch", url: "https://x.org/y.git", branch: "b" });
   expect(load(dir)?.patches[0].source).toEqual({ kind: "fork-branch", url: "https://x.org/y.git", branch: "b" });
 });
+
+test("the build directory `tree` reads back as written; an empty one is refused", () => {
+  const dir = fresh(),
+    file = join(dir, "patches.json"),
+    base = create({ repo: "acme/widget", remote: "upstream", branch: "main" });
+  for (const tree of ["../widget-debaser", "/abs/elsewhere", "."]) {
+    save(dir, { ...base, tree });
+    expect(load(dir)!.tree).toBe(tree);
+    expect(JSON.parse(read(file)).tree).toBe(tree);
+  }
+  save(dir, base);
+  expect(load(dir)!.tree).toBeUndefined();
+  writeFileSync(file, JSON.stringify({ ...base, tree: "" }));
+  expect(() => load(dir)).toThrow(/patches\.json: tree must be a non-empty path/);
+});

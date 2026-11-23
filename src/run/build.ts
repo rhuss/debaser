@@ -4,11 +4,12 @@ import type { Context } from "../core/context";
 import { listOf, upstreamRemote } from "../core/context";
 import { Explained } from "../core/errors";
 import type { RebaseMode } from "../core/patchlist";
+import { paths } from "../core/paths";
 import * as runstate from "../core/runstate";
+import * as tree from "../core/tree";
 import type { RunState } from "../core/runstate";
 import type { Outcome } from "../cli/outcome";
 import * as git from "../git/git";
-import { worktreeWith } from "../git/worktree";
 import { display } from "../plugins/sources/parse";
 import { loadRecipe } from "../recipes/load";
 import * as timings from "../timings/timings";
@@ -47,21 +48,24 @@ export function preflight(ctx: Context, o: { push?: boolean }): string {
 /** Starts a full run: preflight, fetch everything, reset the integration
  * branch to upstream, merge, verify, accept and finish (FR-005 to FR-011). */
 export async function build(ctx: Context, o: BuildOptions = {}): Promise<Outcome> {
-  const { repo } = ctx,
-    list = listOf(ctx);
-  git.requireVersion(repo);
+  const list = listOf(ctx);
+  git.requireVersion(ctx.home);
   const busy = runstate.loadRun(ctx.dir);
   if (busy) throw inProgress(ctx, busy);
-  if (!git.isClean(repo)) throw new Explained("tracked files have uncommitted changes; commit or stash them first");
-  if (list.branch === list.upstream.branch || !git.validBranchName(repo, list.branch))
+  if (list.branch === list.upstream.branch || !git.validBranchName(ctx.home, list.branch))
     throw new Explained(`${list.branch} can't be the integration branch`);
-  const elsewhere = worktreeWith(repo, list.branch);
-  if (elsewhere) throw new Explained(`${list.branch} is checked out in another worktree (${elsewhere}); switch it away first`);
   const remote = preflight(ctx, o);
+  // The run works in the build directory, never in the checkout it was started
+  // from (FR-001, FR-005): checked, and created when missing, after every other
+  // refusal, so none of them leaves a directory behind.
+  ctx.repo = tree.prepare(ctx);
+  const { repo } = ctx;
+  ctx.progress(`build directory ${repo}; patch list ${paths.patchList(ctx.dir)}`);
   const run: RunState = {
     kind: "build",
     startedAt: ctx.now().toISOString(),
     reportDir: "",
+    tree: repo,
     startTip: git.revParse(repo, `refs/heads/${list.branch}`),
     startHead: git.head(repo),
     startBranch: git.currentBranch(repo),

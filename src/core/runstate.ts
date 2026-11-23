@@ -113,6 +113,9 @@ export type RunState = {
   startedAt: string;
   reportDir: string;
   startTip: string | null;
+  /** The absolute, realpath'd build directory the run works in; absent for runs
+   * from before the build directory (FR-014). */
+  tree?: string;
   /** HEAD of the checkout before the run, for the install trigger and a first-run rollback. */
   startHead: string;
   startBranch: string | null;

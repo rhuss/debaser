@@ -259,6 +259,8 @@ function result(
   return {
     version: 1,
     command: run.kind,
+    // Runs from before the build directory worked where the integration branch was checked out.
+    ...(run.kind === "build" ? { tree: run.tree ?? ctx.repo } : {}),
     outcome: r.code === 0 ? "success" : r.code === 1 ? "failed" : "stopped",
     exitCode: r.code,
     upstream: { ref: run.upstream.ref, tip: run.upstream.tip, newCommits: r.pulled.length },

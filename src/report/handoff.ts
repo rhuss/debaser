@@ -21,6 +21,8 @@ export type Handoff = {
   cause: string;
   fix: string;
   checkout: string;
+  /** The build directory the run worked in. */
+  tree: string;
   task: string;
 };
 export type MergeCheck = { display: string; clean: boolean | null; files: string[] };
@@ -67,6 +69,8 @@ function base(ctx: Context, run: RunState, shown: string, upstream: string) {
     link: p?.prLink ?? (source ? link(source) : null) ?? checkout,
     upstream,
     checkout,
+    // A `debaser rebase` run never touches the build directory.
+    tree: run.kind === "build" ? ctx.repo : "none (a rebase run)",
   };
 }
 const commandOf = (ctx: Context, step: string) => {

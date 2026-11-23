@@ -24,6 +24,8 @@ export type PatchList = {
   recipe?: string;
   rebase?: RebaseMode;
   harness?: HarnessConfig;
+  /** The build directory: absolute, or relative to the main worktree; kept as written. */
+  tree?: string;
   patches: Patch[];
   retired: RetiredPatch[];
 };
@@ -126,6 +128,10 @@ export function validate(raw: unknown, path: string): PatchList {
   if (r.recipe !== undefined) {
     if (!text(r.recipe)) throw new Explained(`${path}: recipe must name a generic recipe`);
     list.recipe = r.recipe;
+  }
+  if (r.tree !== undefined) {
+    if (!text(r.tree)) throw new Explained(`${path}: tree must be a non-empty path to the build directory`);
+    list.tree = r.tree;
   }
   if (r.rebase !== undefined) {
     if (!rebaseModes.includes(r.rebase as RebaseMode)) throw new Explained(`${path}: rebase must be one of ${rebaseModes.join(", ")}`);

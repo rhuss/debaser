@@ -166,7 +166,12 @@ export function noGh(w: World) {
 }
 
 export const dirOf = (w: World) => join(w.clone, ".git", "debaser");
+/** The installed artifact of a world built in place (`configure`'s default). */
 export const installPath = (w: World) => join(w.clone, "dist", "widget-custom");
+/** A world's default build directory: beside the clone, inside the world's own temp root. */
+export const treeOf = (w: World) => join(w.root, "clone-debaser");
+/** The installed artifact of a world built in its build directory (`configureTree`). */
+export const treeInstallPath = (w: World) => join(treeOf(w), "dist", "widget-custom");
 /** Stub steps that need no real project: typecheck fails while a .txt file
  * says BROKEN, build writes the first-parent merges (parents, then subject). */
 export type StubStep = { name: string; run: string[]; parser?: string; timeout?: number; before?: string; after?: string };
@@ -218,7 +223,15 @@ export function recipeText(r: RecipeExtra = {}): string {
 export type Extra = Partial<Omit<PatchList, "patches">> & { recipe?: string } & RecipeExtra & {
     patchExtra?: Record<string, Partial<patchlist.Patch>>;
   };
-/** Writes `patches.json` with `patches` (in order) and the local recipe. */
+/** Writes `patches.json` with `patches` (in order) and the local recipe.
+ *
+ * The suites written before the build directory (spec 002) build in place:
+ * `configure` records the clone itself as the build directory (`"tree": "."`,
+ * US5), so they keep exercising the run machinery against `w.clone`. The run
+ * code is the same in both modes (only `ctx.repo` differs), and the sibling
+ * build directory, the default for real projects, is covered by
+ * `tests/integration/tree.test.ts` and `config.test.ts` through `configureTree`,
+ * which leaves `tree` unset. */
 export function configure(w: World, patches: string[], extra: Extra = {}) {
   const { steps, afterBuild, artifact, install, prompts, raw, patchExtra, ...list } = extra;
   patchlist.save(dirOf(w), {
@@ -231,10 +244,13 @@ export function configure(w: World, patches: string[], extra: Extra = {}) {
     })),
     // Only the rebase tests rebase own branches; they use `configureOwn`.
     rebase: "off",
+    tree: ".",
     ...list,
   } as PatchList);
   writeFileSync(join(dirOf(w), "recipe.toml"), recipeText({ steps, afterBuild, artifact, install, prompts, raw }));
 }
+/** `configure` with the default build directory (`../clone-debaser`, not recorded yet). */
+export const configureTree = (w: World, patches: string[], extra: Extra = {}) => configure(w, patches, { tree: undefined, ...extra });
 /** `configure` without a `rebase` mode, so the default (`all`) applies. */
 export const configureOwn = (w: World, patches: string[], extra: Extra = {}) =>
   configure(w, patches, { rebase: undefined, ...extra });

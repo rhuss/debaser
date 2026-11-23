@@ -44,7 +44,9 @@ pull request that closes the pilot.
    (`debaser add <source> "<description>"` per entry).
 2. Run `debaser build`.
 
-   Expected: `dist/corgi-custom` runs, and the after-build reload fires.
+   Expected: the build runs in `../corgi-debaser`, the checkout you started
+   it from stays as it was, `../corgi-debaser/dist/corgi-custom` runs, and
+   the after-build reload fires.
 
 ## SC-012: status speed on the rtk pilot
 

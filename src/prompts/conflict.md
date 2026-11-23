@@ -8,6 +8,7 @@ merge is in progress in this checkout (the current directory).
 - Description: {{description}}
 - Pull request: {{prLink}}
 - Upstream: {{upstream}}
+- Build directory: {{tree}}
 
 Pull request description:
 

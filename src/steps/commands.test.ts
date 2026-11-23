@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expand } from "./commands";
-import { installNeeded } from "./install";
+import { installNeeded, markInstalled } from "./install";
 import type { EffectiveRecipe } from "../recipes/types";
 
 test("placeholders fill the output, the root and the tests to rerun", () => {
@@ -45,4 +45,20 @@ test("install runs when nothing is installed yet, even with unchanged manifests"
   expect(installNeeded(tree, recipe, "HEAD")).toBe(false);
   expect(installNeeded(tree, recipe, "HEAD~1")).toBe(true);
   expect(installNeeded(tree, { ...recipe, install: undefined }, "HEAD~1")).toBe(false);
+});
+
+test("without a marker, install runs until one passed in this worktree, then only on a trigger change", () => {
+  const tree = mkdtempSync(join(tmpdir(), "debaser-install-")),
+    git = (...args: string[]) => Bun.spawnSync(["git", ...args], { cwd: tree });
+  git("init", "-q");
+  git("-c", "user.name=T", "-c", "user.email=t@x", "commit", "-q", "--allow-empty", "-m", "base");
+  writeFileSync(join(tree, "package.json"), "{}\n");
+  git("add", ".");
+  git("-c", "user.name=T", "-c", "user.email=t@x", "commit", "-q", "-m", "pkg");
+  const recipe = { install: { step: "install", triggers: ["package.json"] } } as EffectiveRecipe;
+  expect(installNeeded(tree, recipe, "HEAD")).toBe(true);
+  markInstalled(tree);
+  expect(installNeeded(tree, recipe, "HEAD")).toBe(false);
+  expect(installNeeded(tree, recipe, "HEAD~1")).toBe(true);
+  rmSync(tree, { recursive: true, force: true });
 });

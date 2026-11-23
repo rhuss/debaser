@@ -13,6 +13,9 @@ import { select } from "../../rebase/select";
 import { pushCommand } from "../../rebase/push";
 import { reportDirs } from "../../report/report";
 import { whereStopped } from "../../run/where";
+import { configInfo } from "../../core/tree";
+import { paint } from "../../live/term";
+import { configHeader } from "../../views/config";
 import { patchLink } from "../../views/list";
 import * as view from "../../views/status";
 import type { IO } from "../main";
@@ -126,10 +129,20 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
     });
     v.note = own.note;
   }
+  // Read only: the build directory is described, never checked or created (FR-022).
+  const config = configInfo(ctx),
+    dim = (text: string) => paint(text, "dim", !!io.color);
   return {
     code: 0,
-    lines: view.render(v, { color: !!io.color }),
+    lines: [
+      ...configHeader(config, { color: !!io.color, branch: list.branch, branchExists: !!built }),
+      ...config.tree.modified.slice(0, 10).map(file => `  ${dim("modified:")} ${file}`),
+      ...(config.tree.modified.length > 10 ? [`  ${dim(`and ${config.tree.modified.length - 10} more`)}`] : []),
+      "",
+      ...view.render(v, { color: !!io.color }),
+    ],
     json: {
+      config,
       run: v.run,
       running: v.running ?? null,
       upstream: { name, tip: upstream, newCommitsSinceBuild: v.sinceBuild ?? null },

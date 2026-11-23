@@ -63,6 +63,7 @@ export async function main(argv: string[], io: IO): Promise<number> {
       dir = resolveDir({ dir: dirOption, env: io.env, cwd: io.cwd }),
       ctx: Context = {
         repo,
+        home: repo,
         dir,
         list: patchlist.load(dir),
         env: io.env,
