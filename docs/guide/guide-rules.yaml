@@ -140,6 +140,17 @@ rules:
       - 'Fixed-By: harness'
       - 'DEBASER_TASK'
       - 'rebase_conflict'
+  - glob: content/modules/ROOT/pages/recipe-author/quickstart.adoc
+    require:
+      - '^Check:'
+      - 'recipe\.toml'
+      - 'debaser recipe'
+      - 'debaser build'
+      - '\[artifact\]'
+    require_order:
+      - 'recipe\.toml'
+      - 'debaser recipe'
+      - 'debaser build'
   - glob: content/modules/ROOT/pages/reference/commands.adoc
     require:
       - '\badd\b'

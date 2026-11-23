@@ -56,8 +56,9 @@ These pages assume a clone with a patch list; xref:user/first-build.adoc[Your fi
 
 == Pages in this section
 
-Read these two pages first, in this order:
+Read these pages first, in this order:
 
+. xref:recipe-author/quickstart.adoc[Quickstart: write a recipe]: write a local recipe for a project no built-in recipe covers, check it with `debaser recipe`, build with it, and share it with the project.
 . xref:recipe-author/recipes.adoc[Recipes and their layers]: the four layers a recipe is assembled from, how debaser picks the generic recipe, how you trust a recipe the project commits, and how `debaser recipe` shows where each value comes from.
 . xref:recipe-author/steps.adoc[Steps, install, and artifact]: write the steps, place them among the ones a lower layer defines, and set the install step, the build output, and where debaser installs it.
 

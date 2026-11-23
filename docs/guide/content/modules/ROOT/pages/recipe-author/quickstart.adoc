@@ -1,0 +1,303 @@
+= Quickstart: write a recipe
+
+// Sources:
+// debaser:src/recipes/resolve.ts:18-70
+// debaser:src/recipes/resolve.ts:100-138
+// debaser:src/recipes/builtin/index.ts:8-16
+// debaser:src/recipes/builtin/bun-ts.toml:3
+// debaser:src/recipes/builtin/rust-cargo.toml:3
+// debaser:src/core/context.ts:41-45
+// debaser:src/core/paths.ts:4-16
+// debaser:src/core/paths.ts:27-29
+// debaser:src/views/config.ts:22-29
+// debaser:src/core/tree.ts:176-179
+// debaser:src/cli/commands/list.ts:13-24
+// debaser:src/recipes/schema.ts:5-91
+// debaser:src/steps/commands.ts:7-23
+// debaser:src/run/verifyloop.ts:18-19
+// debaser:src/run/verifyloop.ts:57-60
+// debaser:src/plugins/parsers/bun-test.ts:47
+// debaser:src/plugins/parsers/registry.ts:14-17
+// debaser:src/plugins/parsers/generic.ts:25-31
+// debaser:src/steps/install.ts:16-26
+// debaser:src/run/leftover.ts:1-11
+// debaser:src/harness/verify.ts:35-39
+// debaser:src/run/common.ts:66-74
+// debaser:src/views/recipe.ts:9-54
+// debaser:src/cli/commands/recipe.ts:12-25
+// debaser:src/run/build.ts:96-99
+// debaser:src/run/build.ts:136-156
+// debaser:src/run/finish.ts:31-56
+// debaser:src/run/finish.ts:94
+// debaser:src/run/finish.ts:109-112
+// debaser:src/live/render.ts:1014-1028
+// debaser:src/core/patchlist.ts:59-79
+// debaser:src/core/patchlist.ts:81-95
+// debaser:src/views/list.ts:56
+// debaser:src/run/accept.ts:25-40
+// debaser:src/run/accept.ts:86-95
+// debaser:src/recipes/trust.ts:11-12
+// debaser:src/recipes/trust.ts:31-46
+// debaser:src/recipes/trust.ts:73-107
+// debaser:src/cli/commands/trust.ts:12-28
+
+debaser needs a recipe to know how to check, build, and install your project.
+Its generic recipes cover Bun and TypeScript projects (`bun-ts`) and Rust projects built with Cargo (`rust-cargo`).
+When neither generic recipe matches your project and no other recipe is in place, a build stops with `no recipe matches this project; debaser has bun-ts, rust-cargo`.
+This page writes a local `recipe.toml` for an example project, checks it with `debaser recipe`, builds with `debaser build`, and shows how to hand the recipe to the project.
+
+You need a clone with a patch list.
+Without one, debaser refuses with `+there is no patch list yet; add a patch first with `debaser add <source>`+`; xref:user/first-build.adoc[Your first build] sets one up.
+
+== The example project
+
+The example is `example/notes`, a fictional Python command-line tool; every detail of it on this page is made up.
+notes manages its dependencies with `uv` (`pyproject.toml` and `uv.lock`), and its tests run with `python -m pytest` from the `tests` directory.
+Its build script `build.py` writes the tool as a single file to the path after `--output`.
+notes has no `bun.lock`, `bun.lockb`, or `Cargo.toml`, so neither generic recipe detects it, and notes commits no recipe of its own.
+
+Replace the commands below with the ones your project uses.
+
+== Step 1: find the place for the local recipe
+
+A local recipe is the file `recipe.toml` in the data directory, next to `patches.json`.
+Unlike a recipe the project commits, it needs no trust: debaser reads it as it is.
+By default the data directory is `debaser` inside your clone's shared Git directory (`.git/debaser` in a plain clone); `--dir` or `DEBASER_DIR` moves it.
+
+. In your clone, show where the data directory is.
++
+Check: the `data` line names the data directory, and the `config` line ends with `(local recipe: none)`.
++
+[source,bash]
+----
+debaser list
+----
+// expect: contains "local recipe: none"
++
+When the `config` line names a path instead of `none`, a local recipe exists already; edit that file instead of creating one.
+
+== Step 2: write the recipe
+
+The recipe for notes has three steps, an install step, the build output with its installed copy, and one glob for temporary files:
+
+[source,toml]
+----
+project_name = "notes CLI"
+leftovers = ["**/__pycache__/**"]
+
+[install]
+step = "install"
+triggers = ["uv.lock", "pyproject.toml"]
+marker = ".venv"
+
+[artifact]
+output = "dist/notes.pyz"
+install = "dist/notes-custom.pyz"
+
+[[steps]]
+name = "install"
+run = ["uv", "sync"]
+
+[[steps]]
+name = "test"
+run = ["uv", "run", "python", "-m", "pytest", "{tests}"]
+tests = ["tests"]
+timeout = 600
+
+[[steps]]
+name = "build"
+run = ["uv", "run", "python", "build.py", "--output", "{output}"]
+----
+
+What each part does:
+
+* `project_name` is the name debaser puts into the prompts for a coding agent.
+* `leftovers` lists globs of temporary files that debaser never commits with a fix.
+* `[install]` names the step that installs the dependencies.
+debaser runs it when `.venv` is missing from the build directory.
+It also runs it when `uv.lock` or `pyproject.toml` changed between the commit the build directory had at the start of the run and the merged result, and skips it otherwise.
+* `[artifact]` sets two different paths.
+`output` is where the build step writes, and steps get it as `+{output}+`.
+`install` is where debaser copies that file once every step and every acceptance check has passed.
+Both paths are relative to the build directory, and debaser installs only when both keys are set.
+* Each `+[[steps]]+` table is a step, and debaser runs them in this order.
+`run` is the command with one argument per array element.
+* On a full run, `+{tests}+` becomes the step's `tests` list, here `tests`.
+Only the `bun-test` parser narrows a rerun to the failing files, so the rerun of a failing `test` step here runs the whole command again.
+* None of the steps sets `parser`, so debaser reads their logs with the generic scan, which picks out path-like words from the log.
+* `timeout = 600` kills the `test` step after 600 seconds.
+
+xref:recipe-author/steps.adoc[Steps, install, and artifact] explains every one of these keys.
+
+. Write the recipe to `recipe.toml` in the data directory.
+The command assumes the default data directory; with `--dir` or `DEBASER_DIR`, write to `<data directory>/recipe.toml` instead.
++
+[source,bash]
+----
+cat > "$(git rev-parse --git-common-dir)/debaser/recipe.toml" <<'EOF'
+project_name = "notes CLI"
+leftovers = ["**/__pycache__/**"]
+
+[install]
+step = "install"
+triggers = ["uv.lock", "pyproject.toml"]
+marker = ".venv"
+
+[artifact]
+output = "dist/notes.pyz"
+install = "dist/notes-custom.pyz"
+
+[[steps]]
+name = "install"
+run = ["uv", "sync"]
+
+[[steps]]
+name = "test"
+run = ["uv", "run", "python", "-m", "pytest", "{tests}"]
+tests = ["tests"]
+timeout = 600
+
+[[steps]]
+name = "build"
+run = ["uv", "run", "python", "build.py", "--output", "{output}"]
+EOF
+----
+
+== Step 3: check the recipe
+
+`debaser recipe` reads every recipe layer, checks it, and prints the effective recipe with the layer each value comes from.
+It rejects a key it does not know, or a value of the wrong type, with the file and the key.
+
+. Show the effective recipe.
++
+Check: the first line reads `debaser recipe · local` followed by the path of your file, and the steps table lists `install`, `test`, and `build`, each with the layer `local`.
++
+[source,bash]
+----
+debaser recipe
+----
+// expect: exit 0 and contains "recipe · local" and contains "pytest"
++
+The first line names no generic layer, because detection found none for notes.
+The `test` row shows `+({tests} = tests) (timeout 600s)+` after the command, and the `PARSER` column shows `-` for all three steps.
+The second table lists `project_name`, the three `install` keys, both `artifact` keys, and `leftovers`.
+
+xref:recipe-author/recipes.adoc#see-the-effective-recipe[See the effective recipe] explains the output.
+
+== Step 4: build with the recipe
+
+. Build.
++
+Check: the end of the output names the installed artifact.
+In plain output, the summary starts with `debaser: built dist/notes-custom.pyz`, the installed artifact relative to the build directory.
+On a color terminal, the last line contains `build done · artifact` followed by the absolute path, ending in `dist/notes-custom.pyz`.
+Skip this check when the build stops; xref:user/stops.adoc[When a build stops] explains each stop.
++
+[source,bash]
+----
+debaser build
+----
+// expect: exit 0 and contains "dist/notes-custom.pyz"
+
+When `dist/notes.pyz` does not exist after the build, debaser installs nothing, warns `warning: the build output dist/notes.pyz does not exist; nothing was installed`, and the summary names the integration branch instead.
+
+== Step 5 (optional): add an acceptance check
+
+The recipe's steps show that the combined build works.
+An acceptance check shows that one patch still does what it is for: a command in that patch's entry in `patches.json`, which debaser runs after every step has passed.
+
+Say one of your patches adds a `stats` command to notes that prints a line such as `notes: 12`.
+Add this `acceptance` object to that patch's entry:
+
+[source,json]
+----
+"acceptance": {
+  "run": ["uv", "run", "python", "{output}", "stats"],
+  "match": "^notes: [0-9]+$"
+}
+----
+
+`+{output}+` is the build output, `dist/notes.pyz` in the build directory.
+The check passes when the command exits with 0 and `match` is found in its output.
+
+. Open the patch list, add the object to your patch's entry, and save the file.
+The command assumes the default data directory.
++
+[source,bash]
+----
+"${EDITOR:-vi}" "$(git rev-parse --git-common-dir)/debaser/patches.json"
+----
+
+. List the patches.
++
+Check: the description of your patch ends with `(with check)`.
++
+[source,bash]
+----
+debaser list
+----
+// expect: exit 0 and contains "(with check)"
+
+xref:recipe-author/acceptance-checks.adoc[Acceptance checks] covers the other keys and what happens when a check fails.
+
+== Step 6 (optional): share the recipe with the project
+
+A project can commit a recipe as `.debaser/recipe.toml`.
+debaser reads that file with Git from the fetched upstream commit, never from a patch, so it takes effect only once it is on the upstream branch your patch list follows.
+Unlike your local recipe, debaser uses it only after you trust it.
+
+In the commands below, `<branch>` is a new branch name of your choice and `<upstream-branch>` is the upstream branch your patch list follows.
+
+. Put the recipe on a new branch based on upstream and commit it.
++
+[source,bash]
+----
+git switch -c <branch> upstream/<upstream-branch>
+mkdir -p .debaser
+cp "$(git rev-parse --git-common-dir)/debaser/recipe.toml" .debaser/recipe.toml
+git add .debaser/recipe.toml
+git commit -m "Add a debaser recipe"
+----
+
+. Propose the branch to the upstream project, and wait until it is merged.
+
+. On a terminal, review and trust the project's recipe.
+`debaser trust` fetches the upstream branch, shows what the recipe runs, and asks `Trust it? [y/N]`.
+Answer `y` after you have read the commands.
++
+Check: debaser reports the recipe as trusted or already trusted.
++
+[source,bash]
+----
+debaser trust
+----
+// expect: exit 0 and matches /debaser: trusted|already trusted/
++
+Without this step, the next `debaser build` asks whether to trust the recipe on a terminal.
+Without a terminal, it stops with exit 1 unless you pass `--trust-recipe`.
+
+. Remove your local recipe.
+As long as it exists, its values win over those of the project's recipe.
++
+[source,bash]
+----
+rm "$(git rev-parse --git-common-dir)/debaser/recipe.toml"
+----
+
+. Show the effective recipe.
++
+Check: the first line names `repo .debaser/recipe.toml at upstream` and a commit, and the line names no `local` layer.
++
+[source,bash]
+----
+debaser recipe
+----
+// expect: exit 0 and contains "repo .debaser/recipe.toml at upstream" and not-contains "< local"
+
+xref:recipe-author/recipes.adoc#trust[Trust the project's recipe] explains the fingerprint and when debaser asks again.
+
+== Where to go next
+
+* xref:recipe-author/steps.adoc[Steps, install, and artifact]: placeholders, failure parsers, the flaky rerun, and the environment a step gets.
+* xref:recipe-author/recipes.adoc[Recipes and their layers]: how a local recipe extends a generic or built-in one.
+* xref:recipe-author/harness.adoc[Setting up the agent]: let a coding agent fix a failing step or a merge conflict.

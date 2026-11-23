@@ -12,6 +12,7 @@
 ** xref:user/own-branches.adoc[Rebasing your own branches]
 ** xref:user/headless.adoc[Running headless]
 * xref:recipe-author/index.adoc[Recipe author guide]
+** xref:recipe-author/quickstart.adoc[Quickstart: write a recipe]
 ** xref:recipe-author/recipes.adoc[Recipes and their layers]
 ** xref:recipe-author/steps.adoc[Steps, install, and artifact]
 ** xref:recipe-author/acceptance-checks.adoc[Acceptance checks]
