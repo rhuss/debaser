@@ -14,7 +14,12 @@
 // debaser:src/run/accept.ts:86-227
 // debaser:src/run/common.ts:66-69
 // debaser:src/steps/commands.ts:11-23
-// debaser:src/report/manifest.ts:61-64
+// debaser:src/report/manifest.ts:52-64
+// debaser:src/cli/commands/add.ts:75-76
+// debaser:src/cli/commands/remove.ts:21-24
+// debaser:src/core/tree.ts:125-128,149-152
+// debaser:src/core/errors.ts:1-5
+// debaser:src/report/report.ts:16
 // debaser:src/harness/select.ts:11-22
 // debaser:src/harness/select.ts:41-52
 // debaser:src/run/harness-fix.ts:23-40
@@ -138,16 +143,16 @@ debaser build
 ----
 
 . Read the acceptance section of the newest report.
-The command assumes the default data directory.
+The command assumes the default data directory; `<patch>` is your patch as `debaser list` shows it.
 +
 Check: the line of your patch ends with `pass`, `flaky`, or `fixed`.
 Skip this check when the build stopped before it reached the acceptance checks; xref:user/stops.adoc[When a build stops] explains each stop.
 +
 [source,bash]
 ----
-grep -A 3 '^## Acceptance checks' "$(git rev-parse --git-common-dir)/debaser/reports/latest/report.md"
+grep -A 50 '^## Acceptance checks' "$(git rev-parse --git-common-dir)/debaser/reports/latest/report.md" | grep -F '<patch>:'
 ----
-// expect: matches /: (pass|flaky|fixed)/
+// expect: matches /: (pass|flaky|fixed)$/
 
 == When and how a check runs
 
@@ -212,7 +217,7 @@ Two limits apply:
 * A failing check gets up to the harness's `attempts` (3 by default).
 The count for a check carries over to the next pass and resets only when the check passes.
 * The agent's fixes for the whole run are bounded.
-The bound is `attempts` multiplied by the number of recipe steps plus the number of acceptance checks of patches the build did not skip.
+The bound is `attempts` multiplied by the sum of the number of recipe steps and the number of acceptance checks of patches the build did not skip.
 Step fixes and acceptance fixes count against the same bound.
 
 When the agent uses up its attempts, or the harness fails to run, the run stops with exit 5.
