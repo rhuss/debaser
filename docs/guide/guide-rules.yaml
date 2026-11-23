@@ -37,3 +37,8 @@ rules:
       - 'build directory'
       - 'patch list'
       - 'acceptance check'
+  - glob: content/modules/ROOT/pages/user/index.adoc
+    require:
+      - 'xref:user/install\.adoc'
+      - 'xref:user/first-build\.adoc'
+      - 'xref:user/stops\.adoc'
