@@ -1,0 +1,79 @@
+# Input register. Only references live here; raw inputs are never copied into this project.
+inputs:
+  - id: readme
+    kind: document
+    location: ../../README.md
+    role: "project README: install, quick start, patch list, build directory"
+    sha256: "3ac65c27f65f6e49667c66110586415212165365568845d8b3f1f8bd8501ad87"
+    confidential: false
+    registered: "2026-11-23"
+  - id: harness-doc
+    kind: document
+    location: ../../docs/harness.md
+    role: "agent harness configuration and behavior"
+    sha256: "bc9dd4ff60ed35d03f3e70c298dad9f734e33aeea00374d80af73bd1efc62aae"
+    confidential: false
+    registered: "2026-11-23"
+  - id: behavior-contract
+    kind: document
+    location: ../../docs/behavior-contract.md
+    role: "carried and dropped behaviors of the predecessor tool"
+    sha256: "97eccd8237ac4d4fda3a14d4ecd291cf4327077716ae63edb260e932fcc5fc82"
+    confidential: false
+    registered: "2026-11-23"
+  - id: pilots-doc
+    kind: document
+    location: ../../docs/pilots.md
+    role: "pilot validation walkthroughs (rtk, corgi)"
+    sha256: "0dc5fd4764f28367fa6ea43ee1ffb7f88ee55f6cdf028ef987237f742c11d807"
+    confidential: false
+    registered: "2026-11-23"
+  - id: spec-001
+    kind: document
+    location: ../../specs/001-standalone-patch-build-tool/spec.md
+    role: "feature spec: standalone patch build tool"
+    sha256: "c53952ce2a64f7e25bea1126fe8dbbce1e13459fece41de146bf5b8a78e04b19"
+    confidential: false
+    registered: "2026-11-23"
+  - id: spec-002
+    kind: document
+    location: ../../specs/002-build-worktree/spec.md
+    role: "feature spec: build directory (worktree)"
+    sha256: "4dc08028d38c19b169ed026cb17a06e168f4751e75e46eeee05217292d6a01b4"
+    confidential: false
+    registered: "2026-11-23"
+  - id: brainstorm-overview
+    kind: notes
+    location: ../../brainstorm/00-overview.md
+    role: "brainstorm index"
+    sha256: "3dde6b04a3abe6a326aa93faa780407738e6aa66a6c4b6d7447d57dcdd238591"
+    confidential: false
+    registered: "2026-11-23"
+  - id: brainstorm-build-worktree
+    kind: notes
+    location: ../../brainstorm/01-build-worktree.md
+    role: "brainstorm: build worktree"
+    sha256: "eeb8dd2521e62d82150e460691c60aa948448dea45a7835ba8beaf76d6800184"
+    confidential: false
+    registered: "2026-11-23"
+  - id: brainstorm-acceptance
+    kind: notes
+    location: ../../brainstorm/02-acceptance-labels.md
+    role: "brainstorm: acceptance labels"
+    sha256: "1c5ab7b81c8d136da30385412f195f9260046b530614c76b9cf07d63b0989b24"
+    confidential: false
+    registered: "2026-11-23"
+  - id: brainstorm-remote-test
+    kind: notes
+    location: ../../brainstorm/03-remote-test-runner.md
+    role: "brainstorm: remote test runner (not implemented)"
+    sha256: "72305ac1bcc8e0518dc989f034ed70b8ef1cf2aa94865dc6b1a88f6f7f8b0877"
+    confidential: false
+    registered: "2026-11-23"
+  - id: idea-inbox
+    kind: notes
+    location: ../../brainstorm/idea-inbox.md
+    role: "idea inbox (future ideas)"
+    sha256: "c268a8311c1265292cf04dffec4a3b6cf00f7bbaf0139e3e40f702c3c1da7c5b"
+    confidential: false
+    registered: "2026-11-23"

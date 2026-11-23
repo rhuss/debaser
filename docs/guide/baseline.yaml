@@ -1,0 +1,10 @@
+# Pinned sources and change requests (the baseline). Written by tools/guide/fetch.py.
+captured: '2026-11-23'
+sources:
+  - id: debaser
+    repo: https://github.com/rhuss/debaser
+    ref: HEAD
+    commit: b46fcb260a1eb248a046999317cbfa98f73cb31b
+    attributes:
+      version: 0.1.0
+      git-min: "2.38"
