@@ -1,0 +1,26 @@
+# Capture environment for the debaser guide's CLI visuals (make visuals-image).
+# Build stage: debaser at the guide's pinned commit, compiled with the Bun
+# version its CI uses (debaser:.github/workflows/ci.yml:29).
+FROM docker.io/oven/bun:1.4.4 AS build
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+RUN git clone https://github.com/rhuss/debaser /src/debaser \
+ && git -C /src/debaser checkout --quiet b46fcb260a1eb248a046999317cbfa98f73cb31b
+WORKDIR /src/debaser
+RUN bun install --frozen-lockfile && bun run build
+
+# Runtime stage: Git 2.39 (Debian bookworm, debaser needs >= 2.38) and the
+# compiled debaser on PATH. No gh and no agent CLIs.
+FROM docker.io/library/debian:bookworm-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git \
+ && rm -rf /var/lib/apt/lists/*
+COPY --from=build /src/debaser/dist/debaser /usr/local/bin/debaser
+RUN git config --system user.name "Widget Maintainer" \
+ && git config --system user.email "maintainer@example.com" \
+ && git config --system init.defaultBranch main \
+ && git config --system advice.detachedHead false
+# The clone the seed script creates; every capture runs here.
+WORKDIR /work/widget

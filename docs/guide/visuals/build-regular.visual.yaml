@@ -1,0 +1,64 @@
+schema: 1
+name: build-regular
+variant: default
+kind: cli
+image: content/modules/ROOT/images/visuals/build-regular.svg
+environment:
+  name: widget-build
+  image: localhost/debaser-visuals:0.1.0
+  digest: sha256:0570109550c862d4f54ada15551d237745914535ca1ac56db2c8f55563debe7a
+  platform: linux/arm64
+  source: debaser
+  source_commit: b46fcb260a1eb248a046999317cbfa98f73cb31b
+fingerprint: 138632c172fe5925
+capture_env: 4278a241e451
+captured_at: '2026-11-23T11:24:45Z'
+redaction:
+  rules:
+  - home-path
+  - user-path
+  - user-at
+  - k8s-api
+  - hostname
+  - ipv4
+  - jwt
+  - bearer
+  - api-key
+  - private-key
+  disabled: []
+  replacements:
+    home-path: 0
+    user-path: 0
+    user-at: 0
+    k8s-api: 0
+    hostname: 0
+    ipv4: 0
+    jwt: 0
+    bearer: 0
+    api-key: 0
+    private-key: 0
+masks: 6
+scripts: []
+highlights: []
+style: 9fa64f28543e8ffd
+text: |-
+  $ NO_COLOR=1 debaser build --trust-recipe
+  debaser: creating the build directory /work/widget-debaser from upstream/main
+  debaser: build directory /work/widget-debaser; patch list /work/widget/.git/debaser/patches.json
+  debaser: fetching upstream main
+  debaser: trusting .debaser/recipe.toml at 0000000 (--trust-recipe)
+  debaser: fetching fast-start
+  debaser: fetching /srv/forks/helper/widget.git:helper-colors
+  debaser: resetting debaser to upstream/main (0000000)
+  debaser: merging fast-start
+  debaser: merging /srv/forks/helper/widget.git:helper-colors
+  debaser: running lint
+  debaser: running test
+  ok - widget greets by name
+  debaser: running smoke
+  Hello, smoke
+  debaser: running build
+  debaser: built dist/widget-custom on upstream 0000000 with 2 patches
+    merged fast-start 0000000 Start faster
+    merged /srv/forks/helper/widget.git:helper-colors 0000000 Colored output
+    report: /work/widget/.git/debaser/reports/20260105-090000/report.md

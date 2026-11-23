@@ -1,0 +1,53 @@
+# Capture recipe for the debaser guide's captured visuals (cc-guide,
+# specs/008-captured-visuals). `make visuals-image` builds the tool image
+# first; `make visuals` captures. All seed data is fictional (example/widget).
+schema: 1
+
+defaults:
+  width: 100
+  prompt: "$ "
+
+# Every environment runs the same image and seed script; the mode decides the
+# state of the fictional project example/widget. The image's working directory
+# is the clone /work/widget, so every command runs there.
+environments:
+  widget:
+    kind: cli
+    image: localhost/debaser-visuals:0.1.0
+    source: debaser
+    seed:
+      - run: sh /visuals/seed/widget.sh built
+        files: [seed/widget.sh]
+  widget-build:
+    kind: cli
+    image: localhost/debaser-visuals:0.1.0
+    source: debaser
+    seed:
+      - run: sh /visuals/seed/widget.sh fresh
+        files: [seed/widget.sh]
+  widget-conflict:
+    kind: cli
+    image: localhost/debaser-visuals:0.1.0
+    source: debaser
+    seed:
+      - run: sh /visuals/seed/widget.sh conflict
+        files: [seed/widget.sh]
+
+visuals:
+  build-regular:
+    kind: cli
+    env: widget-build
+    # The live view's in-place redraws (erase to end of line) come out of the
+    # capture renderer as wide blank runs, so this visual shows debaser's plain
+    # progress output: NO_COLOR turns the live view off (debaser:src/cli/main.ts:127,
+    # src/cli/commands/index.ts:109).
+    command: NO_COLOR=1 debaser build --trust-recipe
+    exit: 0
+    masks:
+      # Run ids (report directories, yyyymmdd-hhmmss) before commit ids, which they would match.
+      - {pattern: "\\b\\d{8}-\\d{6}(-\\d+)?\\b", replacement: "20260105-090000"}
+      - {pattern: "\\b\\d+:\\d\\d(:\\d\\d)?\\b", replacement: "0:01"}
+      - {pattern: "\\b\\d+(\\.\\d+)?\\s?(ms|s|m|h)\\b", replacement: "1s"}
+      - {pattern: "\\d{4}-\\d{2}-\\d{2}", replacement: "2026-01-05"}
+      # Commit ids; the lookahead keeps the masked run id above intact.
+      - {pattern: "\\b(?!\\d{8}-\\d{6}\\b)[0-9a-f]{7,40}\\b", replacement: "0000000"}
