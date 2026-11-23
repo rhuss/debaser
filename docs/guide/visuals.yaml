@@ -93,3 +93,19 @@ visuals:
     masks:
       # The upstream commit in `at upstream <sha7>` and `repo:...@<sha7>`.
       - {pattern: "\\b[0-9a-f]{7,40}\\b", replacement: "0000000"}
+
+  # A build that stops at a merge conflict (debaser:src/run/mergeloop.ts:72-79,
+  # src/run/stop.ts:24-56): rename-flag edits the line fast-start edits, and no
+  # harness is installed, so the run stops with exit 2. Through the tmux wrapper
+  # (see build-regular), the visual shows the screen the live view leaves.
+  build-stopped-conflict:
+    kind: cli
+    env: widget-conflict
+    command: debaser build --trust-recipe
+    exit: 2
+    masks:
+      - {pattern: "\\b\\d{8}-\\d{6}(-\\d+)?\\b", replacement: "20260105-090000"}
+      - {pattern: "\\b\\d+:\\d\\d(:\\d\\d)?\\b", replacement: "0:01"}
+      - {pattern: "\\b\\d+(\\.\\d+)?(ms|s|m|h)\\b", replacement: "1s"}
+      - {pattern: "\\d{4}-\\d{2}-\\d{2}", replacement: "2026-01-05"}
+      - {pattern: "\\b(?!\\d{8}-\\d{6}\\b)[0-9a-f]{7,40}\\b", replacement: "0000000"}

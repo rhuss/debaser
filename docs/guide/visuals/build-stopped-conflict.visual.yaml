@@ -1,0 +1,56 @@
+schema: 1
+name: build-stopped-conflict
+variant: default
+kind: cli
+image: content/modules/ROOT/images/visuals/build-stopped-conflict.svg
+environment:
+  name: widget-conflict
+  image: localhost/debaser-visuals:0.1.0
+  digest: sha256:be5fcf857fe61e3b02a17f4fa1e72fcefdea8cd4e18c0931895d9edf24cc297c
+  platform: linux/arm64
+  source: debaser
+  source_commit: b46fcb260a1eb248a046999317cbfa98f73cb31b
+fingerprint: efd1a808a0f03b49
+capture_env: 4278a241e451
+captured_at: '2026-11-23T11:43:53Z'
+redaction:
+  rules:
+  - home-path
+  - user-path
+  - user-at
+  - k8s-api
+  - hostname
+  - ipv4
+  - jwt
+  - bearer
+  - api-key
+  - private-key
+  disabled: []
+  replacements:
+    home-path: 0
+    user-path: 0
+    user-at: 0
+    k8s-api: 0
+    hostname: 0
+    ipv4: 0
+    jwt: 0
+    bearer: 0
+    api-key: 0
+    private-key: 0
+masks: 4
+scripts: []
+highlights: []
+style: 89d259a3ec0f1806
+text: |-
+  $ debaser build --trust-recipe
+  ✗ stopped after 0:01 at merge 3/3: merge conflict in rename-flag
+   rename-flag  merge conflict in widget.sh
+    files: widget.sh
+    build directory: /work/widget-debaser
+    report: /work/widget/.git/debaser/reports/20260105-090000/report.md
+    resolve the conflicts, `git add` the files, then continue
+    prompt for an agent: /work/widget/.git/debaser/reports/20260105-090000/fix-conflict.md
+    run it: cd /work/widget-debaser && claude "$(cat /work/widget/.git/debaser/reports/
+      20260105-090000/fix-conflict.md)"
+    continue: debaser continue
+    undo the run: debaser rollback
