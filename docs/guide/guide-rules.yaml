@@ -87,3 +87,8 @@ rules:
       - '^=== Exit 5:'
       - '^=== Exit 6:'
       - '^=== Exits 129, 130, and 143:'
+  - glob: content/modules/ROOT/pages/user/status.adoc
+    require:
+      - 'visuals/status\.svg'
+      - '--fetch'
+      - 'PATCH CHECK'
