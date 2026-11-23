@@ -37,11 +37,13 @@ visuals:
   build-regular:
     kind: cli
     env: widget-build
-    # The live view's in-place redraws (erase to end of line) come out of the
-    # capture renderer as wide blank runs, so this visual shows debaser's plain
-    # progress output: NO_COLOR turns the live view off (debaser:src/cli/main.ts:127,
-    # src/cli/commands/index.ts:109).
-    command: NO_COLOR=1 debaser build --trust-recipe
+    # debaser's live view redraws in place (erase to end of line), which the
+    # capture renderer turns into wide blank runs (tools/guide/capture/render_cli.py
+    # logical_lines). The image's `debaser` is therefore a wrapper
+    # (visuals/bin/debaser): on a terminal it runs the real binary in a tmux pane of
+    # the capture width and prints the pane's final screen with its colors, so the
+    # visual shows what the terminal shows when the run ends.
+    command: debaser build --trust-recipe
     exit: 0
     masks:
       # Run ids (report directories, yyyymmdd-hhmmss) before commit ids, which they would match.

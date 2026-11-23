@@ -1,0 +1,43 @@
+#!/bin/sh
+# debaser for the guide's captured visuals: replays a terminal run in tmux.
+#
+# The capture renderer turns in-place redraws (erase to end of line) into wide
+# blank runs, so debaser's live view cannot be fed to it as a byte stream. On a
+# terminal, this wrapper runs the real debaser in a detached tmux pane of the
+# capture's width, waits for it to end, and prints the pane's final screen with
+# its colors; the exit status is the real command's. Without a terminal on
+# stdout (seed steps, pipes) it runs the real debaser directly.
+set -u
+real=/usr/local/libexec/debaser
+[ -t 1 ] || exec "$real" "$@"
+
+cols="${COLUMNS:-100}"
+rows=60
+id="debaser-$$"
+dir=$(mktemp -d)
+trap 'tmux -L "$id" kill-server 2>/dev/null; rm -rf "$dir"' EXIT
+
+# The command for the pane, each argument single-quoted.
+quote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+{
+  printf 'cd %s || exit 1\n' "$(quote "$PWD")"
+  printf 'unset COLUMNS LINES\n'
+  printf '%s' "$real"
+  for arg in "$@"; do printf ' %s' "$(quote "$arg")"; done
+  printf '\nprintf "%%s\\n" "$?" > %s\n' "$(quote "$dir/status")"
+  printf 'tmux -L %s wait-for -S done\n' "$id"
+  printf 'exec sleep 86400\n'
+} > "$dir/run.sh"
+# scroll-on-clear off: a cleared screen is gone, as on a terminal, instead of
+# being pushed into the history that capture-pane -S - prints.
+printf 'set -g default-terminal xterm-256color\nset -g history-limit 10000\nset -g status off\nset -g scroll-on-clear off\n' > "$dir/tmux.conf"
+
+tmux -L "$id" -f "$dir/tmux.conf" new-session -d -x "$cols" -y "$rows" "sh $dir/run.sh"
+tmux -L "$id" wait-for done
+# The final screen plus anything that scrolled off, wrapped lines joined (the
+# renderer wraps them at the same width), trailing blank lines dropped.
+tmux -L "$id" capture-pane -e -p -J -S - | awk -v esc="$(printf '\033')" '
+  { line[NR] = $0; t = $0; gsub(esc "\\[[0-9;:]*m", "", t); if (t ~ /[^ ]/) last = NR }
+  END { for (i = 1; i <= last; i++) print line[i] }'
+status=$(cat "$dir/status" 2>/dev/null || echo 1)
+exit "$status"

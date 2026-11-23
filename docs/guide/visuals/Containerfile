@@ -11,13 +11,15 @@ RUN git clone https://github.com/rhuss/debaser /src/debaser \
 WORKDIR /src/debaser
 RUN bun install --frozen-lockfile && bun run build
 
-# Runtime stage: Git 2.39 (Debian bookworm, debaser needs >= 2.38) and the
-# compiled debaser on PATH. No gh and no agent CLIs.
+# Runtime stage: Git 2.39 (Debian bookworm, debaser needs >= 2.38), the compiled
+# debaser in /usr/local/libexec, and the wrapper bin/debaser first on PATH, which
+# replays a terminal run in tmux (see the wrapper). No gh and no agent CLIs.
 FROM docker.io/library/debian:bookworm-slim
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git \
+ && apt-get install -y --no-install-recommends git tmux ncurses-base \
  && rm -rf /var/lib/apt/lists/*
-COPY --from=build /src/debaser/dist/debaser /usr/local/bin/debaser
+COPY --from=build /src/debaser/dist/debaser /usr/local/libexec/debaser
+COPY bin/debaser /usr/local/bin/debaser
 RUN git config --system user.name "Widget Maintainer" \
  && git config --system user.email "maintainer@example.com" \
  && git config --system init.defaultBranch main \
