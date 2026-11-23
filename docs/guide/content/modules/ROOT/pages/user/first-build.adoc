@@ -11,8 +11,11 @@
 // debaser:src/run/mergeloop.ts:35-37
 // debaser:src/plugins/sources/pr.ts:10-18,25-29
 // debaser:src/plugins/sources/branch.ts:5-11
+// debaser:src/plugins/sources/fork-branch.ts:26-34
+// debaser:src/github/gh.ts:14-18
 // debaser:src/github/gh.ts:68-71
 // debaser:src/cli/main.ts:92-98
+// debaser:src/cli/main.ts:71
 // debaser:src/cli/main.ts:125-127
 // debaser:src/core/errors.ts:3-5
 // debaser:src/recipes/load.ts:9-21
@@ -21,27 +24,36 @@
 // debaser:src/recipes/builtin/rust-cargo.toml:3
 // debaser:src/cli/commands/recipe.ts:12-25
 // debaser:src/views/recipe.ts:27-44
+// debaser:src/recipes/trust.ts:11-12
 // debaser:src/recipes/trust.ts:55-61
 // debaser:src/recipes/trust.ts:69-107
 // debaser:src/cli/commands/index.ts:104-127
+// debaser:src/live/worker.ts:61
+// debaser:src/cli/commands/list.ts:18-23
 // debaser:src/run/build.ts:50-157
 // debaser:src/run/build.ts:58-63
 // debaser:src/run/build.ts:96-99
 // debaser:src/core/tree.ts:1-3
 // debaser:src/core/tree.ts:32-40,149-152
+// debaser:src/core/tree.ts:140-148
 // debaser:src/run/common.ts:66-74
+// debaser:src/run/finish.ts:38-48
+// debaser:src/run/finish.ts:56
+// debaser:src/run/finish.ts:109-112
 // debaser:src/run/stop.ts:40-50
 // debaser:src/cli/commands/status.ts:66-74,133-143
-// debaser:src/views/config.ts:22-29
+// debaser:src/views/config.ts:10-29
 // debaser:src/views/status.ts:99-110
+// debaser:src/views/status.ts:120-138
 // visual:build-regular
 
 This page takes you from a plain clone of a project to its first patched build.
 You give the clone an `upstream` remote for the original repository, add your first patches to the patch list, and build once.
-After that, the same build command refreshes the build whenever upstream moves.
+When upstream moves later, you run the same build command again to refresh the build.
 
 The steps use placeholders for your own values.
-`<owner>/<repo>` is the original GitHub repository, `<you>` is your GitHub account, `<number>` is the number of a pull request on upstream, and `<branch>` is a branch in your clone.
+`<owner>/<repo>` is the original GitHub repository, and `<you>` is your GitHub account.
+`<number>` is the number of a pull request on upstream, `<branch>` is a branch name, and `<fork-owner>/<fork-repo>` is another GitHub repository with a branch you want, for example someone else's fork.
 You need debaser on your `PATH` (xref:user/install.adoc[Install debaser]).
 xref:overview/concepts.adoc[Key concepts] defines the terms this page uses.
 
@@ -124,10 +136,34 @@ debaser add <branch>
 ----
 // expect: contains "added"
 
+. Add a branch of another repository, as `<fork-owner>/<fork-repo>:<branch>`.
+For a repository outside GitHub, give its Git URL as `<git url>#branch=<branch>`.
+Without a description, the branch's name becomes its description.
++
+Check: debaser confirms the new patch as `added <fork-owner>/<fork-repo>:<branch>: <branch>`.
++
+[source,bash]
+----
+debaser add <fork-owner>/<fork-repo>:<branch>
+----
+// expect: contains "added"
+
+. Show the patch list.
+The output starts with three lines: the data directory (`data`), the patch list file (`config`), and the build directory (`build`), which is marked as not created yet before the first build.
+The patches follow in the order debaser merges them.
++
+Check: the `config` line names the patch list, `patches.json`.
++
+[source,bash]
+----
+debaser list
+----
+// expect: contains "patches.json"
+
 `<number>` and `#<number>` name a pull request on upstream.
 `<owner>/<repo>#<number>` or the pull request's URL names one on any GitHub repository.
 debaser refuses a source that is already in the list.
-xref:user/patch-list.adoc[Managing the patch list] covers branches of other repositories and the other sources.
+xref:user/patch-list.adoc[Managing the patch list] covers every source form and how to change the list.
 
 [#no-upstream-remote]
 == Clones without an upstream remote
@@ -166,7 +202,7 @@ A recipe tells debaser how to check, build, and install the project.
 debaser assembles it from layers: a generic recipe for the type of project, a built-in recipe for a known upstream repository, the project's own `.debaser/recipe.toml`, and a local `recipe.toml` in the data directory.
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains how the layers combine.
 
-Unless a layer names the generic recipe, debaser picks it by the files at the fetched upstream commit.
+Unless the patch list or a layer names the generic recipe, debaser picks it by the files at the fetched upstream commit.
 `bun.lock` or `bun.lockb` selects `bun-ts`, and `Cargo.toml` selects `rust-cargo`.
 When no generic recipe matches and no other layer exists, debaser stops with `no recipe matches this project`.
 The message suggests naming a generic recipe with `recipe` in the patch list or writing a local `recipe.toml`.
@@ -192,7 +228,8 @@ When the project has its own `.debaser/recipe.toml` that you have not trusted, t
 Then it runs the recipe's steps and the acceptance checks, and installs the build output.
 xref:overview/how-it-works.adoc[How a build works] follows each phase.
 
-The first build also creates the build directory, a linked Git worktree beside your clone named `../<clone>-debaser`, and records its place in the patch list as `tree`.
+The first build also creates the build directory, a linked Git worktree beside your clone, and records its place in the patch list as `tree`.
+Its default name is `../<clone>-debaser`, where `<clone>` is the name of your clone's directory (`<repo>` after the clone step above).
 debaser builds there and leaves the checkout you started it from alone.
 The recipe's build output and installed artifact live in the build directory, unless the recipe gives absolute paths.
 
@@ -208,23 +245,48 @@ xref:recipe-author/recipes.adoc[Recipes and their layers] covers trust in detail
 On a color terminal, debaser shows a live view of the run.
 Piped into a file or another program, or with `--json`, it prints plain progress lines instead.
 At its start, the build names the build directory and the patch list it uses.
+That line appears in the plain progress lines, and in the live view only with `--verbose`.
+When the recipe installs nothing, the summary at the end names the integration branch where it otherwise names the installed artifact.
 +
-Check: the build finishes with exit 0.
+Check: the build finishes with exit 0, and its summary starts with `built`, followed by the installed artifact's path relative to the build directory.
 +
 [source,bash]
 ----
 debaser build
 ----
+// expect: exit 0 and contains "built "
+
+. Confirm that the build directory exists beside your clone.
++
+Check: the list of worktrees contains the build directory, `../<clone>-debaser`, on the integration branch `debaser`.
++
+[source,bash]
+----
+git worktree list
+----
+// expect: contains "-debaser"
+
+. Confirm that the installed artifact is in the build directory.
+`<install>` is the `artifact.install` value that `debaser recipe` shows, when it is a relative path.
++
+Check: the file exists.
++
+[source,bash]
+----
+ls ../<clone>-debaser/<install>
+----
 // expect: exit 0
 
-A successful build of the fictional project `example/widget`, started with `debaser build --trust-recipe`, ends with this view:
+The captures in this guide use a fictional project, `example/widget`.
+Its successful build, started with `debaser build --trust-recipe`, ends with this view:
 
 image::visuals/build-regular.svg["Live view at the end of debaser build --trust-recipe for the widget project: built dist/widget-custom with 2 patches, the phases fetch, rebase, merge, verify, and accept, one current branch, two merged patches, the report path, and the artifact path",role=expand]
 
-The first line names the build output, `dist/widget-custom`, the upstream commit it was built on, and the number of patches, 2.
+The first line names what was built, `dist/widget-custom`, which is the installed artifact relative to the build directory.
+It also names the upstream commit and the number of patches, 2.
 Below the timeline, the view lists the phases, one current branch, and two merged patches.
 The report lies under `.git/debaser/reports/` in the clone `/work/widget`.
-The last line names the installed artifact, `/work/widget-debaser/dist/widget-custom`, inside the build directory `/work/widget-debaser` beside the clone.
+The last line gives the installed artifact's full path, `/work/widget-debaser/dist/widget-custom`, inside the build directory `/work/widget-debaser` beside the clone.
 
 A build that stops names the reason, the build directory, and the report, and its exit code tells you the kind of stop.
 xref:user/stops.adoc[When a build stops] explains each stop and how to go on.
