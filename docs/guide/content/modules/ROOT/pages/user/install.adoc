@@ -1,0 +1,129 @@
+= Install debaser
+
+// Sources:
+// debaser:.github/workflows/ci.yml:1-50
+// debaser:.github/workflows/ci.yml:22-29
+// debaser:.github/workflows/ci.yml:49-50
+// debaser:package.json:3
+// debaser:package.json:10
+// debaser:README.md:10-11
+// debaser:README.md:21-25
+// debaser:README.md:27-28
+// debaser:src/git/git.ts:86-97
+// debaser:src/cli/main.ts:33-35
+// debaser:src/cli/main.ts:47-51,61-62
+// debaser:src/cli/main.ts:83-85
+// debaser:src/github/gh.ts:14-25
+// debaser:src/plugins/sources/pr.ts:10-12
+// debaser:src/plugins/sources/pr.ts:25-35
+// debaser:src/cli/commands/add.ts:67-74
+// debaser:src/rebase/rebase.ts:130-136,171-173
+// debaser:src/plugins/harness/registry.ts:8
+// debaser:src/harness/select.ts:41-44
+// debaser:src/run/harness-merge.ts:25-29
+// debaser:src/run/harness-fix.ts:42-47
+// debaser:src/run/accept.ts:134-140
+// debaser:src/core/errors.ts:6-15
+
+You build debaser from source on your own machine.
+The pinned commit has no release workflow, only a CI workflow that tests and builds, so there is no release binary to download.
+The build compiles debaser into a single executable, `dist/debaser`, which you then copy onto your `PATH`.
+This page installs debaser version {debaser-version}.
+
+== What you need
+
+Git {debaser-git-min} or newer::
+debaser needs Git at run time.
+The commands that change something (`add`, `remove`, `build`, `rebase`, `continue`, `rollback`, and `trust`) check the Git version first.
+With an older Git they stop with the message `git {debaser-git-min} or newer is required`, followed by the version they found.
+
+Bun::
+Bun compiles debaser's TypeScript source into the executable (`bun build --compile`).
+You need it only for the build, not to run debaser.
+The project's CI builds and tests debaser with Bun 1.4.4 on `ubuntu-latest` and `macos-latest` runners (link:{debaser-blob}/.github/workflows/ci.yml#L22-L29[CI workflow]).
+The pinned source does not state a minimum Bun version.
+
+GitHub CLI (`gh`), optional::
+debaser looks for `gh` on your `PATH` and runs it to ask GitHub about a pull request: its state, title, body, merge commit, and head branch.
+debaser fetches and merges pull requests with Git, so they build without `gh` too.
+Without `gh`, or when `gh` cannot answer (not signed in, offline), you lose the following:
++
+* The pull request's state and title are unknown, and debaser prints a warning when it fetches the pull request.
+* A pull request that upstream merged by squash or rebase is merged again, unless upstream already has its commits.
+* `debaser add` cannot take a pull request's title as its description, so you give one yourself: `debaser add <number> "<description>"`, where `<number>` is the pull request's number.
+* debaser cannot tell whether a pull request comes from a branch of your own fork, so it does not rebase that branch.
+
+Coding agents, optional::
+A coding agent is a command-line program that debaser can hand a merge conflict or a failing check to.
+debaser runs it through a harness, the agent integration you configure in the patch list: Claude Code (`claude`), Codex (`codex`), pi (`pi`), OpenCode (`opencode`), or any other command.
+Without a harness, a merge conflict or a failing check stops the run, and you fix it yourself.
+xref:overview/how-it-works.adoc[How a build works] lists each stop and its exit code.
+
+== Build and install debaser
+
+Install Git and Bun before you start.
+The steps clone debaser at the commit this guide was verified against, so the executable you build matches these pages.
+
+. Check your Git version.
++
+Check: the output starts with `git version`, followed by version {debaser-git-min} or newer.
++
+[source,bash]
+----
+git --version
+----
+// expect: contains "git version"
+
+. Clone the debaser repository and check out the pinned commit.
++
+[source,bash,subs="attributes+"]
+----
+git clone {debaser-repo}
+cd debaser
+git checkout {debaser-commit}
+----
++
+Check: the checkout is at the pinned commit.
++
+[source,bash,subs="attributes+"]
+----
+git rev-parse HEAD
+----
+// expect: contains "{debaser-commit}"
+
+. Install the build dependencies.
++
+[source,bash]
+----
+bun install
+----
+
+. Build the executable.
++
+[source,bash]
+----
+bun run build
+----
++
+The `build` script compiles debaser's command-line entry point and the worker of its live view into one file, `dist/debaser`.
+
+. Copy `dist/debaser` to a directory on your `PATH`.
+The command below uses `~/.local/bin`; pick another directory on your `PATH` if that one is not.
++
+[source,bash]
+----
+cp dist/debaser ~/.local/bin/
+----
+
+. Confirm that your shell finds the new executable.
+`debaser --version` works in any directory, also outside a Git repository.
++
+Check: debaser prints its version, {debaser-version}.
++
+[source,bash,subs="attributes+"]
+----
+debaser --version
+----
+// expect: contains "{debaser-version}"
+
+Next, set up your clone of the project you want to patch and run your first build: xref:user/first-build.adoc[Your first build].

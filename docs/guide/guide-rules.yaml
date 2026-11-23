@@ -42,3 +42,14 @@ rules:
       - 'xref:user/install\.adoc'
       - 'xref:user/first-build\.adoc'
       - 'xref:user/stops\.adoc'
+  - glob: content/modules/ROOT/pages/user/install.adoc
+    require:
+      - '^Check:'
+      - 'bun run build'
+      - '\{debaser-git-min\}'
+      - '\{debaser-version\}'
+    require_order:
+      - 'git clone'
+      - 'bun install'
+      - 'bun run build'
+      - 'debaser --version'
