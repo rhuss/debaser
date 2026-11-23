@@ -127,3 +127,10 @@ rules:
       - '"match"'
       - '"timeout"'
       - 'PATCH CHECK'
+  - glob: content/modules/ROOT/pages/recipe-author/harness.adoc
+    require:
+      - '\{prompt_file\}'
+      - 'timeoutSeconds'
+      - 'attempts'
+      - '"kind"'
+      - 'plain'

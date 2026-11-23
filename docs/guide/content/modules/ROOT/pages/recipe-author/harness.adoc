@@ -1,0 +1,357 @@
+= Setting up the agent
+
+// Sources:
+// debaser:src/core/patchlist.ts:14-19
+// debaser:src/core/patchlist.ts:99-105
+// debaser:src/core/patchlist.ts:140-164
+// debaser:src/core/patchlist.ts:168-184
+// debaser:src/core/paths.ts:4-16,27-28
+// debaser:src/cli/main.ts:62-68,92-98
+// debaser:src/core/errors.ts:1-15
+// debaser:src/core/context.ts:10-15
+// debaser:src/harness/select.ts:7-52
+// debaser:src/harness/invoke.ts:13-58
+// debaser:src/harness/invoke.ts:77-107
+// debaser:src/harness/verify.ts:9-12,41-51
+// debaser:src/core/runstate.ts:47
+// debaser:src/plugins/harness/registry.ts:1-14
+// debaser:src/plugins/harness/types.ts:1-19
+// debaser:src/plugins/harness/claude.ts:4-29
+// debaser:src/plugins/harness/codex.ts:4-39
+// debaser:src/plugins/harness/pi.ts:4-29
+// debaser:src/plugins/harness/opencode.ts:4-27
+// debaser:src/plugins/harness/plain.ts:3-30
+// debaser:src/report/report.ts:49-62
+// debaser:src/run/rebase-phase.ts:27-45
+// debaser:src/rebase/rebase.ts:464-472
+// debaser:src/rebase/rebase.ts:716-724
+// debaser:src/run/harness-merge.ts:27-33
+// debaser:src/run/harness-fix.ts:33-47
+// debaser:src/run/harness-fix.ts:84-100
+// debaser:src/run/mergeloop.ts:75-79
+// debaser:src/run/verifyloop.ts:94-109
+// debaser:src/run/accept.ts:134-140
+// debaser:src/run/accept.ts:219-226
+// debaser:src/cli/commands/index.ts:94-99,120-123
+// debaser:README.md:147-152
+// debaser:docs/harness.md:16-26
+// debaser:docs/harness.md:52-100
+
+Without an agent, a merge conflict or a check your patches break stops the build until you fix it yourself.
+A harness hands that work to a coding agent instead.
+A coding agent is a command-line program that changes code from a written task, such as Claude Code (`claude`), Codex (`codex`), pi (`pi`), OpenCode (`opencode`), or a command of your own.
+The harness is the part of the patch list that tells debaser which agent to run, how to run it, and how long to wait for it.
+
+This page shows how to write the `harness` section of `patches.json`.
+It covers the command and its placeholder, the five kinds, and what each kind adds to your command.
+It then explains the time and attempt limits, a different agent per task, and what happens when debaser cannot run the agent.
+An example for each kind follows, and the page ends with the steps to add a harness.
+xref:recipe-author/harness-verification.adoc[What the agent is asked and how its work is checked] covers the prompts debaser writes and how it accepts or rejects the agent's work.
+
+== The keys of the `harness` section
+
+`harness` is a top-level key of `patches.json`, next to `patches`.
+It has these keys:
+
+[cols="1,1,3",options="header"]
+|===
+|Key |Type |What it does
+
+|`command`
+|array of strings, required
+|The command debaser runs for the agent, one array element per argument.
+`+{prompt_file}+` in any argument stands for the prompt file.
+
+|`kind`
+|string
+|The adapter for the agent's output: `claude`, `codex`, `pi`, `opencode`, or `plain`.
+Without it, the top-level command is `plain`.
+
+|`timeoutSeconds`
+|positive number
+|How long one call of the agent may run.
+The default is 900.
+
+|`attempts`
+|positive number
+|How many tries the agent gets for one problem.
+The default is 3.
+debaser rounds a fraction down.
+
+|`tasks`
+|object
+|A different command per task: `conflict`, `check`, `acceptance`, or `rebase`.
+Each entry has a `command` and, optionally, a `kind`.
+See <<per-task>>.
+|===
+
+debaser reads and checks the patch list when a command starts.
+A key with a wrong value stops the command with exit 1.
+The message names the key, for example `harness.kind must be one of claude, codex, pi, opencode, plain` or `harness.timeoutSeconds must be a positive number`.
+
+== The command and the prompt file
+
+For every call, debaser writes the task for the agent into a prompt file and then runs your command.
+It replaces `+{prompt_file}+` with the path of that file wherever it appears in an argument, also inside a longer string such as `+"Follow the instructions in {prompt_file}"+`.
+It sets two environment variables for the agent:
+
+* `DEBASER_PROMPT` holds the same path, for a command that reads it from the environment instead.
+* `DEBASER_TASK` names the task: `conflict`, `check`, `acceptance`, `rebase-conflict`, or `rebase-check`.
+
+Standard input is closed, so the agent gets its task only from the prompt file.
+
+The first element of `command` is the program.
+debaser looks up a bare name such as `claude` on `PATH`.
+It takes a name that contains `/` as a path: an absolute path as it is, and a relative path from the checkout the run works in.
+For `debaser build` and `debaser continue` that is the build directory, and for `debaser rebase` it is the checkout you start it from.
+
+== The kinds and what they add
+
+The `kind` picks an adapter.
+The adapter adds the flags that make the agent print its work as a stream of JSON events, and it reads that stream.
+The agent's text goes into the call's log, and the raw stream is kept next to it as a `.jsonl` file.
+The token counts go into the report.
+Each adapter adds its flags only when your command does not already contain the option.
+
+[cols="1,2,2,2",options="header"]
+|===
+|`kind` |debaser adds |Token counts from |Failure reported in the stream
+
+|`claude`
+|`--output-format stream-json --verbose`
+|the `result` event, with cache tokens counted as input
+|none
+
+|`codex`
+|`--json`, right after `exec`, or at the end when the command has no `exec`
+|the `turn.completed` events
+|none
+
+|`pi`
+|`--mode json`
+|the assistant messages, with cache tokens counted as input
+|a last assistant message that stopped with `error`, `aborted`, or `length`
+
+|`opencode`
+|`--format json`
+|the `step_finish` events, with cache tokens counted as input and reasoning tokens as output
+|an `error` event
+
+|`plain`
+|nothing
+|none: the report says `tokens unknown`
+|none
+|===
+
+With `plain`, debaser logs the agent's output line by line as it comes.
+A failure in the stream counts like a non-zero exit code: when the agent leaves no acceptable result, debaser ends its attempts for that problem at once.
+
+[IMPORTANT]
+====
+debaser adds only the flags that turn on the event stream.
+It never adds or translates permission flags.
+Whatever the agent may do, you grant in the command, with the agent's own options.
+debaser's documentation advises granting each agent what it needs and no more.
+====
+
+[#example-commands]
+== Example commands
+
+These examples come from debaser's own documentation (`docs/harness.md`).
+Every option in them that debaser does not add belongs to the agent.
+Change the granted tools and permissions to what your project needs.
+Each example is the complete `harness` section; add `timeoutSeconds`, `attempts`, or `tasks` as you need them.
+
+=== Claude Code
+
+[source,json]
+----
+"harness": {
+  "command": ["claude", "-p", "Follow the instructions in {prompt_file}", "--allowedTools", "Read,Edit,Grep,Glob,Bash(bun test:*),Bash(bunx tsc:*)"],
+  "kind": "claude"
+}
+----
+
+debaser adds `--output-format stream-json --verbose` at the end.
+Its documentation puts the prompt before `--allowedTools`, because that option takes several values and would read a prompt after it as one more tool name.
+
+=== Codex
+
+[source,json]
+----
+"harness": {
+  "command": ["codex", "exec", "--sandbox", "workspace-write", "--skip-git-repo-check", "Follow the instructions in {prompt_file}"],
+  "kind": "codex"
+}
+----
+
+debaser adds `--json` right after `exec`.
+
+=== pi
+
+[source,json]
+----
+"harness": {
+  "command": ["pi", "-p", "--tools", "read,edit,bash", "@{prompt_file}"],
+  "kind": "pi"
+}
+----
+
+debaser adds `--mode json`.
+Here `+{prompt_file}+` is part of the argument `+@{prompt_file}+`, and debaser replaces it there too.
+
+=== OpenCode
+
+[source,json]
+----
+"harness": {
+  "command": ["opencode", "run", "--auto", "--agent", "debaser-fixer", "Follow the instructions in {prompt_file}"],
+  "kind": "opencode"
+}
+----
+
+debaser adds `--format json`.
+According to debaser's documentation, a run without anyone at the terminal needs `--auto`, which you put in the command yourself.
+`debaser-fixer` is an OpenCode agent you define, with the tools and permissions you allow.
+
+=== Any other command
+
+[source,json]
+----
+"harness": {
+  "command": ["./scripts/my-agent.sh", "{prompt_file}"]
+}
+----
+
+Without a `kind`, the command runs as `plain`: debaser adds nothing and logs its output line by line.
+The relative path is taken from the build directory during a build, so the script must exist there; an absolute path avoids that.
+
+== Time and attempt limits
+
+`timeoutSeconds` bounds one call of the agent.
+The agent runs in its own process group.
+When the time runs out, debaser kills that whole group, so processes the agent started end with it, and the try counts as rejected with the reason `it timed out after <n>s`.
+debaser also kills the group when the call ends and when you interrupt the run.
+
+`attempts` bounds the tries for one problem, for example one conflict, one failing step, or one failing acceptance check.
+The fixes the agent makes in one run are bounded as well, by `attempts` multiplied by the number of recipe steps plus the acceptance checks of patches the build does not skip.
+When the agent uses up its attempts or reaches that bound, the run stops with exit 5.
+xref:recipe-author/harness-verification.adoc[What the agent is asked and how its work is checked] explains how the tries are judged and counted, and xref:user/stops.adoc#exit-5[Exit 5: the agent gives up] how to go on.
+
+[#per-task]
+== A different agent per task
+
+`tasks` gives a task its own command.
+A task without an entry uses the top-level `command` and `kind`.
+These are the task names and the work each one gets:
+
+[cols="1,3,2",options="header"]
+|===
+|Task |Work |`DEBASER_TASK`
+
+|`conflict`
+|a merge conflict while debaser merges a patch
+|`conflict`
+
+|`check`
+|a recipe step that fails only with the patches
+|`check`
+
+|`acceptance`
+|a failing acceptance check
+|`acceptance`
+
+|`rebase`
+|a conflict while debaser rebases one of your own branches, and a failing check of a rebased branch
+|`rebase-conflict` or `rebase-check`
+|===
+
+This example runs Claude Code for every task except rebasing, which goes to Codex:
+
+[source,json]
+----
+"harness": {
+  "command": ["claude", "-p", "Follow the instructions in {prompt_file}", "--allowedTools", "Read,Edit,Bash(bun test:*)"],
+  "kind": "claude",
+  "timeoutSeconds": 900,
+  "attempts": 3,
+  "tasks": {
+    "rebase": { "command": ["codex", "exec", "--sandbox", "workspace-write", "Follow the instructions in {prompt_file}"], "kind": "codex" }
+  }
+}
+----
+
+[WARNING]
+====
+A task entry does not inherit the top-level `kind`.
+An entry without its own `"kind"` runs as `plain`, so debaser adds no stream flags, logs the output line by line, and records the tokens as unknown.
+Give every task entry the `kind` of its agent.
+====
+
+A task entry needs its own `command`; debaser refuses an entry that has only a `kind`.
+debaser reads only `command` and `kind` from a task entry.
+`timeoutSeconds` and `attempts` always come from the top level of the `harness` section, for every task.
+
+== When debaser cannot run the agent
+
+Before it asks the agent, debaser checks that the program in the command is executable.
+When it is not, debaser prints a warning, once for each program in each debaser command, and goes on as if no harness were configured:
+
+----
+debaser: warning: harness <program> is not executable; continuing without it
+----
+
+In plain output the warning appears when debaser looks for the agent.
+The live view shows it with the result when the run ends.
+Without a usable harness, a merge conflict stops the run with exit 2, a step that fails only with the patches with exit 3, and a failing acceptance check with exit 6.
+xref:user/stops.adoc[When a build stops] describes each stop.
+
+A program that runs but exits with a non-zero code and leaves no acceptable result is a different case.
+debaser ends its attempts for that problem at once and stops the run with exit 5, naming the exit code and the last line the agent printed.
+
+== Add a harness to the patch list
+
+Set up a harness when you want debaser to try a conflict or a failing check with an agent before it stops for you.
+No debaser command writes the `harness` section, so you add it to `patches.json` in a text editor.
+`harness` is a key debaser knows, so it stays in place when a later command writes the file again.
+
+. Check that the agent's program is on your `PATH`.
+Replace `<agent>` with the program name from your command, for example `claude`.
++
+Check: the command prints the path of the program.
++
+[source,bash]
+----
+command -v <agent>
+----
+// expect: exit 0
+
+. Open the patch list in a text editor.
+The command assumes the default data directory; with `--dir` or `DEBASER_DIR`, open `<data directory>/patches.json` instead.
++
+[source,bash]
+----
+"${EDITOR:-vi}" "$(git rev-parse --git-common-dir)/debaser/patches.json"
+----
+
+. Add a `harness` key at the top level of the object, next to `patches`.
+Copy the example for your agent from <<example-commands>>, and adjust the granted tools and permissions.
+
+. Save the file and list the patches.
+debaser reads and checks the `harness` section before it prints anything.
++
+Check: the command lists your patches and reports no error about `harness`.
++
+[source,bash]
+----
+debaser list
+----
+// expect: exit 0 and not-contains "harness."
+
+. Build.
+The next conflict or failing check goes to the agent.
++
+[source,bash]
+----
+debaser build
+----
