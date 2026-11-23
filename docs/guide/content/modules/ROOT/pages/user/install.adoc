@@ -112,7 +112,7 @@ bun run build
 The `build` script compiles debaser's command-line entry point and the worker of its live view into one file, `dist/debaser`.
 
 . Copy `dist/debaser` to a directory on your `PATH`.
-The command below uses `~/.local/bin`; create it with `mkdir -p ~/.local/bin` if it does not exist, or pick another directory on your `PATH`.
+The command below uses `~/.local/bin`; create it with `mkdir -p ~/.local/bin` if it does not exist, and pick another directory on your `PATH` if it is not on it.
 +
 [source,bash]
 ----
