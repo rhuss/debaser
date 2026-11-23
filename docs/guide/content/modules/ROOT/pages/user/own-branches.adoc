@@ -167,6 +167,7 @@ The `--rebase` option overrides it for one run, as in `debaser build --rebase of
 `debaser rebase` accepts `--rebase all` and `--rebase conflicting`.
 `--rebase off` is a usage error there, because the command would have nothing to do.
 
+[#rebase-without-a-build]
 == Rebase without a build
 
 `debaser rebase` rebases your own branches onto upstream and does nothing else.

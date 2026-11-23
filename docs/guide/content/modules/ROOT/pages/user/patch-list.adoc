@@ -165,7 +165,7 @@ Without `gh`, or when `gh` cannot answer, a pull request has no title to take.
 debaser: <owner>/<repo>#<number> needs a description (no PR title to take it from): debaser add <owner>/<repo>#<number> "<description>"
 ----
 
-xref:user/install.adoc[Install debaser] lists what else changes without `gh`.
+xref:user/install.adoc#gh[Install debaser] lists what else changes without `gh`.
 
 [#refused-sources]
 == Refused sources
@@ -252,6 +252,7 @@ Without `--reason`, debaser asks `Why is <name> retired?` when its standard inpu
 An empty answer, or no terminal to ask on, ends with `removing <name> needs --reason` and exit 1.
 A source that names no patch in the list ends with `<name> is not in the list` and exit 1.
 
+[#read-the-list]
 == Read the list
 
 `debaser list` only reads.

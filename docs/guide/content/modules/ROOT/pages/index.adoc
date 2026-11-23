@@ -133,7 +133,7 @@ xref:user/headless.adoc[Run debaser headless] covers that mode.
 debaser is at version {debaser-version}.
 The debaser source this guide was checked against has no release workflow, so xref:user/install.adoc[Install debaser] builds it from source with Bun.
 Pull request sources work with GitHub only.
-Only one debaser command that changes your clone or debaser's files runs at a time per xref:overview/concepts.adoc[data directory], which by default means per clone.
+Only one debaser command that changes your clone or debaser's files runs at a time per xref:overview/concepts.adoc#data-directory[data directory], which by default means per clone.
 
 == Where to go next
 

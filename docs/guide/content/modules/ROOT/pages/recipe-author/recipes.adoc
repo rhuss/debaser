@@ -39,7 +39,7 @@ debaser rejects a recipe with a key it does not know, and the message names the 
 
 debaser assembles the effective recipe from up to four layers, each extending the one below it.
 To change what a build does, you add a layer: a xref:recipe-author/steps.adoc#write-a-local-recipe[local recipe] for your clone, or a recipe the project commits.
-xref:recipe-author/steps.adoc[Steps, install, and artifact] covers the keys of a single step and how you place new steps.
+xref:recipe-author/steps.adoc[Steps, install, and build output] covers the keys of a single step and how you place new steps.
 
 [#the-four-layers]
 == The four layers
@@ -194,7 +194,7 @@ Control characters and bidirectional text markers in the commands appear as `\u`
 `y` or `yes` records the trust; any other answer stops the run with `the project's recipe .debaser/recipe.toml was not trusted; nothing was changed`.
 * Without a terminal, it stops with exit 1: `the project's recipe .debaser/recipe.toml at <commit> is not trusted yet` (or `changed since you trusted it`), followed by `+review it, then run `debaser trust`, or pass --trust-recipe+`.
 
-xref:user/headless.adoc[Running headless] explains which commands accept `--trust-recipe` and what it means for a scheduled job.
+xref:user/headless.adoc#trust-the-projects-recipe[Running headless] explains which commands accept `--trust-recipe` and what it means for a scheduled job.
 
 `debaser trust` reviews the recipe before a build, so the build does not stop at the question.
 

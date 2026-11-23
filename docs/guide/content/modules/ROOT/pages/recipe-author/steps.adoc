@@ -1,4 +1,4 @@
-= Steps, install, and artifact
+= Steps, install, and build output
 
 // Sources:
 // debaser:src/run/build.ts:113
@@ -37,6 +37,7 @@
 // debaser:src/run/finish.ts:28-94
 // debaser:src/report/manifest.ts:9-64
 // debaser:src/run/leftover.ts:1-11
+// debaser:src/rebase/rebase.ts:725
 // debaser:src/harness/verify.ts:36-39
 // debaser:src/run/resume.ts:104-130
 // debaser:src/prompts/check.md:1
@@ -318,6 +319,7 @@ The summary says `warning: the after-build command failed; the build itself succ
 
 Build tools can leave temporary files in the build directory while they run.
 `leftovers` lists globs for such files, matched against paths relative to the build directory.
+For a fix on one of your own branches after its rebase, the paths are relative to that branch's working tree.
 debaser never commits a matching file, either in a fix by the agent or in your changes that `debaser continue` commits for you.
 It also treats the `.<hash>.bun-build` files of an interrupted `bun build` this way, without a glob.
 

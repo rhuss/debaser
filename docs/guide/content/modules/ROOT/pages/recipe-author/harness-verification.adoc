@@ -403,6 +403,7 @@ In the project's `.debaser/recipe.toml`, the path is read from the `.debaser` di
 
 An override replaces the whole shipped template.
 A higher layer's override replaces a lower one's, as xref:recipe-author/recipes.adoc[Recipes and their layers] explains.
+xref:reference/recipe-toml.adoc#prompt-keys[Recipe file] lists each key and the template it replaces.
 
 [IMPORTANT]
 ====

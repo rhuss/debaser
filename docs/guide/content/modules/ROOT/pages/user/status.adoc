@@ -384,4 +384,4 @@ If the failed question was the ownership one (the second case above), debaser ca
 Own branches: gh could not tell whose branch <patch> is from (is gh installed and signed in?), so it is not rebased
 ----
 
-xref:user/install.adoc[Install debaser] lists what else you lose without `gh`.
+xref:user/install.adoc#gh[Install debaser] lists what else you lose without `gh`.

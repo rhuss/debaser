@@ -66,6 +66,7 @@ An acceptance check is the `acceptance` object of a patch entry in `patches.json
 |array of strings, required
 |The command and its arguments, one array element each.
 The array must not be empty.
+debaser runs the command without a shell.
 
 |`exit`
 |integer

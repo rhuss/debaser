@@ -67,7 +67,7 @@ The rest appear in the order a run meets them.
 The sections cover where the code comes from, what debaser builds and where it keeps its files, how it checks a build, and what a run shows and leaves behind.
 xref:overview/how-it-works.adoc[How a build works] shows the same terms at work, one phase at a time.
 
-run::
+[[run]]run::
 One `debaser build` or `debaser rebase`, from its start to its end.
 A stopped run met a problem it could not get past on its own and now waits for `debaser continue` or `debaser rollback`.
 While a run is in progress or stopped, its state stays in `run.json` in the <<data-directory,data directory>>.
@@ -75,16 +75,16 @@ A finished run removes that state, and so does a run undone with `debaser rollba
 
 == Where the code comes from
 
-patch list::
+[[patch-list]]patch list::
 The ordered list of changes that debaser merges onto upstream, stored as `patches.json` in the data directory.
 The same file holds the upstream settings, the name of the integration branch, and optional settings such as the rebase mode, the build directory's location, and the harness.
 
-upstream::
+[[upstream]]upstream::
 The original GitHub repository that the integration branch follows, named as `owner/repo` in the patch list's `upstream.repo`.
 debaser fetches its branch `upstream.branch` (default `main`) from the remote `upstream.remote` (default `upstream`).
 If `upstream.remote` is `upstream` and your clone has an `origin` remote but no `upstream` remote, debaser fetches from `origin` instead.
 
-origin::
+[[origin]]origin::
 Your own remote, the fork you push to.
 If the clone has no `origin` remote, or `origin` pushes to the upstream repository itself, debaser rebases none of your own patches (see <<own-patch,own patch>>).
 For an <<patch-kinds,own branch>>, debaser fetches the copy on `origin` and merges it when your local branch is behind it.
@@ -104,18 +104,18 @@ A pull request or a branch of another repository counts when it comes from your 
 If the GitHub CLI cannot tell which repository a pull request comes from, debaser treats the pull request as someone else's.
 Every other patch is someone else's, and debaser merges it as fetched.
 
-pin::
+[[pin]]pin::
 A full commit SHA set on a patch.
 debaser merges exactly that commit and never rebases a pinned patch.
 
 == What debaser builds and where
 
-integration branch::
+[[integration-branch]]integration branch::
 The branch that debaser builds, named by `branch` in the patch list (default `debaser`).
 Each build resets it to the fetched upstream commit and merges the patches onto it again.
 A change that should last therefore belongs on the patch's branch.
 
-previous build::
+[[previous-build]]previous build::
 The state a successful build replaced, kept for `debaser rollback`.
 It has two halves.
 The branch `<branch>-prev` points where the integration branch stood when the run started.
@@ -123,7 +123,7 @@ The file `<installed artifact>.prev` is a copy of the installed artifact from th
 If no run is stopped or in progress, `debaser rollback` restores both halves.
 Otherwise, `debaser rollback` undoes the stopped or in-progress run instead.
 
-build directory::
+[[build-directory]]build directory::
 The working directory in which debaser builds and which holds the integration branch: by default a linked Git worktree beside your clone, `../<clone>-debaser`.
 The patch list's `tree` setting moves it, and `"tree": "."` builds in place in your clone.
 `debaser build`, `debaser continue`, and `debaser rollback` work in the build directory, whichever directory you start them from.
@@ -146,33 +146,33 @@ debaser fetches from `upstream` and `origin` and pushes to `origin`.
 
 == How debaser checks a build
 
-recipe::
+[[recipe]]recipe::
 The instructions for checking, building, and installing a project: the recipe steps, the build output (`artifact.output`), and the installed artifact (`artifact.install`).
 debaser resolves relative `artifact` paths against the build directory and uses absolute ones as they are.
 
-recipe layers::
+[[recipe-layers]]recipe layers::
 debaser assembles the effective recipe from up to four layers, each one extending the one below it.
 From the bottom, they are a generic recipe for the type of project, a built-in recipe for a known upstream, the project's own `.debaser/recipe.toml` at the fetched upstream commit, and the local `recipe.toml` in the data directory.
 The project's own recipe takes effect only after you trust it, either at debaser's prompt on the terminal or with `--trust-recipe`.
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains how the layers combine.
 
-recipe step::
+[[recipe-step]]recipe step::
 One named command of the recipe, or step for short.
 debaser runs the steps in order in the build directory; they belong to the recipe rather than to one patch.
 
-plain upstream::
+[[plain-upstream]]plain upstream::
 The fetched upstream commit without any patches merged.
 When a recipe step fails on its first run and its rerun, debaser runs it again on plain upstream in a throwaway worktree.
 There it first runs the recipe's install step and every step before the failing one.
 A failure there too means upstream itself is broken; a pass means a patch breaks the step.
 
-acceptance check::
+[[acceptance-check]]acceptance check::
 An optional command attached to one patch through its `acceptance` entry in the patch list.
 It checks that the build still does what the patch is for.
 Acceptance checks run after every step has passed, in the build directory, with `DEBASER_ARTIFACT` set to the build output when the recipe names one.
 The expected exit code defaults to 0, and `debaser status` shows the result in its PATCH CHECK column.
 
-harness::
+[[harness]]harness::
 The configured integration that hands work to a xref:index.adoc[coding agent], set in the `harness` section of `patches.json`.
 The agent is the command-line program that the harness runs and that does the work.
 The harness names the agent's command and its kind: `claude`, `codex`, `pi`, `opencode`, or `plain`.
@@ -181,16 +181,16 @@ If the harness's command cannot run, debaser prints a warning and carries on as 
 
 == What a run shows and leaves behind
 
-live view::
+[[live-view]]live view::
 The progress card that debaser redraws in place on a color terminal while `debaser build`, `debaser rebase`, or `debaser continue` runs.
 With `--json`, or without a color terminal, debaser prints plain progress lines instead.
 
-report::
+[[report]]report::
 The record of a run in its own directory, `reports/<timestamp>` in the data directory: `report.md`, the machine-readable `result.json`, and any handoffs in a `handoffs` directory.
 `reports/latest` points at the newest run, and debaser keeps the ten newest run directories.
 xref:overview/how-it-works.adoc[How a build works] says which runs write a report.
 
-handoff::
+[[handoff]]handoff::
 A Markdown file for one patch whose branch needs a change: the problem, its cause, any fix that debaser applied on the integration branch, and a prompt to run in that branch's checkout.
 debaser writes one per affected patch into the report's `handoffs` directory, for example when a patch no longer merges cleanly onto upstream alone or its acceptance check fails.
 The prompt directs the change into the patch's branch, never into the integration branch.

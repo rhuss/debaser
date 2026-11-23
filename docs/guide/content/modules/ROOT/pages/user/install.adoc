@@ -52,7 +52,7 @@ You need it only for the build, not to run debaser.
 The project's CI builds and tests debaser with Bun {debaser-bun-tested} on `ubuntu-latest` and `macos-latest` runners (link:{debaser-blob}/.github/workflows/ci.yml#L22-L29[CI workflow]).
 The README at the verified commit asks for a lower minimum, but CI tests only this version.
 
-GitHub CLI (`gh`), optional::
+[[gh]]GitHub CLI (`gh`), optional::
 debaser looks for `gh` on your `PATH` and runs it to ask GitHub about a pull request: its state, title, body, merge commit, and head branch.
 debaser fetches and merges pull requests with Git, so they build without `gh` too.
 Without `gh`, or when `gh` cannot answer (not signed in, offline), debaser behaves differently in these ways, among others:

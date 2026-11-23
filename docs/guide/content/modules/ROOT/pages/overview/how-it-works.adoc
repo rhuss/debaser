@@ -74,7 +74,7 @@ xref:user/stops.adoc[When a build stops] explains how to read a stop and how to 
 
 === Lock and preflight
 
-`build` is one of the commands that change your clone or debaser's files, so it first takes the run lock in debaser's xref:overview/concepts.adoc[data directory].
+`build` is one of the commands that change your clone or debaser's files, so it first takes the run lock in debaser's xref:overview/concepts.adoc#data-directory[data directory].
 While another live debaser process holds that lock, `build` refuses to start.
 It takes over a lock left by a process that has ended.
 `build` also refuses when an earlier run is stopped or still in progress, and it says where that run stopped and which commands resume or undo it.
@@ -100,7 +100,7 @@ So is a patch whose commit upstream already contains.
 debaser still merges a pull request that was closed without merging, and warns about it.
 
 What stops it: a source that cannot be fetched stops the run with exit 1, before anything is reset.
-A xref:overview/concepts.adoc[pinned patch] (one that the patch list fixes to a commit) is the exception: when its source is gone, debaser uses the pinned commit and warns.
+A xref:overview/concepts.adoc#pin[pinned patch] (one that the patch list fixes to a commit) is the exception: when its source is gone, debaser uses the pinned commit and warns.
 
 === Rebase own branches
 
@@ -112,7 +112,7 @@ A pinned patch is never rebased.
 
 What stops it: nothing.
 A branch whose rebase or recipe steps fail keeps its old tip.
-The report gets a xref:overview/concepts.adoc[handoff] for it: a Markdown file with the problem, its cause, and a prompt to run in that branch's checkout.
+The report gets a xref:overview/concepts.adoc#handoff[handoff] for it: a Markdown file with the problem, its cause, and a prompt to run in that branch's checkout.
 The run goes on.
 
 === Reset

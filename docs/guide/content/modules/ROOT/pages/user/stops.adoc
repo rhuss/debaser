@@ -274,6 +274,7 @@ The stop gives the reason, for example `it exited <code>: <last line>`, and a `h
 
 The stop names the conflict, step, or acceptance check the agent gave up on, along with its files or log.
 For a conflict or a step, it also writes a prompt for an agent.
+For an acceptance check, it writes a handoff for each failing acceptance check instead, as at <<exit-6,exit 6>>.
 You can go on in two ways:
 
 * Fix the problem yourself, as for <<exit-2,exit 2>>, <<exit-3,exit 3>>, or <<exit-6,exit 6>>, then run `debaser continue`.

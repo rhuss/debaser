@@ -61,7 +61,7 @@ Read these pages first, in this order:
 
 . xref:recipe-author/quickstart.adoc[Quickstart: write a recipe]: write a local recipe for a project no built-in recipe covers, check it with `debaser recipe`, build with it, and share it with the project.
 . xref:recipe-author/recipes.adoc[Recipes and their layers]: the four layers a recipe is assembled from, how debaser picks the generic recipe, how you trust a recipe the project commits, and how `debaser recipe` shows where each value comes from.
-. xref:recipe-author/steps.adoc[Steps, install, and artifact]: write the steps and place them among the ones a lower layer defines, then set the install step, the build output, where debaser installs it, and an after-build command.
+. xref:recipe-author/steps.adoc[Steps, install, and build output]: write the steps and place them among the ones a lower layer defines, then set the install step, the build output, where debaser installs it, and an after-build command.
 
 Add these when you need them:
 

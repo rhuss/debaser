@@ -153,7 +153,7 @@ Only the `bun-test` parser narrows that rerun to the failing files, so here a fa
 * `+{tests}+` becomes the step's `tests` list, here `tests`, on every run that is not narrowed.
 * `timeout = 600` makes debaser kill the `test` step after 600 seconds and count it as failed.
 
-xref:recipe-author/steps.adoc[Steps, install, and artifact] explains every one of these keys.
+xref:recipe-author/steps.adoc[Steps, install, and build output] explains every one of these keys.
 
 == Step 3: check the recipe
 
@@ -308,6 +308,6 @@ xref:recipe-author/recipes.adoc#trust[Trust the project's recipe] explains the f
 
 == Where to go next
 
-* xref:recipe-author/steps.adoc[Steps, install, and artifact]: placeholders, failure parsers, the flaky rerun, and the environment a step gets.
+* xref:recipe-author/steps.adoc[Steps, install, and build output]: placeholders, failure parsers, the flaky rerun, and the environment a step gets.
 * xref:recipe-author/recipes.adoc[Recipes and their layers]: how a local recipe extends the generic recipe, a built-in project recipe, or the project's recipe below it.
 * xref:recipe-author/harness.adoc[Setting up the harness]: let a coding agent fix a failing step or a merge conflict.

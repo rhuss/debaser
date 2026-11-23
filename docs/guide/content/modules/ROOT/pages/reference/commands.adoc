@@ -113,7 +113,7 @@ An unknown command is a usage error with the message `unknown command <name>`.
 
 Each refusal exits 1.
 Without color (see <<terminal-behavior>>), the message goes to standard error as a plain line.
-With color, it appears in the xref:overview/concepts.adoc[live view] (`build`, `rebase`, `continue`) or in the step checklist that `rollback` draws, and otherwise as an error card on standard error.
+With color, it appears in the xref:overview/concepts.adoc#live-view[live view] (`build`, `rebase`, `continue`) or in the step checklist that `rollback` draws, and otherwise as an error card on standard error.
 The refusal `not inside a git repository` always goes to standard error as a plain line.
 
 [cols="2,2,4",options="header"]
@@ -138,12 +138,12 @@ The refusal `not inside a git repository` always goes to standard error as a pla
 |===
 
 debaser releases the lock when the command ends, also after Ctrl-C, a hangup, or a kill.
-xref:user/headless.adoc[Running headless] covers the lock for scheduled runs, and xref:reference/files-and-codes.adoc[Files, exit codes, and environment] gives its file and every exit code.
+xref:user/headless.adoc#one-run-at-a-time[Running headless] covers the lock for scheduled runs, and xref:reference/files-and-codes.adoc[Files, exit codes, and environment] gives its file and every exit code.
 
 == Commands
 
 The last column lists what a command can ask when standard input is a terminal, followed by notes on the command.
-When standard input is not a terminal, debaser asks nothing; xref:user/headless.adoc[Running headless] gives the fallback for each question.
+When standard input is not a terminal, debaser asks nothing; xref:user/headless.adoc#questions-and-the-flags-that-replace-them[Running headless] gives the fallback for each question.
 
 [cols="3,4,2,6",options="header"]
 |===

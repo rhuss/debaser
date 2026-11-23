@@ -51,7 +51,7 @@
 A recipe file is a TOML file that tells debaser how to test, build, and install a project.
 This page lists its keys, their merge rule across layers, and the built-in recipes.
 xref:recipe-author/recipes.adoc[Recipes and their layers] explains the layers, trust, and `debaser recipe`.
-xref:recipe-author/steps.adoc[Steps, install, and artifact] explains steps, placeholders, the install step, `after_build`, and `leftovers`, plus the build output and the installed artifact.
+xref:recipe-author/steps.adoc[Steps, install, and build output] explains steps, placeholders, the install step, `after_build`, and `leftovers`, plus the build output and the installed artifact.
 xref:recipe-author/steps.adoc#write-a-local-recipe[Write a local recipe] shows a complete file.
 
 [#layers]

@@ -123,7 +123,7 @@ Give the description as the second argument:
 debaser add <number> "<description>"
 ----
 +
-xref:user/install.adoc[Install debaser] lists what else changes without `gh`.
+xref:user/install.adoc#gh[Install debaser] lists what else changes without `gh`.
 
 . Add one of your own branches.
 Without a description, the branch's name becomes its description.

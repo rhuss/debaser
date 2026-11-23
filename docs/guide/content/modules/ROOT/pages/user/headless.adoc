@@ -78,6 +78,7 @@ The summary at the end goes to stdout, or to stderr with `--json`.
 `--json` turns off the live view, not the questions.
 A `--json` run started on a terminal still asks, because its standard input is a terminal.
 
+[#questions-and-the-flags-that-replace-them]
 === Questions and the flags that replace them
 
 Three of debaser's questions have a flag that gives the answer up front.
@@ -92,7 +93,7 @@ Off a terminal, each one falls back to a fixed behavior.
 |The run refuses with exit 1, before it writes a report: `the project's recipe .debaser/recipe.toml at <commit> is not trusted yet` (or `changed since you trusted it`), followed by `+review it, then run `debaser trust`, or pass --trust-recipe+`.
 |`--trust-recipe` (`build`, `rebase`, `continue`); for `rollback`, trust first with `debaser trust`
 
-|Push the rebased xref:overview/concepts.adoc#patch-kinds[own branches]: `Force-push <n> rebased branches to origin (<branches>)? [y/N]`
+|Push the rebased xref:overview/concepts.adoc#own-patch[own branches]: `Force-push <n> rebased branches to origin (<branches>)? [y/N]`
 |`debaser build`, `debaser rebase`, and `debaser continue` at the end of a run
 |Nothing is pushed.
 The summary holds a `push:` line with the push command for each branch, so you can push by hand later.
@@ -105,6 +106,7 @@ The run's exit code does not change.
 |`--reason <text>`
 |===
 
+[#trust-the-projects-recipe]
 === Trust the project's recipe
 
 The project's own recipe runs commands on your machine, so debaser uses it only once you trust it.
@@ -321,6 +323,7 @@ A rollback without a stopped run writes its log into a `rollback-<YYYYMMDD>-<HHM
 The data directory is `debaser` inside the clone's shared Git directory, unless `--dir` or `DEBASER_DIR` moves it.
 xref:user/patch-list.adoc#where[Where the patch list lives] explains both settings.
 
+[#one-run-at-a-time]
 == One run at a time
 
 debaser takes a lock in its data directory for the commands that change something: `add`, `remove`, `build`, `rebase`, `continue`, `rollback`, and `trust`.
