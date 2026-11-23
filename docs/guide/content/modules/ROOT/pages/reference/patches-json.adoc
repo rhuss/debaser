@@ -26,7 +26,14 @@
 // debaser:src/harness/invoke.ts:47
 // debaser:src/plugins/harness/registry.ts:8-14
 // debaser:src/plugins/sources/types.ts:1-5
-// debaser:src/plugins/sources/fork-branch.ts:9-19
+// debaser:src/plugins/sources/fork-branch.ts:9-24
+// debaser:docs/harness.md:16-25
+// debaser:src/rebase/rebase.ts:232
+// debaser:src/plugins/harness/claude.ts:4
+// debaser:src/plugins/harness/codex.ts:4
+// debaser:src/cli/commands/add.ts:75-76
+// debaser:src/core/tree.ts:126,150
+// debaser:src/recipes/resolve.ts:113
 // debaser:src/recipes/resolve.ts:102-104,113-117
 // debaser:src/recipes/builtin/bun-ts.toml:2
 
@@ -87,7 +94,7 @@ A missing or empty value takes the default.
 
 |`recipe`
 |string
-|none: debaser detects the generic recipe
+|none: the recipe layers or detection choose
 |Names a generic recipe, such as `bun-ts`.
 An empty or non-string value: `recipe must name a generic recipe`.
 An unknown name stops the recipe resolution with `no generic recipe named <name>; debaser has <names>`.
@@ -345,7 +352,7 @@ See xref:user/patch-list.adoc#retire[Retire a patch].
 
 |`debaser add`
 |Every successful add.
-The first add creates the file with `version`, `upstream`, `branch` `debaser`, `rebase` `all`, and empty `patches` and `retired`.
+The first add creates the file with `version`, `upstream`, `branch` `debaser`, `rebase` `all`, the new patch in `patches`, and an empty `retired`.
 
 |`debaser remove`
 |Every successful remove.
@@ -354,12 +361,12 @@ The first add creates the file with `version`, `upstream`, `branch` `debaser`, `
 |When the patch list has no `tree`: they record the default build directory.
 |===
 
-Every writer saves the whole patch list as debaser read it, not the original text:
+Every writer saves the whole patch list debaser holds after reading the file and making the command's change, not the original text:
 
 * Keys debaser does not know are dropped, at the top level and inside entries.
 * Defaults that the reading filled in are written out: `version` `1`, `upstream.remote`, `upstream.branch`, `branch`, `added`, and for retired entries `retired` and `reason`.
 * `harness.attempts` is written rounded down.
-* The key order is debaser's own: `version`, `upstream`, `branch`, `patches`, `retired`, then `recipe`, `tree`, `rebase`, `harness` when set.
+* The key order is debaser's own and can differ from yours; for example, the first add writes `rebase` before `patches`, and a recorded `tree` goes last.
 * The JSON is indented by two spaces and ends with a newline.
 
 == Full example
@@ -421,7 +428,7 @@ The SHA is fictional.
 <4> Skips detection and uses the generic recipe `bun-ts`.
 <5> Rebases only own branches that no longer merge cleanly onto upstream.
 <6> The build directory, relative to the main worktree.
-<7> Claude Code for every task, with the default limits written out.
+<7> Claude Code for conflicts, checks, and acceptance checks, with the default limits written out.
 <8> Codex for rebasing; the entry sets its own `kind`.
 <9> A pull request of the upstream repository.
 <10> Merges exactly this commit, even after the pull request moves on.
