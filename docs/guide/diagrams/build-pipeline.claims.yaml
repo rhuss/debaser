@@ -110,8 +110,8 @@ claims:
   - id: ref-debaser
     kind: label
     elements: [r_refs]
-    text: Every ref debaser writes lives under refs/debaser/; a patch is fetched into a private ref (a PR into refs/debaser/<repo>/pull/<n>).
-    sources: ["debaser:src/git/refs.ts:3-12", "debaser:src/run/fetch.ts:11-12", "debaser:src/plugins/sources/pr.ts:20,26"]
+    text: debaser fetches each patch into a private ref under refs/debaser/ (a PR into refs/debaser/<repo>/pull/<n>).
+    sources: ["debaser:src/git/refs.ts:4-6", "debaser:src/run/fetch.ts:11-12", "debaser:src/plugins/sources/pr.ts:20,26"]
   - id: fetch-writes-refs
     kind: connects
     elements: [a_fetch_refs]
@@ -170,7 +170,7 @@ claims:
     kind: label
     elements: [x2]
     text: Exit 2 is a stop at an unresolved merge conflict.
-    sources: ["debaser:src/core/errors.ts:5-6"]
+    sources: ["debaser:src/core/errors.ts:6-7"]
   - id: exit-2-arrow
     kind: connects
     elements: [a_x2]
