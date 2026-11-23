@@ -114,3 +114,10 @@ rules:
       - '\.debaser/recipe\.toml'
       - 'debaser trust'
       - 'debaser recipe'
+  - glob: content/modules/ROOT/pages/recipe-author/steps.adoc
+    require:
+      - 'steps_replace'
+      - '\{output\}'
+      - '\{tests\}'
+      - 'after_build'
+      - 'DEBASER_PATCHES'
