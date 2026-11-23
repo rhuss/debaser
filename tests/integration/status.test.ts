@@ -124,7 +124,7 @@ test("status shows PR states, pins, the last results and upstream drift as text 
   expect(text.out).not.toContain("continue");
   expect(text.out).toContain("2 upstream commits since the last build");
   // One table: merge state, own branch, PR and last results on one row per patch.
-  expect(text.out).toMatch(/^PATCH +UPSTREAM +OWN BRANCH +PR +BEHIND +CHECKS +ACCEPTANCE/m);
+  expect(text.out).toMatch(/^PATCH +UPSTREAM +OWN BRANCH +PR +BEHIND +CHECKS +PATCH CHECK/m);
   expect(text.out.match(/^PATCH /gm)).toHaveLength(1);
   expect(text.out).toMatch(/^mine +✓ clean +.* not a PR +2 +pass +- +pinned [0-9a-f]{7}$/m);
   expect(text.out).not.toContain("unverified");

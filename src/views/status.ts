@@ -135,7 +135,7 @@ export function render(v: View, o: { color: boolean }): string[] {
     ]);
   lines.push(
     "",
-    ...table(["PATCH", "UPSTREAM", "OWN BRANCH", "PR", "BEHIND", "CHECKS", "ACCEPTANCE", ...(pinned ? [""] : [])], rows, { color: o.color }),
+    ...table(["PATCH", "UPSTREAM", "OWN BRANCH", "PR", "BEHIND", "CHECKS", "PATCH CHECK", ...(pinned ? [""] : [])], rows, { color: o.color }),
   );
 
   const conflicting = v.rows.filter(r => r.clean === false && r.files.length);
