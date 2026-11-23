@@ -1,0 +1,122 @@
+diagram: where-things-live
+claims:
+  # --- frames ------------------------------------------------------------------
+  - id: clone
+    kind: contains
+    elements: [f_clone, f_clone_label, w_files, f_git]
+    text: The user's clone is the main worktree; its Git directory (the shared, common one) sits inside it.
+    sources: ["debaser:src/core/paths.ts:18-24", "debaser:src/core/tree.ts:32-40"]
+  - id: git-dir
+    kind: contains
+    elements: [f_git, f_git_label, f_data, k_refs, k_branches]
+    text: The shared Git directory (git rev-parse --git-common-dir) holds debaser's data directory, the refs debaser fetches into, and the branches.
+    sources: ["debaser:src/core/paths.ts:4-24", "debaser:src/git/refs.ts:3-14"]
+  - id: data-dir
+    kind: contains
+    elements: [f_data, f_data_label, d_patches, d_recipe, d_reports]
+    text: debaser's data directory defaults to <git-common-dir>/debaser (overridden by --dir or DEBASER_DIR) and holds patches.json, recipe.toml and reports/.
+    sources: ["debaser:src/core/paths.ts:4-16,26-39"]
+  - id: build-dir
+    kind: contains
+    elements: [f_build, f_build_label, b_output, b_installed, b_prev]
+    text: The build directory defaults to ../<clone>-debaser beside the main worktree, is a linked worktree on the integration branch, and holds the build output and the installed artifact with its .prev copy (relative recipe paths resolve against it).
+    sources: ["debaser:src/core/tree.ts:1-3,32-40,140-142", "debaser:src/run/build.ts:58-61,117", "debaser:src/run/common.ts:66-74", "debaser:src/run/finish.ts:36,42-48"]
+
+  # --- labels ------------------------------------------------------------------
+  - id: working-files
+    kind: label
+    elements: [w_files]
+    text: build works in the build directory, never in the checkout it was started from.
+    sources: ["debaser:src/run/build.ts:58-61"]
+  - id: patches-json
+    kind: label
+    elements: [d_patches]
+    text: patches.json in the data directory is the patch list.
+    sources: ["debaser:src/core/paths.ts:28", "debaser:src/run/build.ts:63"]
+  - id: recipe-toml
+    kind: label
+    elements: [d_recipe]
+    text: recipe.toml in the data directory is the local recipe, reported only when it exists.
+    sources: ["debaser:src/core/paths.ts:29", "debaser:src/core/tree.ts:175-178"]
+  - id: reports
+    kind: label
+    elements: [d_reports]
+    text: Each run gets a new reports/<timestamp> directory, and reports/latest points at the newest run.
+    sources: ["debaser:src/core/paths.ts:36-37", "debaser:src/run/common.ts:46-54", "debaser:src/report/report.ts:281-283"]
+  - id: fetched-refs
+    kind: label
+    elements: [k_refs]
+    text: Upstream is fetched into refs/remotes/<remote>/<branch>; patches go into private refs under refs/debaser/ (own branches into refs/remotes/origin/ or refs/debaser/fork/).
+    sources: ["debaser:src/git/git.ts:149-153", "debaser:src/git/refs.ts:3-12", "debaser:src/plugins/sources/branch.ts:21-27"]
+  - id: branches
+    kind: label
+    elements: [k_branches]
+    text: The own branches and the integration branch are local branches (refs/heads/) of the repository.
+    sources: ["debaser:src/git/refs.ts:13-14", "debaser:src/plugins/sources/branch.ts:20", "debaser:src/run/build.ts:117"]
+  - id: build-output
+    kind: label
+    elements: [b_output]
+    text: The build output is the recipe's artifact.output, resolved in the build directory.
+    sources: ["debaser:src/run/finish.ts:36", "debaser:src/run/common.ts:66-69"]
+  - id: installed
+    kind: label
+    elements: [b_installed]
+    text: The installed artifact is the recipe's artifact.install path, resolved in the build directory (absolute paths as is).
+    sources: ["debaser:src/run/common.ts:70-74"]
+  - id: prev
+    kind: label
+    elements: [b_prev]
+    text: The installed copy from the run's start is kept as <install>.prev.
+    sources: ["debaser:src/run/finish.ts:46-48", "debaser:src/run/build.ts:107-111"]
+  - id: upstream-remote
+    kind: label
+    elements: [r_upstream]
+    text: The upstream remote (default name upstream) is the original project the build follows.
+    sources: ["debaser:src/core/patchlist.ts:117", "debaser:src/core/context.ts:48-52"]
+  - id: origin-remote
+    kind: label
+    elements: [r_origin]
+    text: origin is the user's own remote (fork), apart from upstream, that --push pushes to.
+    sources: ["debaser:src/run/build.ts:43-44", "debaser:src/git/remotes.ts:8-12"]
+
+  # --- arrows ------------------------------------------------------------------
+  - id: fetch-upstream
+    kind: connects
+    elements: [a_fetch_up]
+    text: build fetches the upstream branch from the upstream remote into refs/remotes/.
+    sources: ["debaser:src/run/build.ts:96-97", "debaser:src/git/git.ts:149-153"]
+  - id: fetch-origin
+    kind: connects
+    elements: [a_fetch_origin]
+    text: An own branch is fetched from origin into refs/remotes/origin/<name> (or refs/debaser/fork/<name> when origin pushes elsewhere).
+    sources: ["debaser:src/plugins/sources/branch.ts:17-27"]
+  - id: push-own
+    kind: connects
+    elements: [a_push_own]
+    text: Rebased own branches are force-pushed with a lease to origin's push URL, after a yes on the terminal or with --push.
+    sources: ["debaser:src/rebase/rebase.ts:758-767", "debaser:src/run/rebase-phase.ts:104-120"]
+  - id: push-integration
+    kind: connects
+    elements: [a_push_int]
+    text: Only with --push, finish pushes the integration branch to origin with --force-with-lease.
+    sources: ["debaser:src/run/finish.ts:72-87"]
+  - id: linked-worktree
+    kind: connects
+    elements: [a_linked]
+    text: The build directory is a linked worktree added from the main checkout, so it shares the clone's Git directory.
+    sources: ["debaser:src/core/tree.ts:22-23,42-50,140-142"]
+  - id: install-copy
+    kind: connects
+    elements: [a_install]
+    text: The build output replaces the installed copy only in finish, after every check passed.
+    sources: ["debaser:src/run/finish.ts:39-45"]
+  - id: prev-copy
+    kind: connects
+    elements: [a_prev]
+    text: The installed copy from the run's start replaces <install>.prev.
+    sources: ["debaser:src/run/build.ts:107-111", "debaser:src/run/finish.ts:46-48"]
+
+  # --- legend ------------------------------------------------------------------
+  - id: legend
+    kind: legend
+    elements: [lg_title, lg_user, lg_platform, lg_user_sw, lg_platform_sw]
