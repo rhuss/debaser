@@ -125,10 +125,10 @@ Ported from the reference `RunState` with renamed fields where corgi-specific:
 | `cursor`, `step`, `attempts`, `calls`, `fixCount` | Loop positions and counters. |
 | `plan` | `PlannedPatch[]`: source, resolved commit, skip reason (`merged`, `contained`), warnings (`closed`). |
 | `merged` | Patches merged so far with their merge commits. |
-| `events` | `{kind, patch?, step?, detail?}[]` (flaky, upstream-broken, skipped, closed-warning, unverified...). |
+| `events` | `{kind, patch?, step?, detail?}[]` (flaky, upstream-broken, skipped, closed-warning...). |
 | `conflicts` | `{patch, files, by: "rerere" \| "harness" \| "user"}[]` |
 | `fixes` | `{step, commit, by, files, log?, attribution?}[]` |
-| `acceptance` | `{patch, result: "pass" \| "fail" \| "flaky" \| "unverified", log}[]` |
+| `acceptance` | `{patch, result: "pass" \| "fail" \| "flaky" \| "none", log}[]` |
 | `stopped` | `{code, snapshot} \| null` |
 | `stopFailure` | `{step \| acceptance, head, log, attribution}` |
 | `harnessCall` | The call in progress, so `continue` can judge what an interrupted call left. |
@@ -159,7 +159,7 @@ A failed reset discards the run (no `run.json`). A signal leaves `run.json` in i
 
 ## Report (`result.json` and `report.md`)
 
-`result.json` is the machine-readable result (FR-049): `{version: 1, command, outcome: "success" | "stopped" | "failed", exitCode, upstream: {ref, tip, newCommits}, patches: [{source, display, state: "merged" | "skipped-merged" | "skipped-contained" | "not-merged" | "retired", pr?: {state, url}, rebase?: string, merges?: boolean, checks?: string, acceptance?: "pass" | "fail" | "flaky" | "fixed" | "unverified" | "skipped" | "not run", handoff?: path}], steps: [{name, result: "pass" | "flaky" | "fixed" | "fail" | "skipped" | "not run" | "upstream-broken", log}], harness: {calls, tokens: {input, output} | null}, artifact?: {installed, previous}, report: path}`. `not-merged` is a patch a stopped run had not reached yet; a step is `skipped` when it was not needed (the install step with nothing changed); `skipped` acceptance is a patch skipped as merged or contained, or retired (FR-030).
+`result.json` is the machine-readable result (FR-049): `{version: 1, command, outcome: "success" | "stopped" | "failed", exitCode, upstream: {ref, tip, newCommits}, patches: [{source, display, state: "merged" | "skipped-merged" | "skipped-contained" | "not-merged" | "retired", pr?: {state, url}, rebase?: string, merges?: boolean, checks?: string, acceptance?: "pass" | "fail" | "flaky" | "fixed" | "none" | "skipped" | "not run", handoff?: path}], steps: [{name, result: "pass" | "flaky" | "fixed" | "fail" | "skipped" | "not run" | "upstream-broken", log}], harness: {calls, tokens: {input, output} | null}, artifact?: {installed, previous}, report: path}`. `not-merged` is a patch a stopped run had not reached yet; a step is `skipped` when it was not needed (the install step with nothing changed); `skipped` acceptance is a patch skipped as merged or contained, or retired (FR-030).
 
 ## Handoff
 

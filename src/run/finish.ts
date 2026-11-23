@@ -123,9 +123,6 @@ function summary(ctx: Context, run: RunState, built: string): string[] {
     ...run.events.filter(e => e.kind === "closed-warning").map(e => `  warning: ${e.patch} ${e.detail}`),
     ...run.events.filter(e => e.kind === "warning").map(e => `  warning: ${e.patch}: ${e.detail}`),
     ...run.events.filter(e => e.kind === "note").map(e => `  note: ${e.patch}: ${e.detail}`),
-    ...run.acceptance.filter(a => a.result === "unverified").length
-      ? [`  unverified: ${run.acceptance.filter(a => a.result === "unverified").map(a => a.patch).join(", ")} (no acceptance check)`]
-      : [],
     `  report: ${join(run.reportDir, "report.md")}`,
   ];
 }

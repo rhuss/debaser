@@ -365,7 +365,7 @@ test("build --json prints the machine-readable result", async () => {
   expect(parsed).toEqual(JSON.parse(read(join(latest(w), "result.json"))));
   expect(parsed).toMatchObject({ command: "build", outcome: "success", exitCode: 0 });
   expect(parsed.artifact).toEqual({ installed: realpathSync(installPath(w)), previous: null });
-  expect(parsed.patches[0]).toMatchObject({ display: "mine", state: "merged", acceptance: "unverified" });
+  expect(parsed.patches[0]).toMatchObject({ display: "mine", state: "merged", acceptance: "none" });
   expect(parsed.steps.map((s: { name: string; result: string }) => `${s.name}:${s.result}`)).toEqual([
     "install:pass",
     "typecheck:pass",

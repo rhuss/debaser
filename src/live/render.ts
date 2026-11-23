@@ -363,7 +363,7 @@ function outcome(it: ItemView): Line {
     // An acceptance check's results.
     case "pass":
       return [{ text: "passed" }, ...tok];
-    case "unverified":
+    case "none":
       return [{ text: "no acceptance check", dim: true }];
     case "fail":
       return [{ text: `failed${detail}`, hex: red }, ...tries, ...tok];

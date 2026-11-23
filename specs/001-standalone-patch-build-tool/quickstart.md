@@ -47,7 +47,7 @@ Configure a harness in `patches.json` (for example `{"command": ["claude", "-p",
 
 ## 5. Scenario: acceptance checks (US4)
 
-Add an `acceptance` entry to one patch (example in contracts/recipe.md), leave another without. Expected: `result.json` shows `pass`/`fail` for the first and `unverified` for the second; a failing check without a harness exits 6 with a handoff for that patch only.
+Add an `acceptance` entry to one patch (example in contracts/recipe.md), leave another without. Expected: `result.json` shows `pass`/`fail` for the first and `none` for the second; a failing check without a harness exits 6 with a handoff for that patch only.
 
 ## 6. Scenario: own-branch rebase (US5)
 

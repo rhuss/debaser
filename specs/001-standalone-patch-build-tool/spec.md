@@ -103,13 +103,13 @@ Project-wide checks say the combined build works. They don't say each patch stil
 
 **Why this priority**: The revisit defines a successful build as "every live patch merged and all checks passing, project-wide and per patch". It needs the artifact from Story 1.
 
-**Independent Test**: Give one patch an acceptance check that passes, one that fails, and leave one without; rebuild and verify the outcomes, the blame, and the "unverified" marking.
+**Independent Test**: Give one patch an acceptance check that passes, one that fails, and leave one without; rebuild and verify the outcomes, the blame, and the `none` result for the patch without one.
 
 **Acceptance Scenarios**:
 
 1. **Given** a patch with an acceptance check (command, expected exit code, optional expected output pattern), **When** the build succeeds, **Then** debaser runs the check against the artifact and records pass or fail for that patch.
 2. **Given** an acceptance check that fails, **When** the run evaluates it, **Then** only that patch is blamed; with a harness, the agent gets a fix task scoped to that patch, verified like any fix; without one, the run stops with a distinct exit code and a handoff for that patch.
-3. **Given** a patch without an acceptance check, **When** the run reports results, **Then** that patch is listed as "unverified", and the run is not failed for it.
+3. **Given** a patch without an acceptance check, **When** the run reports results, **Then** its acceptance result in `result.json` is `none`, human-facing output does not mark it, and the run is not failed for it.
 4. **Given** an acceptance check that fails once and passes on rerun, **When** the run finishes, **Then** it is reported as flaky.
 
 ---
@@ -277,7 +277,7 @@ On a terminal, the user watches a live view: a timeline against the previous run
 
 - **FR-028**: Each patch MAY carry an acceptance check in its patch list entry: a command, an expected exit code (default 0), and an optional regular expression that must match somewhere in the check's combined stdout and stderr, run after all project-wide checks pass, from the root of the integration tree, with `DEBASER_ARTIFACT` set to the build output path (the artifact is installed only after acceptance checks pass; unset when the recipe has no artifact, in which case the check runs against the tree). Each check has a default timeout of 300 seconds, overridable per check. All acceptance checks run before results are reported.
 - **FR-029**: A failing acceptance check MUST blame only its patch, rerun once for flakiness, go to the harness as a fix task scoped to that patch when one is configured, and otherwise stop with exit code 6 and a handoff. An accepted acceptance fix MUST rerun every project-wide step, rebuild the artifact and rerun the acceptance checks; a harness that runs out of attempts MUST stop the run with exit code 5. A build that fails an acceptance check MUST NOT replace the last good build.
-- **FR-030**: Patches without an acceptance check MUST be reported as "unverified" without failing the run; a patch skipped as merged or contained MUST NOT run its acceptance check and is reported as "skipped".
+- **FR-030**: Patches without an acceptance check MUST NOT fail the run and are reported with acceptance `none` in `result.json`, without a mark in human-facing output; a patch skipped as merged or contained MUST NOT run its acceptance check and is reported as "skipped".
 
 **Own-branch rebasing**
 

@@ -102,7 +102,7 @@ It runs after every step passed, from the tree root, with `DEBASER_ARTIFACT`
 set to the build output. It passes on the expected exit code (default 0) and,
 with `match`, when the regular expression is found in the combined output.
 The default timeout is 300 seconds. A failing check blames only its patch.
-Patches without a check are reported as unverified.
+`list` marks patches that have a check with `(with check)`.
 
 ## Agent harnesses
 

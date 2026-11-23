@@ -100,7 +100,7 @@ export async function acceptLoop(ctx: Context, run: RunState): Promise<Outcome |
   const failing: { p: Planned; log: string }[] = [];
   for (const p of merged) {
     if (!p.acceptance) {
-      run.acceptance.push({ patch: p.display, result: "unverified" });
+      run.acceptance.push({ patch: p.display, result: "none" });
       continue;
     }
     ctx.progress(`running the acceptance check of ${p.display}`);

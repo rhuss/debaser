@@ -70,7 +70,7 @@ export type HarnessUse = {
 };
 export type AcceptanceResult = {
   patch: string;
-  result: "pass" | "fail" | "flaky" | "unverified" | "skipped" | "fixed";
+  result: "pass" | "fail" | "flaky" | "none" | "skipped" | "fixed";
   log?: string;
   exit?: number;
 };

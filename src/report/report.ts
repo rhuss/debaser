@@ -165,6 +165,8 @@ function reportText(
     const how = run.events.find(e => e.patch === p.source && !["note", "warning", "closed-warning"].includes(e.kind))?.kind;
     return `- ${p.source} ${short(p.commit)} ${p.description}${how && how !== "merged" ? ` (${how})` : ""}`;
   });
+  // Only patches with an acceptance check are listed; the others have nothing to report.
+  const checked = acceptanceRows(run).filter(a => run.plan.find(p => p.display === a.patch)?.acceptance);
   return [
     `# debaser report, ${run.startedAt}`,
     "",
@@ -199,7 +201,7 @@ function reportText(
     ),
     ...harness,
     ...section("Verification", stepResults(ctx, run, r.code).map(s => `- ${s.name}: ${stepWords[s.result]}`)),
-    ...section("Acceptance checks", acceptanceRows(run).map(a => `- ${a.patch}: ${a.result}`)),
+    ...(checked.length ? section("Acceptance checks", checked.map(a => `- ${a.patch}: ${a.result}`)) : []),
     ...section("Needs a rebase onto upstream", r.mergeCheck.filter(p => p.clean === false).map(p => `- ${p.display}: ${p.files.join(", ")}`)),
     ...section("Clashes between patches", clashes(ctx.repo, run, r.mergeCheck)),
     ...handoffs,
@@ -211,13 +213,13 @@ function reportText(
   ].join("\n");
 }
 
-/** Each patch's acceptance result: its check's, `unverified` without one, `skipped` when not merged. */
+/** Each patch's acceptance result: its check's, `none` without one, `skipped` when not merged. */
 export function acceptanceRows(run: RunState): { patch: string; result: string }[] {
   return run.plan.map(p => {
     const known = run.acceptance.findLast(a => a.patch === p.display);
     if (p.skip) return { patch: p.display, result: "skipped" };
     if (known) return { patch: p.display, result: known.result };
-    return { patch: p.display, result: p.acceptance ? "not run" : "unverified" };
+    return { patch: p.display, result: p.acceptance ? "not run" : "none" };
   });
 }
 
@@ -249,7 +251,7 @@ function result(
       ...(rebased ? { rebase: rebased.outcome } : {}),
       ...(check?.clean === false ? { merges: false } : check?.clean ? { merges: true } : {}),
       ...(p.merge ? { checks: stoppedOn.has(p.display) ? "fail" : r.code === 0 || acceptanceStop ? "pass" : "unknown" } : {}),
-      acceptance: acceptance.get(p.display) ?? "unverified",
+      acceptance: acceptance.get(p.display) ?? "none",
       ...(handoffOf(p.display) ? { handoff: handoffOf(p.display) } : {}),
     };
   });

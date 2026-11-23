@@ -49,11 +49,21 @@ test("acceptance checks pass or fail by exit code and output pattern, from the t
   const [cwd, artifact] = read(seen).trim().split("\n");
   expect(realpathSync(cwd)).toBe(realpathSync(w.clone));
   expect(artifact).toBe(join(realpathSync(w.clone), "out", "build"));
-  expect(results(w)).toEqual({ good: "pass", plain: "unverified" });
-  expect(result.out).toContain("unverified: plain (no acceptance check)");
+  expect(results(w)).toEqual({ good: "pass", plain: "none" });
+  expect(result.out).not.toContain("unverified");
+  expect(result.out).not.toContain("no acceptance check");
   expect(read(join(latest(w), "acceptance", "good.log"))).toContain("widget 1.2");
-  expect(read(join(latest(w), "report.md"))).toContain("## Acceptance checks\n\n- good: pass\n- plain: unverified\n");
+  expect(read(join(latest(w), "report.md"))).toContain("## Acceptance checks\n\n- good: pass\n\n");
   expect(state(w)).toBeNull();
+});
+
+test("a build where no patch has an acceptance check has no acceptance section in the report", async () => {
+  const w = world();
+  branch(w, "plain", { "plain.txt": "plain\n" });
+  configure(w, ["plain"]);
+  expect((await run(w, "build")).code).toBe(0);
+  expect(results(w)).toEqual({ plain: "none" });
+  expect(read(join(latest(w), "report.md"))).not.toContain("## Acceptance checks");
 });
 
 test("a failing acceptance check without a harness stops with 6, blames only its patch, and keeps the installed build", async () => {
@@ -80,7 +90,7 @@ test("a failing acceptance check without a harness stops with 6, blames only its
   // The installed build is the last good one.
   expect(read(installPath(w))).toBe(installed);
   expect(state(w)?.phase).toBe("accept");
-  expect(results(w)).toMatchObject({ good: "unverified", bad: "fail", other: "pass" });
+  expect(results(w)).toMatchObject({ good: "none", bad: "fail", other: "pass" });
 });
 
 test("an acceptance check that fails once and passes when run again is flaky", async () => {
