@@ -1,0 +1,329 @@
+# Upstream findings collected by cc-guide runs; file them with /guide:upstream.
+findings:
+- id: UF-1
+  source: debaser
+  kind: doc-drift
+  locations:
+  - ref: docs/pilots.md:33
+    quote: dist/rtk-custom --version
+  summary: The rtk pilot step runs dist/rtk-custom inside the clone, but the build
+    installs the artifact in the separate build directory.
+  evidence: Step 1 cds into the clone (docs/pilots.md:14). src/run/build.ts:61 sets
+    ctx.repo to the build directory from tree.prepare (default ../<checkout>-debaser,
+    src/core/tree.ts:33), and src/run/common.ts:71-74 resolves the install path against
+    that directory, so dist/rtk-custom does not exist in the clone after a build.
+  status: collected
+- id: UF-2
+  source: debaser
+  kind: stale-reference
+  locations:
+  - ref: specs/001-standalone-patch-build-tool/spec.md:325
+    quote: MUST offer the verbs `add`, `remove`, `list`, `rebuild`, `rebase`
+  summary: Spec 001 FR-054 names a rebuild verb that the CLI does not have; the verb
+    is build.
+  evidence: src/cli/commands/index.ts:79 registers the verb build and no verb named
+    rebuild exists in the verbs table (src/cli/commands/index.ts:75-86). Spec 001
+    uses rebuild throughout its user stories as well, with no supersede note.
+  status: collected
+- id: UF-3
+  source: debaser
+  kind: doc-drift
+  locations:
+  - ref: specs/001-standalone-patch-build-tool/spec.md:301
+    quote: '`steps.replace = true` replaces the whole inherited list'
+  summary: Spec 001 FR-039a spells the replace-all-steps key as steps.replace, but
+    the recipe key is steps_replace.
+  evidence: src/recipes/schema.ts:32-35 reads raw.steps_replace and fails with "steps_replace
+    must be true or false"; src/recipes/resolve.ts:49 acts on r.steps_replace. No
+    steps.replace key is read anywhere.
+  status: collected
+- id: UF-4
+  source: debaser
+  kind: stale-reference
+  locations:
+  - ref: specs/001-standalone-patch-build-tool/spec.md:233
+    quote: to the recipe's fixed install path inside the checkout
+  - ref: specs/001-standalone-patch-build-tool/spec.md:234
+    quote: MUST refuse to start on a dirty checkout
+  summary: Spec 001 FR-008a and FR-009 still place the installed artifact in the checkout
+    and refuse a dirty checkout, though both now apply to the build directory and
+    neither carries a supersede note.
+  evidence: src/run/common.ts:71-74 resolves the install path against the build directory
+    (ctx.repo, set by src/run/build.ts:61), and src/core/tree.ts:121-122 refuses uncommitted
+    changes in the build directory, not in the checkout the command starts from. Other
+    replaced requirements in spec 001 are marked SUPERSEDED; these two are not.
+  status: collected
+- id: UF-5
+  source: debaser
+  kind: doc-drift
+  locations:
+  - ref: README.md:54-55
+    quote: live and retired ones.
+  summary: The README says list shows live and retired patches, but by default retired
+    patches are only counted.
+  evidence: src/views/list.ts:63-72 (retiredSection) returns only a line like "N retired
+    patches; list --verbose shows them" unless --verbose is set; the retired table
+    appears only with --verbose (or --retired, accepted by src/cli/commands/index.ts:78).
+  status: collected
+- id: UF-6
+  source: debaser
+  kind: missing-doc
+  locations:
+  - ref: README.md:168-171
+    quote: '| `list [--json]` | show the patches |'
+  summary: The README command table omits list --verbose and --retired, rebase --skip-branch,
+    and --trust-recipe on rebase and continue.
+  evidence: src/cli/commands/index.ts:78 accepts list --retired and --verbose; index.ts:80
+    accepts rebase --trust-recipe and --skip-branch; index.ts:81 accepts continue
+    --trust-recipe. The README rows for list, rebase and continue (README.md:168-171)
+    show none of these.
+  status: collected
+- id: UF-7
+  source: debaser
+  kind: doc-drift
+  locations:
+  - ref: README.md:27-28
+    quote: and, for PR sources, an
+  summary: The README says PR sources need an authenticated gh, but PRs are fetched
+    and merged with git and gh only adds metadata.
+  evidence: src/plugins/sources/pr.ts:25-28 fetches refs/pull/<n>/head with git; pr.ts:29-35
+    asks gh for the PR state only and, without it, merges anyway with a warning that
+    gh could not tell the state. gh is optional for PR sources (it affects merged-PR
+    detection, titles and status), not required.
+  status: collected
+- id: UF-8
+  source: debaser
+  kind: doc-drift
+  locations:
+  - ref: README.md:11-12
+    quote: every agent change lands as its own commit
+  summary: The README says every agent change lands as its own commit, but an agent
+    resolution of a rebase conflict is folded into the replayed commit with no trailer.
+  evidence: src/rebase/rebase.ts:473-498 accepts the harness result and calls continueOrSkip
+    (src/rebase/rebase.ts:396-408), which runs git rebase --continue so the resolution
+    becomes part of the replayed own-branch commit. No separate commit is made and
+    no trailer marks it (src/ has no trailer handling).
+  status: collected
+- id: UF-9
+  source: debaser
+  kind: missing-doc
+  locations:
+  - ref: README.md:186
+    quote: or a refused push of a rebased branch
+  summary: The README exit-code table does not say that a failed push of the integration
+    branch exits 1.
+  evidence: src/run/finish.ts:80-86 sets code = 1 with the reason "the push of <branch>
+    to origin failed" when build --push cannot push the integration branch, after
+    the artifact was installed. The exit 1 row (README.md:186) lists only a refused
+    push of a rebased branch.
+  status: collected
+- id: UF-10
+  source: debaser
+  kind: missing-doc
+  locations:
+  - ref: README.md:197-206
+    quote: <git-common-dir>/debaser/
+  summary: The README data directory tree omits the lock file and the work/ directory.
+  evidence: src/core/paths.ts:32 defines lock (used by src/core/lock.ts:29,62) and
+    src/core/paths.ts:35 defines work (created by src/run/build.ts:106, holds work/artifact.start
+    per paths.ts:38). Neither appears in the README tree.
+  status: collected
+- id: UF-11
+  source: debaser
+  kind: doc-drift
+  locations:
+  - ref: specs/002-build-worktree/spec.md:167
+    quote: The `--json` output of `list`, `status` and `recipe` MUST carry the same
+      paths as fields
+  summary: Spec 002 FR-020 says recipe --json carries the same paths as list and status,
+    but it carries only the layer sources.
+  evidence: src/cli/commands/list.ts:26 and src/cli/commands/status.ts:145 put a config
+    object (data directory, patch list, local recipe override, build directory) in
+    their JSON; src/cli/commands/recipe.ts:26-39 has no config field and carries only
+    layerSources (recipe.ts:30), so the data directory, patch list path and build
+    directory are missing.
+  status: collected
+- id: UF-12
+  source: debaser
+  kind: stale-reference
+  locations:
+  - ref: src/run/build.ts:58-60
+    quote: checked, and created when missing, after every other
+  summary: The build.ts comment says the build directory is created after every other
+    refusal, but the fetch and the headless trust refusal come later.
+  evidence: tree.prepare creates the build directory at src/run/build.ts:61; the upstream
+    fetch at build.ts:97 can still fail, and loadRunRecipe at build.ts:99 can refuse
+    an untrusted project recipe in a headless run (src/recipes/trust.ts:104-106).
+    Both leave the newly created directory behind.
+  status: collected
+- id: UF-13
+  source: debaser
+  kind: missing-doc
+  locations:
+  - ref: docs/harness.md:42-43
+    quote: each falls back to the top-level command.
+  summary: docs/harness.md says task entries fall back to the top-level command, but
+    does not say that a task entry without its own kind runs as plain instead of the
+    top-level kind.
+  evidence: 'src/harness/select.ts:18 sets kind to own?.kind ?? (own ? "plain" : h.kind
+    ?? "plain"): a task entry with only a command gets the plain adapter even when
+    the top-level harness is claude or codex. Only the command falls back; limits
+    always come from the top level (select.ts:19-20).'
+  status: collected
+- id: UF-14
+  source: debaser
+  kind: doc-drift
+  locations:
+  - ref: README.md:18-19
+    quote: Download the release binary for your platform and put it on your `PATH`,
+      or
+  summary: The README offers release binaries and Bun 1.4 or newer, but the pinned
+    source has no release workflow and CI tests only Bun 1.4.4.
+  evidence: .github/workflows/ ships only ci.yml, which builds and tests but publishes
+    no release assets; ci.yml:29 pins bun-version 1.4.4, so "1.4 or newer" is untested
+    beyond that version. Whether binaries were uploaded by hand cannot be seen from
+    the source.
+  status: collected
+- id: UF-15
+  source: debaser
+  kind: stale-reference
+  locations:
+  - ref: src/git/refs.ts:3
+    quote: Every ref debaser writes lives under `refs/debaser/`
+  summary: The refs.ts comment says every ref debaser writes lives under refs/debaser/,
+    but the same table defines the integration branch and its -prev backup under refs/heads/.
+  evidence: src/git/refs.ts:13-14 define branch as refs/heads/<b> and prev as refs/heads/<b>-prev,
+    and debaser writes both (for example src/run/finish.ts:54 moves <branch>-prev
+    with git branch -f).
+  status: collected
+- id: UF-16
+  source: debaser
+  kind: missing-doc
+  locations:
+  - ref: src/cli/usage.ts:4
+    quote: add <source> [description] [--pin <sha>] [--upstream owner/repo]
+  summary: The usage text omits add --description, list --retired, and --trust-recipe
+    on rebase, continue and recipe, all of which the parser accepts.
+  evidence: src/cli/commands/index.ts:76 accepts add --description, index.ts:78 list
+    --retired, and index.ts:80, 81 and 84 accept --trust-recipe on rebase, continue
+    and recipe. src/cli/usage.ts:4, 10, 16, 20 and 25 list none of them.
+  status: collected
+- id: UF-17
+  source: debaser
+  kind: naming-ux
+  locations:
+  - ref: src/cli/commands/add.ts:35-38
+    quote: 'or name it: debaser add <source> --upstream <owner>/<repo>'
+  summary: The no-upstream-remote hint offers --upstream without saying that upstream
+    is then fetched from origin.
+  evidence: With --upstream and no upstream remote, src/cli/commands/add.ts:41 records
+    remote "upstream" and branch "main"; src/core/context.ts:46-52 (upstreamRemote)
+    then falls back to origin, so upstream commits are fetched from the fork remote,
+    which may lag the real upstream or have another default branch.
+  status: collected
+- id: UF-18
+  source: debaser
+  kind: naming-ux
+  locations:
+  - ref: src/views/status.ts:130
+    quote: '{ text: r.pr ? r.pr.toLowerCase() : "not a PR"'
+  summary: Without gh, debaser status labels a real pull request patch as not a PR.
+  evidence: src/cli/commands/status.ts:115 sets prState to prInfo(...)?.state ?? null
+    for a pr source, and prInfo returns null when gh is missing (src/github/gh.ts:17-18)
+    or cannot answer. src/views/status.ts:130 renders any null as "not a PR" instead
+    of an unknown state.
+  status: collected
+- id: UF-19
+  source: debaser
+  kind: bug
+  locations:
+  - ref: src/report/report.ts:147
+    quote: 'stopped = `Result: stopped (exit ${r.code}): ${r.reason.join("; ")}`,'
+  summary: After a failed integration push, report.md says the run stopped while result.json
+    says it failed.
+  evidence: 'src/run/finish.ts:80-86 sets exit 1 after a completed, installed build
+    when the push fails. src/report/report.ts:173 then writes the stopped line from
+    report.ts:147 (Result: stopped (exit 1)), while report.ts:264 maps code 1 to outcome
+    "failed" in result.json. The run is neither stopped (no run.json is kept, finish.ts:91)
+    nor consistent between the two files.'
+  status: collected
+- id: UF-20
+  source: debaser
+  kind: naming-ux
+  locations:
+  - ref: src/cli/commands/recipe.ts:16
+    quote: ctx.trustRecipe = false;
+  summary: debaser recipe accepts --trust-recipe and silently ignores it.
+  evidence: src/cli/commands/index.ts:84 parses trustRecipe for the recipe verb, but
+    src/cli/commands/recipe.ts:16 resets ctx.trustRecipe to false and loads the recipe
+    with peek, so the flag neither trusts the project recipe nor produces an error.
+  status: collected
+- id: UF-21
+  source: debaser
+  kind: naming-ux
+  locations:
+  - ref: src/recipes/resolve.ts:60
+    quote: which no lower layer has
+  summary: The step-placement error says no lower layer has the anchor step, but the
+    anchor is looked up among all steps merged so far.
+  evidence: src/recipes/resolve.ts:58 searches out.steps, which already holds earlier
+    steps of the same layer (pushed at resolve.ts:61-62) and no longer holds lower-layer
+    steps after steps_replace (resolve.ts:49-52). An anchor defined earlier in the
+    same layer is found, and a lower-layer step removed by steps_replace is reported
+    as missing from lower layers.
+  status: collected
+- id: UF-22
+  source: debaser
+  kind: missing-doc
+  locations:
+  - ref: README.md:121-124
+    quote: Steps get `DEBASER_PATCHES`, `DEBASER_FORK_URL`, `DEBASER_COMMIT` and
+  summary: The README does not say that the after-build command runs without placeholders,
+    without a timeout and without the DEBASER_* step variables.
+  evidence: src/run/finish.ts:62-71 runs recipe.afterBuild through runStep with env
+    ctx.env and no timeout, and the command is passed as written, while steps get
+    stepEnv (src/report/manifest.ts:61, used at src/run/harness-fix.ts:180) and a
+    timeout. A reader of README.md:121-124 can expect {output} and DEBASER_COMMIT
+    to work in after_build.
+  status: collected
+- id: UF-23
+  source: debaser
+  kind: bug
+  locations:
+  - ref: src/core/patchlist.ts:149-153
+    quote: '...(attempts !== undefined ? { attempts: Math.floor(attempts) } : {}),'
+  summary: A harness.attempts value between 0 and 1 passes validation and becomes
+    0 attempts.
+  evidence: src/core/patchlist.ts:142-145 accepts any number above 0 for attempts
+    (patchlist.ts:149), and patchlist.ts:153 stores Math.floor(attempts), so 0.5 is
+    loaded (and written back on the next save) as attempts 0, a value the positive-number
+    check exists to reject.
+  status: collected
+- id: UF-24
+  source: debaser
+  kind: bug
+  locations:
+  - ref: src/report/report.ts:250
+    quote: '...(p.prLink ? { pr: { state: p.prState ?? "UNKNOWN", url: p.prLink }
+      } : {}),'
+  summary: result.json gives a fork-branch patch a pr object with state UNKNOWN, though
+    it is not a pull request.
+  evidence: 'src/run/fetch.ts:38 sets prLink to link(patch.source) for every source
+    kind, and the fork-branch plugin returns a GitHub tree URL as its link when the
+    source names owner/repo (src/plugins/sources/fork-branch.ts:37). src/report/report.ts:250
+    turns any prLink into pr: { state: "UNKNOWN", url: <tree URL> }, so consumers
+    of result.json see a pull request that does not exist.'
+  status: collected
+- id: UF-25
+  source: debaser
+  kind: naming-ux
+  locations:
+  - ref: src/recipes/trust.ts:105
+    quote: '"  review it, then run `debaser trust`, or pass --trust-recipe",'
+  summary: The headless untrusted-recipe refusal suggests --trust-recipe also when
+    the command is debaser rollback, which rejects that option.
+  evidence: src/run/rollback.ts:79 and 145 call loadRecipe without peek, so an untrusted
+    project recipe reaches the refusal at src/recipes/trust.ts:104-106 in a headless
+    rollback; src/cli/commands/index.ts:82 parses only --verbose for rollback, so
+    following the hint fails with a usage error (leftover arguments are rejected by noMore, src/cli/main.ts:80).
+  status: collected
