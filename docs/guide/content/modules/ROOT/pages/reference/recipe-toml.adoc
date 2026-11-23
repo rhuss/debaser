@@ -1,6 +1,8 @@
 = Recipe file
 
 // Sources:
+// debaser:src/harness/verify.ts:36-39
+// debaser:src/git/snapshot.ts:29-37
 // debaser:src/recipes/schema.ts:5-91
 // debaser:src/recipes/schema.ts:93-100
 // debaser:src/recipes/types.ts:1-39
