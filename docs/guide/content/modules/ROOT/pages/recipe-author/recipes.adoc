@@ -127,28 +127,41 @@ A built-in recipe whose `name` has the form `owner/repo` is a project recipe; an
 
 |`bun-ts`
 |generic, detected by `bun.lock` or `bun.lockb`
-|Steps `install` (`bun install --frozen-lockfile`), `typecheck` (`bunx tsc --noEmit`, parser `tsc`), and `test` (`+bun test {tests}+`, parser `bun-test`).
-`install` is the install step, triggered by `bun.lock` and `package.json`, with the marker `node_modules`.
-No build output and no install path.
+a|
+* Steps:
+** `install`: `bun install --frozen-lockfile`
+** `typecheck`: `bunx tsc --noEmit`, parser `tsc`
+** `test`: `+bun test {tests}+`, parser `bun-test`
+* Install step `install`, triggered by `bun.lock` and `package.json`, with the marker `node_modules`
+* No build output and no install path
 
 |`rust-cargo`
 |generic, detected by `Cargo.toml`
-|Steps `fetch` (`cargo fetch --locked`), `test` (`cargo test`, parser `cargo-test`), and `build` (`cargo build --release`).
-`fetch` is the install step, triggered by `Cargo.lock` and `Cargo.toml`.
-No build output and no install path.
+a|
+* Steps:
+** `fetch`: `cargo fetch --locked`
+** `test`: `cargo test`, parser `cargo-test`
+** `build`: `cargo build --release`
+* Install step `fetch`, triggered by `Cargo.lock` and `Cargo.toml`
+* No build output and no install path
 
 |`tals/corgi`
 |project, extends `bun-ts`
-|Replaces `typecheck` with `bun typecheck.ts` (parser `tsc`).
-Adds `native` (`bun build.ts --native-only`) before `test`, because the unit tests need the native layer built first.
-Replaces `test` with `+bun test {tests} --timeout 60000+` (parser `bun-test`) and limits `+{tests}+` to `src`.
-Adds `build` (`+bun build.ts --outfile {output}+`) at the end.
-Build output `dist/corgi-debaser`, installed at `dist/corgi-custom`, after-build command `./dist/corgi-custom reload`, project name `corgi`.
+a|
+* Replaces `typecheck` with `bun typecheck.ts`, parser `tsc`
+* Adds `native` (`bun build.ts --native-only`) before `test`, because the unit tests need the native layer built first
+* Replaces `test` with `+bun test {tests} --timeout 60000+`, parser `bun-test`, and limits `+{tests}+` to `src`
+* Adds `build` (`+bun build.ts --outfile {output}+`) at the end
+* Build output `dist/corgi-debaser`, installed at `dist/corgi-custom`
+* After-build command `./dist/corgi-custom reload`
+* Project name `corgi`
 
 |`rtk-ai/rtk`
 |project, extends `rust-cargo`
-|Adds `fmt` (`cargo fmt --check`) and `clippy` (`cargo clippy --all-targets -- -D warnings`) before `test`.
-Build output `target/release/rtk`, installed at `dist/rtk-custom`, project name `rtk`.
+a|
+* Adds `fmt` (`cargo fmt --check`) and `clippy` (`cargo clippy --all-targets -- -D warnings`) before `test`
+* Build output `target/release/rtk`, installed at `dist/rtk-custom`
+* Project name `rtk`
 |===
 
 xref:reference/recipe-toml.adoc[Recipe file] lists every key of a recipe with its merge rule.

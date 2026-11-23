@@ -140,58 +140,52 @@ xref:user/headless.adoc[Running headless] covers the lock for scheduled runs, an
 "Terminal questions" lists what a command can ask when standard input is a terminal.
 Off a terminal, debaser asks nothing; xref:user/headless.adoc[Running headless] gives the fallback for each question.
 
-[cols="2,3,4,1,4,2,5",options="header"]
+[cols="3,4,2,6",options="header"]
 |===
-|Command |Positionals |Options and flags |Lock |Terminal questions |`--json` |Notes
+|Command |Options and flags |Lock, JSON (`--json`) |Terminal questions and notes
 
-|`add`
-|`<source>` `[description]`
+|`add <source> [description]`
 |`--pin <sha>` +
 `--upstream <owner>/<repo>` +
 `--description <text>` (no `--help`)
-|yes
-|none
-|no
-|The first `add` creates the patch list.
+|Lock: yes +
+JSON: no
+|Terminal questions: none.
+The first `add` creates the patch list.
 See xref:user/patch-list.adoc#add-a-patch[Add a patch].
 
-|`remove`
-|`<source>`
+|`remove <source>`
 |`--reason <text>`
-|yes
-|The reason, when `--reason` is missing; without a terminal, the command refuses.
-|no
-|Moves the patch to the retired patches with the date and the reason.
+|Lock: yes +
+JSON: no
+|Asks for the reason when `--reason` is missing; without a terminal, the command refuses.
+Moves the patch to the retired patches with the date and the reason.
 See xref:user/patch-list.adoc#retire[Retire a patch].
 
 |`list`
-|none
 |`--verbose` +
 `--retired` (no `--help`) +
 `--json`
-|no
-|none
-|yes
-|Only reads.
+|Lock: no +
+JSON: yes
+|Terminal questions: none.
+Only reads.
 See xref:user/patch-list.adoc[Managing the patch list].
 
 |`build`
-|none
 |`--push` +
 `--rebase <mode>` +
 `--in-worktree` +
 `--trust-recipe` +
 `--verbose` +
 `--json`
-|yes
-|Trust a new or changed project recipe (`--trust-recipe` answers it).
-Force-push the rebased own branches (`--push` answers it).
-|yes
-|Works in the build directory.
+|Lock: yes +
+JSON: yes
+|Asks to trust a new or changed project recipe (`--trust-recipe` answers it), and to force-push the rebased own branches (`--push` answers it).
+Works in the build directory.
 See xref:user/first-build.adoc[Your first build] and xref:user/build-directory.adoc[The build directory].
 
 |`rebase`
-|none
 |`--push` +
 `--rebase <mode>` +
 `--in-worktree` +
@@ -199,61 +193,56 @@ See xref:user/first-build.adoc[Your first build] and xref:user/build-directory.a
 `--verbose` +
 `--json` +
 `--skip-branch`
-|yes
-|As for `build`; the `--push` of the stopped run answers the push question.
-|yes
-|Only rebases the own branches onto upstream.
+|Lock: yes +
+JSON: yes
+|Asks the same questions as `build`, answered by the same options.
+Only rebases the own branches onto upstream.
 `--rebase off` is a usage error.
 `rebase --skip-branch` does what `continue --skip-branch` does.
 See xref:user/own-branches.adoc[Rebasing your own branches].
 
 |`continue`
-|none
 |`--skip-branch` +
 `--verbose` +
 `--trust-recipe` (no `--help`)
-|yes
-|As for `build` (`--trust-recipe` answers the trust question); the `--push` of the stopped run answers the push question.
-|no
-|Resumes a stopped run.
+|Lock: yes +
+JSON: no
+|Asks the same questions as `build`; `--trust-recipe` answers the trust question, and the `--push` of the stopped run answers the push question.
+Resumes a stopped run.
 See xref:user/stops.adoc#continue[Continue a stopped run].
 
 |`rollback`
-|none
 |`--verbose`
-|yes
-|Trust a new or changed project recipe; no option answers it.
-|no
-|Undoes a stopped run, or restores the previous build.
+|Lock: yes +
+JSON: no
+|Asks to trust a new or changed project recipe; no option answers it.
+Undoes a stopped run, or restores the previous build.
 See xref:user/stops.adoc#rollback[Roll back].
 
 |`status`
-|none
 |`--fetch` +
 `--json`
-|no
-|none
-|yes
-|Only reads; fetches only with `--fetch`.
+|Lock: no +
+JSON: yes
+|Terminal questions: none.
+Only reads; fetches only with `--fetch`.
 See xref:user/status.adoc[Reading status].
 
 |`recipe`
-|none
 |`--json` +
 `--trust-recipe` (no `--help`; no effect)
-|no
-|none
-|yes
-|Only reads; leaves an untrusted project recipe out without asking.
+|Lock: no +
+JSON: yes
+|Terminal questions: none.
+Only reads; leaves an untrusted project recipe out without asking.
 See xref:recipe-author/recipes.adoc[Recipes and their layers].
 
 |`trust`
 |none
-|none
-|yes
-|The trust confirmation; without a terminal, the command refuses.
-|no
-|Fetches the upstream branch, shows the commands of the project recipe, and records the trust after a yes.
+|Lock: yes +
+JSON: no
+|Asks for the trust confirmation; without a terminal, the command refuses.
+Fetches the upstream branch, shows the commands of the project recipe, and records the trust after a yes.
 See xref:recipe-author/recipes.adoc#trust[Trust the project's recipe].
 |===
 

@@ -1,0 +1,8 @@
+/* Keep inline code in table cells on one line, so options and paths do not break mid-word. */
+.doc table.tableblock code {
+  white-space: nowrap;
+  hyphens: none;
+}
+.doc table.tableblock {
+  hyphens: manual;
+}
