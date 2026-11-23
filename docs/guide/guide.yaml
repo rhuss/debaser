@@ -2,11 +2,8 @@
 # Written by /guide:create from the intake interview; edit by hand when needed and
 # run `uv run tools/guide/guidecfg.py validate` afterwards. Unknown keys are errors.
 schema: 1
-
 title: "debaser Guide"
-
 format: "antora"
-
 personas:
   - id: user
     title: User
@@ -14,7 +11,6 @@ personas:
   - id: recipe-author
     title: Recipe author
     start: recipe-author/index
-
 sections:
   - id: overview
     title: Overview
@@ -28,26 +24,22 @@ sections:
   - id: reference
     title: Reference
     voice: reference
-
 rigor: standard
-
 internal:
   enabled: false
   confidential_terms: []
   confidential_patterns: []
-
 clusters: {}
-
 validate:
   extra_queries: []
-
 drift:
   schedule: "17 6 * * 1"
-
 upstream:
   target: github
-
 branding:
   wordmark: debaser
   theme: neutral
   footer: none
+pages:
+  enabled: true
+  url: https://rhuss.github.io/debaser/
