@@ -120,8 +120,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
         pr: prState,
         pinned: p.pin ?? null,
         checks: known?.checks ?? null,
-        // A result.json from before "none" says "unverified" for a patch without a check.
-        acceptance: (known?.acceptance === "unverified" ? "none" : known?.acceptance) ?? (p.acceptance ? null : "none"),
+        acceptance: lastAcceptance(known?.acceptance, !!p.acceptance),
         behind: base ? Number(git.git(ctx.repo, ["rev-list", "--count", "--no-merges", `${base}..${upstream}`]).stdout.trim()) || 0 : null,
       };
     });
@@ -149,4 +148,13 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
       note: v.note,
     },
   };
+}
+
+/** A patch's acceptance result from the last build: `none` without a check,
+ * null for a check with no result yet (added since). A result.json from before
+ * `none` says `unverified` for a patch without a check. */
+function lastAcceptance(last: string | null | undefined, hasCheck: boolean): string | null {
+  const result = last === "unverified" ? "none" : (last ?? null);
+  if (!hasCheck) return result ?? "none";
+  return result === "none" ? null : result;
 }

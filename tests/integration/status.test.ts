@@ -38,6 +38,16 @@ test("status reads an older result.json that says unverified as none", async () 
   expect(JSON.parse((await run(w, "status", "--json")).out).patches[0].acceptance).toBe("none");
 });
 
+test("status reports a check added after the last build as not run yet, not as none", async () => {
+  const w = world();
+  branch(w, "plain", { "plain.txt": "plain\n" });
+  configure(w, ["plain"]);
+  expect((await run(w, "build")).code).toBe(0);
+  configure(w, ["plain"], { patchExtra: { plain: { acceptance: { run: ["true"] } } } });
+  expect(JSON.parse((await run(w, "status", "--json")).out).patches[0].acceptance).toBeNull();
+  expect((await run(w, "status")).out).toMatch(/^plain .* pass +-$/m);
+});
+
 test("status reads origin from git's own ref, so a branch force-pushed by hand isn't diverged", async () => {
   const w = world();
   branch(w, "mine", { "mine.txt": "mine\n" });
