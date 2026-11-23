@@ -69,3 +69,8 @@ rules:
       - '--reason'
       - 'list --verbose'
       - 'DEBASER_DIR'
+  - glob: content/modules/ROOT/pages/user/build-directory.adoc
+    require:
+      - 'image::where-things-live\.svg'
+      - '"tree"'
+      - 'git switch'
