@@ -68,7 +68,7 @@ You still want to run the tool with all of them every day, on the latest upstrea
 
 Each of those branches becomes a patch in the xref:overview/concepts.adoc#patch-list[patch list].
 On every build, debaser rebases your own branches onto the fetched upstream commit, merges them in your order, and runs the project's recipe steps on the result.
-Git's rerere records how you resolved a conflict, and debaser replays that resolution on the next build, so last week's conflict does not come back.
+Git's https://git-scm.com/docs/git-rerere[rerere] records how you resolved a conflict, and debaser replays that resolution on the next build, so last week's conflict does not come back.
 xref:user/own-branches.adoc[Rebasing your own branches] covers the rebase in detail.
 
 === A downstream product that works upstream first
@@ -188,7 +188,7 @@ Stephen Rothwell announced it in February 2008.
 The proposal he quoted merges all the subsystem trees once per day, 75 Git trees and 5 to 10 quilt trees at the time, and Rothwell wrote that he hoped "to recreate this tree every day automatically."
 
 Rebuilding from scratch means meeting the same conflicts again.
-Git's rerere ("reuse recorded resolution") helps here.
+Git's https://git-scm.com/docs/git-rerere[rerere] ("reuse recorded resolution") helps here.
 Its manual describes workflows with long-lived topic branches, where the developer "sometimes needs to resolve the same conflicts over and over again," and rerere records a hand resolution and applies it the next time the same conflict appears.
 
 TopGit, announced at version 0.4 in September 2008, went the other way.
@@ -197,7 +197,7 @@ It manages a patch queue as topic branches, one patch per branch, and never rewr
 == Where debaser fits
 
 debaser follows the rebuilt integration branch of `seen` and linux-next.
-Every build resets the xref:overview/concepts.adoc#integration-branch[integration branch] to the fetched upstream commit and merges the patch list onto it again, with rerere replaying conflict resolutions.
+Every build resets the xref:overview/concepts.adoc#integration-branch[integration branch] to the fetched upstream commit and merges the patch list onto it again, with https://git-scm.com/docs/git-rerere[rerere] replaying conflict resolutions.
 Like the `series` file of the patch queue tools, the patch list is ordered, but it holds Git branches and pull requests instead of diff files.
 A patch can be your own branch that you keep developing, and debaser rebases it onto upstream as part of the build.
 

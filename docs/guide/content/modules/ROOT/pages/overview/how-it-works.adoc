@@ -127,7 +127,7 @@ What stops it: a failed reset, with exit 1 and no report.
 debaser merges the patches onto the integration branch one by one, in the order of the patch list.
 Each merge is a merge commit titled `Merge <patch>: <description>`, or `Merge <patch>` when the patch has no description.
 The branch history says what each patch is.
-Git's rerere records how conflicts were resolved and replays those resolutions on the next run.
+Git's https://git-scm.com/docs/git-rerere[rerere] records how conflicts were resolved and replays those resolutions on the next run.
 
 When a conflict has no recorded resolution, debaser hands it to the agent that the harness runs for conflicts.
 If debaser accepts the agent's resolution, it goes on with the next patch.

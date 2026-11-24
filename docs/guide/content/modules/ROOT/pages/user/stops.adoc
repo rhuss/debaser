@@ -416,7 +416,7 @@ debaser rollback
 
 == Resolved conflicts replay on the next build
 
-debaser runs its merges with Git's `rerere.enabled` and `rerere.autoUpdate` settings turned on.
+debaser runs its merges with Git's https://git-scm.com/docs/git-rerere[rerere] settings `rerere.enabled` and `rerere.autoUpdate` turned on.
 When `debaser continue` concludes a merge you resolved, Git records your resolution.
 On the next build, Git replays it when the same conflict comes back.
 When the recorded resolutions cover every conflicted file, debaser commits the merge and goes on, and the report marks the patch as `replayed`.

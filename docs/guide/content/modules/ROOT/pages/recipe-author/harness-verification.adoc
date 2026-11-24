@@ -64,7 +64,7 @@ xref:user/own-branches.adoc[Rebasing your own branches] describes both.
 |Task |When debaser asks |`tasks` entry |`DEBASER_TASK` |Prompt override |Where the agent works
 
 |Merge conflict
-|Merging a patch conflicts, and Git's recorded resolutions (rerere) leave files unresolved.
+|Merging a patch conflicts, and Git's recorded resolutions (https://git-scm.com/docs/git-rerere[rerere]) leave files unresolved.
 |`conflict`
 |`conflict`
 |`conflict`

@@ -111,7 +111,7 @@ A branch that needs a rebase then goes through these stages:
 . debaser adds a throwaway worktree for the branch in the `work` directory of the xref:overview/concepts.adoc#data-directory[data directory].
 It runs `git rebase` there onto the fetched upstream commit.
 The build directory takes no part in this.
-. When a replayed commit conflicts, Git first replays its recorded resolutions (rerere).
+. When a replayed commit conflicts, Git first replays its recorded resolutions (https://git-scm.com/docs/git-rerere[rerere]).
 With a harness configured, debaser then asks the agent to resolve the conflict, up to the harness's `attempts` (default 3) for each conflicting commit.
 An accepted resolution goes into the replayed commit itself, without a trailer.
 . debaser runs the recipe steps on the rebased branch alone, in that worktree.
