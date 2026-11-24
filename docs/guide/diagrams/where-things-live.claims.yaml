@@ -66,7 +66,7 @@ claims:
   - id: prev
     kind: label
     elements: [b_prev]
-    text: The installed copy from the run's start is kept as <install>.prev.
+    text: The installed artifact from the run's start is kept as <install>.prev.
     sources: ["debaser:src/run/finish.ts:46-48", "debaser:src/run/build.ts:107-111"]
   - id: upstream-remote
     kind: label
@@ -108,12 +108,12 @@ claims:
   - id: install-copy
     kind: connects
     elements: [a_install]
-    text: The build output replaces the installed copy only in finish, after every check passed.
+    text: The build output replaces the installed artifact only in finish, after every check passed.
     sources: ["debaser:src/run/finish.ts:39-45"]
   - id: prev-copy
     kind: connects
     elements: [a_prev]
-    text: The installed copy from the run's start replaces <install>.prev.
+    text: The installed artifact from the run's start replaces <install>.prev.
     sources: ["debaser:src/run/build.ts:107-111", "debaser:src/run/finish.ts:46-48"]
 
   # --- legend ------------------------------------------------------------------

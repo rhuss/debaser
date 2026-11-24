@@ -46,7 +46,7 @@ claims:
   - id: phase-install
     kind: label
     elements: [p_install]
-    text: After every check passed, the build output replaces the installed copy, and the copy from the run's start is kept as <target>.prev (when the recipe names an artifact install path).
+    text: After every check passed, the build output replaces the installed artifact, and the installed artifact from the run's start is kept as <target>.prev (when the recipe names an artifact install path).
     sources: ["debaser:src/run/finish.ts:38-51", "debaser:src/run/common.ts:71-74"]
   - id: phase-after-build
     kind: label

@@ -210,7 +210,7 @@ All pages: voice `technical`, persona Recipe author, not internal. Navigation: `
 - **Facts:** C-RCP-01 to 12, C-CFG-02; hints `debaser:src/recipes/resolve.ts:18-139`, `debaser:src/recipes/trust.ts:11-107`, `debaser:src/recipes/builtin/*.toml`, `debaser:src/recipes/builtin/index.ts:1-16`, `debaser:src/views/recipe.ts:4-54`, `debaser:src/cli/commands/recipe.ts:13-41`, `debaser:src/cli/commands/trust.ts:12-28`, `debaser:src/core/paths.ts:29`.
 - **Rules:** require `visuals/recipe\.svg`, `\.debaser/recipe\.toml`, `debaser trust`, `debaser recipe`.
 
-### Task 21: Steps, install, and artifact `recipe-author/steps.adoc`
+### Task 21: Steps, install, and build output `recipe-author/steps.adoc`
 
 - **Outline:** spec page 15, ending with a worked local recipe for a small project (verify every key against `debaser:src/recipes/schema.ts:5-91`).
 - **Facts:** C-RCP-05, C-RCP-07, C-RCP-13 to 17, C-TRE-15, C-BLD-05, research 4.2; hints `debaser:src/recipes/schema.ts:5-91`, `debaser:src/recipes/resolve.ts:28-85`, `debaser:src/steps/commands.ts:7-23`, `debaser:src/steps/run.ts:42-79`, `debaser:src/steps/install.ts:6-26`, `debaser:src/run/common.ts:66-74`, `debaser:src/run/finish.ts:38-71`, `debaser:src/report/manifest.ts:17-64`, `debaser:src/plugins/parsers/registry.ts:1-17`, `debaser:src/run/leftover.ts:1-11`.
@@ -222,7 +222,7 @@ All pages: voice `technical`, persona Recipe author, not internal. Navigation: `
 - **Facts:** C-ACC-01 to 11, C-SRC-09; hints `debaser:src/core/patchlist.ts:11,59-79`, `debaser:src/run/accept.ts:25-227`, `debaser:src/run/build.ts:136-156`, `debaser:src/report/handoff.ts:141-166`, `debaser:src/views/list.ts:56`, `debaser:src/views/status.ts:133-138`, `debaser:src/report/report.ts:168-224`.
 - **Rules:** require `DEBASER_ARTIFACT`, `"match"`, `"timeout"`, `PATCH CHECK`.
 
-### Task 23: Setting up the agent `recipe-author/harness.adoc`
+### Task 23: Setting up the harness `recipe-author/harness.adoc`
 
 - **Outline:** spec page 17, one `harness` example per kind. States the task-entry kind fallback to `plain` (Review Focus 5) and that permissions are granted in the command by the user.
 - **Facts:** C-HAR-04 to 17, C-HAR-28, research section 5; hints `debaser:src/core/patchlist.ts:14-19,99-164`, `debaser:src/harness/select.ts:7-52`, `debaser:src/harness/invoke.ts:19-108`, `debaser:src/plugins/harness/claude.ts`, `codex.ts`, `pi.ts`, `opencode.ts`, `plain.ts`, `registry.ts`.
@@ -261,3 +261,11 @@ All pages: voice `reference`, persona both, not internal. Navigation: `* Referen
 - **Outline:** spec page 22.
 - **Facts:** C-DIR-03, C-VER-15, C-EXT-01 to 04, research section 3 (environment variables, exit codes, JSON), glossary refs; hints `debaser:src/core/paths.ts:27-39`, `debaser:src/report/report.ts:101-306`, `debaser:src/core/errors.ts:1-20`, `debaser:src/git/refs.ts:3-15`, `debaser:src/report/manifest.ts:17-64`, `debaser:src/harness/invoke.ts:33-58`, `debaser:src/git/git.ts:43-71`.
 - **Rules:** require `\block\b`, `work/`, `result\.json`, `DEBASER_DIR`, `129`, `130`, `143`.
+
+## Revision Notes
+
+### 2026-11-24: Page titles after the copy-edit
+
+**Change**: Task 21 page title "Steps, install, and artifact" → "Steps, install, and build output"; Task 23 page title "Setting up the agent" → "Setting up the harness"
+**Rationale**: the copy-edit applied the styleguide glossary to page titles; the `where-things-live` diagram was relabeled ("previous installed artifact") for the same reason.
+**Tasks**: 21, 23
