@@ -127,7 +127,7 @@ All Overview pages: voice `concepts`, persona both, not internal. Navigation: `*
 
 ### Task 7a: Why debaser `overview/why.adoc` (added 2026-11-24)
 
-- **Outline:** spec page 1a. Prose only: the problem; `== When debaser helps` with five `===` use cases; `== History and prior art` in three lineages; `== Where debaser fits`. Links Key concepts, How a build works, Running headless, Managing the patch list, and the start page's comparison section.
+- **Outline:** spec page 1a. Prose only: the problem; `== When debaser helps` with five `===` use cases; `== History and prior art` in three lineages; `== Where debaser fits` with a `=== What debaser adds` feature list (debaser facts only, no claims about other tools; prose drafted with `prose:write`). Links Key concepts, How a build works, Running headless, Managing the patch list, and the start page's comparison section.
 - **Facts:** debaser facts from the pinned source as on the other overview pages; facts about other tools and practices from `url:` sources only (spec open question 1 exception), each re-read while writing. Leave out anything unverified.
 - **Rules:** require `xref:overview/concepts\.adoc`, `xref:overview/how-it-works\.adoc`; the start page links `xref:overview/why\.adoc`.
 
@@ -282,3 +282,10 @@ All pages: voice `reference`, persona both, not internal. Navigation: `* Referen
 **Rationale**: the author asked for use cases and a researched prior-art section; the overview contract's start page has no slot for them.
 **Requirements**: spec Pages 1a, open question 1
 **Tasks**: 7
+
+### 2026-11-24: What debaser adds
+
+**Change**: Where debaser fits had one summary paragraph → a `What debaser adds` list of seven distinctive features
+**Rationale**: answer "why debaser instead of other tooling" without a comparison table; prose drafted with `prose:write`
+**Requirements**: spec Pages 1a
+**Tasks**: 7a

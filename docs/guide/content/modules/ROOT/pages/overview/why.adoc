@@ -19,6 +19,11 @@
 // debaser:src/harness/verify.ts:16-51
 // debaser:src/run/finish.ts:38-55
 // debaser:src/run/rollback.ts:141-171
+// debaser:src/run/rebase-phase.ts:104-120
+// debaser:src/plugins/harness/registry.ts:8
+// debaser:src/run/harness-fix.ts:23-32
+// debaser:src/report/handoff.ts:82-99
+// debaser:src/core/tree.ts:32-40
 // url:https://www.redhat.com/en/about/open-source/participation-guidelines
 // url:https://www.redhat.com/en/blog/what-open-source-upstream
 // url:https://www.redhat.com/en/blog/kubernetes-ingress-vs-openshift-route
@@ -201,10 +206,32 @@ Every build resets the xref:overview/concepts.adoc#integration-branch[integratio
 Like the `series` file of the patch queue tools, the patch list is ordered, but it holds Git branches and pull requests instead of diff files.
 A patch can be your own branch that you keep developing, and debaser rebases it onto upstream as part of the build.
 
-On top of that model, debaser automates what the lineages above leave to people.
-Because a patch can break without a conflict, as Electron warns, every build runs the recipe steps and the acceptance checks, and a failing step is run again on plain upstream to find out whose fault it is.
-A conflict or failure can go to a coding agent through the xref:overview/concepts.adoc#harness[harness], and debaser checks the agent's result itself before it accepts the change.
-The build output replaces the installed artifact only after everything has passed, and `debaser rollback` returns to the previous build.
+[#what-debaser-adds]
+=== What debaser adds
+
+On top of that model, debaser does on every build what the lineages above leave to people:
+
+* *Rebuilt, not rebased.*
+Every build starts again from the latest upstream and merges the patch list on top.
+Each patch stays separate, and `debaser remove` retires one with the date and a reason.
+* *One list, many sources.*
+Upstream pull requests by number, pull requests and branches from other forks, and your own branches share one patch list.
+debaser rebases your own branches onto upstream and force-pushes them to `origin` only after you confirm or pass `--push`.
+* *Checked before it is installed.*
+A patch can break without a conflict, as Electron warns, so every build runs the recipe steps and each patch's acceptance check.
+The build output replaces the installed artifact only after all of them passed, and `debaser rollback` returns to the previous build.
+* *Blame you can act on.*
+A failing recipe step gets a rerun, then a run on xref:overview/concepts.adoc#plain-upstream[plain upstream].
+The stop then says whether upstream itself is broken (exit 4) or one of your patches broke the step (exit 3).
+* *Agent repair that debaser checks.*
+A merge conflict, a failing recipe step, or a failing acceptance check can go to a coding agent through the xref:overview/concepts.adoc#harness[harness]: Claude Code, Codex, pi, OpenCode, or any command you name.
+debaser checks the agent's result itself, commits each accepted fix separately, and writes a handoff so the fix can go back to the patch's own branch.
+* *Conflict memory.*
+Git's rerere records how a conflict was resolved, and debaser replays that resolution when the same conflict comes back in a later build.
+* *Built to run unattended.*
+With `--json`, a build prints its result as JSON on standard output, and the exit code names the kind of stop, so a script or CI job can react to it.
+Every build happens in a separate build directory, so the clone you work in stays as it was.
+
 
 debaser is a rewrite, as an independent tool, of corgi's `custom_build` script, which did this job for one project.
 xref:overview/how-it-works.adoc[How a build works] follows one build phase by phase, and xref:overview/concepts.adoc[Key concepts] defines the terms.
