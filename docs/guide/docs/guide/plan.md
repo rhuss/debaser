@@ -115,7 +115,7 @@ Reviewers check each of these on the named page as a required spot-check.
 
 ## Pages: Overview
 
-All Overview pages: voice `concepts`, persona both, not internal. Navigation: `* Overview` (plain text) with `** xref:index.adoc[Start here]`, `** xref:overview/how-it-works.adoc[How a build works]`, `** xref:overview/concepts.adoc[Key concepts]`.
+All Overview pages: voice `concepts`, persona both, not internal. Navigation: `* Overview` (plain text) with `** xref:index.adoc[Start here]`, `** xref:overview/why.adoc[Why debaser]`, `** xref:overview/how-it-works.adoc[How a build works]`, `** xref:overview/concepts.adoc[Key concepts]`.
 
 ### Task 7: Start page `index.adoc`
 
@@ -124,6 +124,12 @@ All Overview pages: voice `concepts`, persona both, not internal. Navigation: `*
 - **Product definitions (own source):** debaser `debaser:README.md:3-14`, `debaser:package.json:10`; Git `debaser:src/git/git.ts:89-97`; GitHub CLI `debaser:src/github/gh.ts:14-38`; Bun `debaser:package.json:10`, `debaser:.github/workflows/ci.yml:29`; coding agents `debaser:src/plugins/harness/registry.ts:8`, `debaser:src/harness/select.ts:41-44` (no own source pinned, spec open question 1).
 - **Facts:** all source hints of the why card in the spec.
 - **Rules (`content/modules/ROOT/pages/index.adoc`):** require `include::(ROOT:)?partial\$baseline-note\.adoc\[\]`, `xref:user/index\.adoc`, `xref:recipe-author/index\.adoc`, `image::build-pipeline\.svg`; require_order `xref:user/index\.adoc`, `xref:recipe-author/index\.adoc`. Global rule (`content/modules/ROOT/pages/**/*.adoc`): forbid `debaser rebuild`, `steps\.replace`, `releases/download`, `brew install`.
+
+### Task 7a: Why debaser `overview/why.adoc` (added 2026-11-24)
+
+- **Outline:** spec page 1a. Prose only: the problem; `== When debaser helps` with five `===` use cases; `== History and prior art` in three lineages; `== Where debaser fits`. Links Key concepts, How a build works, Running headless, Managing the patch list, and the start page's comparison section.
+- **Facts:** debaser facts from the pinned source as on the other overview pages; facts about other tools and practices from `url:` sources only (spec open question 1 exception), each re-read while writing. Leave out anything unverified.
+- **Rules:** require `xref:overview/concepts\.adoc`, `xref:overview/how-it-works\.adoc`; the start page links `xref:overview/why\.adoc`.
 
 ### Task 8: How a build works `overview/how-it-works.adoc`
 
@@ -269,3 +275,10 @@ All pages: voice `reference`, persona both, not internal. Navigation: `* Referen
 **Change**: Task 21 page title "Steps, install, and artifact" → "Steps, install, and build output"; Task 23 page title "Setting up the agent" → "Setting up the harness"
 **Rationale**: the copy-edit applied the styleguide glossary to page titles; the `where-things-live` diagram was relabeled ("previous installed artifact") for the same reason.
 **Tasks**: 21, 23
+
+### 2026-11-24: Why debaser page
+
+**Change**: Overview had three pages (start, How a build works, Key concepts) → four, with `overview/why.adoc` after the start page (Task 7a); the start page opening leads with the why and links it.
+**Rationale**: the author asked for use cases and a researched prior-art section; the overview contract's start page has no slot for them.
+**Requirements**: spec Pages 1a, open question 1
+**Tasks**: 7

@@ -11,6 +11,7 @@ rules:
       - 'xref:user/index\.adoc'
       - 'xref:recipe-author/index\.adoc'
       - 'image::build-pipeline\.svg'
+      - 'xref:overview/why\.adoc'
     require_order:
       - 'xref:user/index\.adoc'
       - 'xref:recipe-author/index\.adoc'
@@ -20,6 +21,10 @@ rules:
       - 'steps\.replace'
       - 'releases/download'
       - 'brew install'
+  - glob: content/modules/ROOT/pages/overview/why.adoc
+    require:
+      - 'xref:overview/concepts\.adoc'
+      - 'xref:overview/how-it-works\.adoc'
   - glob: content/modules/ROOT/pages/overview/how-it-works.adoc
     require:
       - 'image::build-pipeline\.svg'

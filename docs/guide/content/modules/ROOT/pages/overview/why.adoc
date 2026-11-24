@@ -1,0 +1,211 @@
+= Why debaser
+
+// Sources:
+// debaser:README.md:3-14
+// debaser:specs/001-standalone-patch-build-tool/spec.md:13
+// debaser:src/run/build.ts:50-157
+// debaser:src/run/fetch.ts:62-81
+// debaser:src/plugins/sources/pr.ts:10-17
+// debaser:src/cli/commands/remove.ts:11-26
+// debaser:src/cli/commands/index.ts:28,53,79
+// debaser:src/core/errors.ts:5-15
+// debaser:src/git/merge.ts:3-5
+// debaser:src/rebase/rebase.ts:255-267
+// debaser:src/run/rebase-phase.ts:49-55
+// debaser:src/run/mergeloop.ts:37-83
+// debaser:src/run/verifyloop.ts:78-109
+// debaser:src/steps/isolated.ts:15-62
+// debaser:src/run/accept.ts:24-90
+// debaser:src/harness/verify.ts:16-51
+// debaser:src/run/finish.ts:38-55
+// debaser:src/run/rollback.ts:141-171
+// url:https://www.redhat.com/en/about/open-source/participation-guidelines
+// url:https://www.redhat.com/en/blog/what-open-source-upstream
+// url:https://www.redhat.com/en/blog/kubernetes-ingress-vs-openshift-route
+// url:https://www.redhat.com/en/about/press-releases/red-hat-delivers-openshift-enterprise-3-power-new-web-scale-distributed-application-platform
+// url:https://kubernetes.io/blog/2015/11/kubernetes-1-1-performance-upgrades-improved-tooling-and-a-growing-community/
+// url:https://github.com/openshift/kubernetes/blob/master/REBASE.openshift.md
+// url:https://lkml.indiana.edu/0210.2/1491.html
+// url:https://en.wikipedia.org/wiki/Quilt_(software)
+// url:https://wiki.debian.org/Projects/DebSrc3.0
+// url:https://manpages.debian.org/bookworm/dpkg-dev/dpkg-source.1.en.html
+// url:https://rpm-software-management.github.io/rpm/man/rpm-spec.5
+// url:https://lwn.net/Articles/165775/
+// url:https://wiki.mercurial-scm.org/MqExtension
+// url:https://www.electronjs.org/docs/latest/development/patches
+// url:https://android.googlesource.com/kernel/common/+/refs/heads/android-mainline/README.md
+// url:https://source.android.com/docs/core/architecture/kernel/generic-kernel-image
+// url:https://github.com/git/git/blob/HEAD/Documentation/howto/maintain-git.adoc
+// url:https://lkml.iu.edu/0802.1/1772.html
+// url:https://git-scm.com/docs/git-rerere
+// url:https://git-scm.com/book/en/v2/Git-Tools-Rerere
+// url:https://lwn.net/Articles/300436/
+
+You use a tool that someone else's project releases.
+The release works for most of its users, but not quite for you.
+You fixed a bug that nobody has reviewed yet.
+You added a feature the maintainers do not want.
+Another contributor has an open pull request that solves your problem, and it has been waiting for weeks.
+
+That leaves two versions of the project: the one upstream releases and the one you need.
+The difference between them is a handful of changes that are not upstream, or not upstream yet.
+
+Keeping those changes alive is recurring work.
+Each time upstream moves, you fetch the new commits and apply your changes again.
+Some of them conflict, often in the same places as last time, and you resolve those conflicts a second time.
+Then you run the tests, build the tool, install it, and hope that none of your changes broke something without a visible error.
+Skip a month and the next round is harder, because the gap has grown in the meantime.
+
+== When debaser helps
+
+In each situation below, an upstream keeps moving and a set of changes has to keep up with it.
+
+=== A project you contribute to
+
+You contribute to a smaller project, and part of your work is not merged.
+One feature waits for review, and another will probably never be merged because it matters only to you.
+You still want to run the tool with all of them every day, on the latest upstream rather than on a release from three months ago.
+
+Each of those branches becomes a patch in the xref:overview/concepts.adoc#patch-list[patch list].
+On every build, debaser rebases your own branches onto the fetched upstream commit, merges them in your order, and runs the project's recipe steps on the result.
+Git's rerere records how you resolved a conflict, and debaser replays that resolution on the next build, so last week's conflict does not come back.
+xref:user/own-branches.adoc[Rebasing your own branches] covers the rebase in detail.
+
+=== A downstream product that works upstream first
+
+Red Hat builds its products from open-source projects and calls its practice upstream first.
+Its participation guidelines say that Red Hat strives to offer its changes to a project led by others before including them in a downstream Red Hat version.
+A Red Hat blog post gives the reasons: working upstream first lets you vet ideas with the larger community, and by the time a change ships downstream, the upstream code has probably changed.
+Building a change downstream first and carrying the patches back to the project later, the post says, is usually more work in the long run.
+The post also sees no point in taking on more work than needed, and that is the aim of a small delta: the fewer changes the product keeps on top of upstream, the less work each new upstream release brings.
+
+Even so, some changes stay in the product.
+Some only make sense there, such as the product's own CI pipelines, build tooling, and packaging.
+Others are features the product needed before upstream had an answer.
+Red Hat writes that it saw the need to give services external access before Kubernetes introduced Ingress objects, and that it created a concept called Route for that purpose.
+OpenShift Enterprise 3 became generally available in June 2015.
+Kubernetes 1.1, announced in November 2015, listed an HTTP load balancer as a beta feature and pointed to the Ingress object for it.
+Routes did not go away when Ingress arrived.
+Since OpenShift 3.10, OpenShift supports Ingress objects alongside routes, through an ingress controller that watches Ingress objects and creates routes for them.
+
+OpenShift's copy of Kubernetes, the repository openshift/kubernetes, tracks such changes in its commit subjects.
+`UPSTREAM: <carry>:` marks a persistent carry, in general one that keeps behavior consistent or compatible with OpenShift, and should probably be picked again for the next rebase branch.
+`UPSTREAM: <drop>:` marks a carry that should probably not be picked again, for example a commit that updates generated files.
+`UPSTREAM: <PR number>:` names a pull request in upstream Kubernetes, and the commit should be picked again only if the upstream branch does not include that pull request's commits.
+
+The same bookkeeping fits debaser's patch list.
+Each change the product keeps is one patch, either a branch or a pull request.
+debaser skips a pull request that upstream has merged, and any patch whose commit upstream already contains, so every build answers the question behind the `UPSTREAM: <PR number>:` rule.
+`debaser remove` then retires the patch with the date and a reason, and the patch list keeps that record.
+An xref:overview/concepts.adoc#acceptance-check[acceptance check] on a patch confirms that the build still does what the patch is for, after upstream moved under it.
+
+=== A team's internal build
+
+A team runs an open-source tool with changes of its own, for example an integration with internal systems or a fix the team cannot wait for.
+It wants a fresh build on a schedule or in CI.
+
+With `--json`, `debaser build` prints the run's result as JSON on standard output, and the exit code names the kind of stop.
+A script can tell a merge conflict (exit 2) from a step that fails only with the patches (exit 3) and from a broken upstream (exit 4).
+xref:user/headless.adoc[Running headless] lists the flags that replace the questions debaser asks on a terminal.
+
+An acceptance check on each patch tests the team's changes on every build.
+A build that stops never replaces the installed artifact, so the team keeps the build it had.
+If a build passed everything and still turns out bad, `debaser rollback` returns to the previous build.
+
+=== Other people's fixes you need now
+
+Someone opened a pull request that fixes the bug you keep hitting.
+Review is slow, and you need the fix this week.
+
+`debaser add 1234` adds upstream pull request 1234 by its number, and `debaser add someone/project#56` adds one from another repository.
+Each build fetches the pull request again, so commits its author pushes later arrive on their own.
+If you would rather stay on the commit you read, xref:user/patch-list.adoc#pin[pin the patch].
+
+Once upstream merges the pull request, the next build skips it, as long as `gh` can tell debaser the pull request's state or upstream contains its commits.
+You can then retire it with `debaser remove`, and the patch list remembers when and why it went away.
+xref:user/patch-list.adoc[Managing the patch list] covers adding, ordering, and retiring patches.
+
+=== A maintainer's preview
+
+You maintain a project and have several open pull requests that touch the same code.
+Each one passes CI on its own, but you want to see what happens when they land together.
+
+Add them to the patch list in the order you plan to merge them, and run `debaser build` in your clone.
+debaser merges them onto the latest upstream and runs the recipe steps on the result.
+A conflict between two pull requests that no recorded resolution or agent resolves stops the run at the merge and names the files.
+When a recipe step fails again on its rerun, debaser runs it on xref:overview/concepts.adoc#plain-upstream[plain upstream], the fetched upstream commit without any patches.
+A failure there means upstream itself is broken; a pass means one of the pull requests broke the step.
+
+The Git project works in a similar way with its `seen` branch, described in <<integration-branches>>.
+debaser builds the combination in your own build directory and pushes nothing unless you pass `--push` or confirm the push.
+xref:user/stops.adoc[When a build stops] explains how to read each kind of stop.
+
+[#history-and-prior-art]
+== History and prior art
+
+Keeping changes on top of a moving upstream is an old problem.
+Three lineages of tools and practices handle it, and debaser borrows from all three.
+
+[#patch-queues]
+=== Patch queues
+
+In October 2002, Andrew Morton announced a set of shell scripts on the Linux kernel mailing list, "designed for managing a 'stack' of patches against a rapidly-changing base tree."
+In his model, each patch is a changeset against the base tree plus the patches before it, and "your primary output is patches."
+quilt evolved from these scripts.
+Andreas Grünbacher developed it to maintain the Linux kernel customizations of SuSE Linux.
+
+Linux distributions keep their own changes to upstream sources as patches, too.
+Debian's `3.0 (quilt)` source format keeps the upstream tarball and stores Debian's changes as patches in `debian/patches`, and applies the patches listed in the `series` file on top of the upstream source.
+An RPM spec file declares them with `Patch` tags, optionally numbered, for patches "applied on top of sources."
+
+Later tools moved the patches into version control.
+StGit offers functionality similar to quilt on top of Git and stores its patches as Git commits; its version 0.8 was announced in December 2005.
+The Mercurial Queues extension brings quilt's functionality to Mercurial, with a `series` file that lists the patches in the order they are applied.
+
+[#long-lived-downstreams]
+=== Long-lived downstreams
+
+OpenShift's commits on top of Kubernetes, described in <<a-downstream-product-that-works-upstream-first>>, are one long-lived downstream.
+OpenShift starts each rebase from a new branch at the target Kubernetes release tag.
+
+Electron keeps all its patches to upstream projects in a `patches/` directory, where a `.patches` file in each subdirectory lists the order in which the patches apply.
+Its documentation is blunt: "Every patch in Electron is a maintenance burden."
+When upstream code changes, it warns, patches can break, "sometimes without even a patch conflict or a compilation error."
+
+The Android Common Kernel tags each commit that is not merged from an upstream branch with where it comes from.
+`UPSTREAM:` and `BACKPORT:` mark a cherry-pick from Linux mainline, unchanged or adapted, `FROMGIT:` a patch in a maintainer tree but not yet in mainline, `FROMLIST:` one posted to the kernel mailing list, and `ANDROID:` a change to Android-specific code.
+Google's documentation on the Generic Kernel Image explains why this matters.
+Customizing device kernels could leave as much as 50% of the kernel code out of tree, and kernel fragmentation made it "prohibitively expensive to propagate security fixes" to Android devices in the field.
+
+[#integration-branches]
+=== Integration branches rebuilt from scratch
+
+The Git project itself keeps each change on its own topic branch.
+The maintainer's guide says that `seen` contains all the topics merged to `next`, "but is rebuilt directly on 'master'," and its procedure rebuilds `seen` on top of a freshly rebuilt `jch` branch.
+
+linux-next applies the same idea to the whole kernel.
+Stephen Rothwell announced it in February 2008.
+The proposal he quoted merges all the subsystem trees once per day, 75 Git trees and 5 to 10 quilt trees at the time, and Rothwell wrote that he hoped "to recreate this tree every day automatically."
+
+Rebuilding from scratch means meeting the same conflicts again.
+Git's rerere ("reuse recorded resolution") helps here.
+Its manual describes workflows with long-lived topic branches, where the developer "sometimes needs to resolve the same conflicts over and over again," and rerere records a hand resolution and applies it the next time the same conflict appears.
+
+TopGit, announced at version 0.4 in September 2008, went the other way.
+It manages a patch queue as topic branches, one patch per branch, and never rewrites history, where `seen` and linux-next are thrown away and rebuilt.
+
+== Where debaser fits
+
+debaser follows the rebuilt integration branch of `seen` and linux-next.
+Every build resets the xref:overview/concepts.adoc#integration-branch[integration branch] to the fetched upstream commit and merges the patch list onto it again, with rerere replaying conflict resolutions.
+Like the `series` file of the patch queue tools, the patch list is ordered, but it holds Git branches and pull requests instead of diff files.
+A patch can be your own branch that you keep developing, and debaser rebases it onto upstream as part of the build.
+
+On top of that model, debaser automates what the lineages above leave to people.
+Because a patch can break without a conflict, as Electron warns, every build runs the recipe steps and the acceptance checks, and a failing step is run again on plain upstream to find out whose fault it is.
+A conflict or failure can go to a coding agent through the xref:overview/concepts.adoc#harness[harness], and debaser checks the agent's result itself before it accepts the change.
+The build output replaces the installed artifact only after everything has passed, and `debaser rollback` returns to the previous build.
+
+debaser is a rewrite, as an independent tool, of corgi's `custom_build` script, which did this job for one project.
+xref:overview/how-it-works.adoc[How a build works] follows one build phase by phase, and xref:overview/concepts.adoc[Key concepts] defines the terms.
+The start page compares debaser with xref:index.adoc#compared-with-one-long-lived-branch[one long-lived branch].

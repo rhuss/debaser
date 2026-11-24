@@ -19,8 +19,9 @@ Project terms and rules that every page follows, on top of the built-in style ru
 - "plain upstream" means the fetched upstream commit without any patches merged; define it or link Key concepts at first use on a page.
 - "live view" means the progress card debaser redraws on a color terminal during a build; define it or link Key concepts at first use on a page.
 - "data directory" means debaser's directory for a clone (default `<git-common-dir>/debaser`); gloss it or link Key concepts at first use on a page.
-- Product names are spelled exactly: debaser, Git, GitHub, GitHub CLI (`gh`), Bun, Claude Code (`claude`), Codex (`codex`), OpenCode (`opencode`), pi (`pi`).
+- Product names are spelled exactly: debaser, Git, GitHub, GitHub CLI (`gh`), Bun, Claude Code (`claude`), Codex (`codex`), OpenCode (`opencode`), pi (`pi`), OpenShift, Kubernetes, quilt, Electron, Android, linux-next.
 - Persona names: "User" and "Recipe author".
+- Terms of other tools and practices ("patch queue", "patch stack", "carry", "carry patch", "fork") appear only when describing those tools or practices, never as a name for debaser's patch list or patches.
 
 ## Rules
 

@@ -1,5 +1,6 @@
 * Overview
 ** xref:index.adoc[Start here]
+** xref:overview/why.adoc[Why debaser]
 ** xref:overview/how-it-works.adoc[How a build works]
 ** xref:overview/concepts.adoc[Key concepts]
 * xref:user/index.adoc[User guide]

@@ -45,15 +45,18 @@
 // debaser:src/cli/commands/index.ts:104-109,146-156
 // debaser:src/report/report.ts:259-272
 
-You run a tool built from someone else's GitHub project.
-You also want changes the project has not merged yet: your own branches, and open pull requests from other people.
-Every time the project moves on, you fetch it again, reapply each change, fix the conflicts, rerun the tests, and rebuild the tool by hand.
+The project as it is released and the project as you need it are often not the same.
+You run a tool built from someone else's GitHub project, and you need changes the project has not merged: your own branches, and open pull requests from other people.
+Every time the project moves on, you fetch it again, reapply each change, resolve the same conflicts again, rerun the tests, and rebuild the tool by hand.
 
 debaser turns that chore into one command.
 `debaser build` gives you a runnable build of the latest project plus your changes, applied in the order you chose.
 The new build replaces the installed one only after the project's recipe steps and the acceptance checks on your patches have passed.
 Recipe steps are the project's test and build commands, and an acceptance check is one optional command for one patch.
 The previous build stays available as a fallback, and `debaser rollback` returns to it.
+
+debaser covers your own unmerged work on a project you contribute to, the patches a downstream product keeps on top of upstream, a team's internal build, other people's open pull requests that you need before upstream merges them, and a maintainer's preview of several open pull requests together.
+xref:overview/why.adoc[Why debaser] describes these situations and where the approach comes from.
 
 == What the parts are
 
@@ -112,6 +115,7 @@ When the agent gives up, or the harness keeps failing to run, the run stops with
 The usual alternative is one long-lived branch on your fork that you merge or rebase by hand.
 debaser instead rebuilds the integration branch from upstream on every run.
 Each patch stays separate, and you can retire one without touching the others.
+xref:overview/why.adoc#integration-branches[Integration branches rebuilt from scratch] describes older practices that work this way.
 
 Rebuilding every run does not mean resolving the same conflicts again: Git records how you resolved a conflict, and debaser replays that resolution on the next run.
 A rebuild also tells you whether upstream or your patches broke a failing step.
@@ -137,6 +141,7 @@ Only one debaser command that changes your clone or debaser's files runs at a ti
 
 == Where to go next
 
+* xref:overview/why.adoc[Why debaser]: the situations debaser is for, and the tools and practices it builds on.
 * xref:overview/how-it-works.adoc[How a build works]: each phase of a `debaser build`, and what can stop it.
 * xref:overview/concepts.adoc[Key concepts]: the terms the rest of the guide uses.
 * xref:user/index.adoc[User guide]: keep a patched build of a project, from the first patch list to recovering from a stopped run.
