@@ -1,0 +1,42 @@
+# Managed by cc-review:ci (schema 1). Keep the immutable refs in sync on update.
+name: cc-review CI
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      number:
+        description: 'Item number; empty runs a bounded sweep'
+        type: string
+        required: false
+      operation:
+        description: 'Single-item operation'
+        type: choice
+        options: [help, review, triage, assess]
+        default: help
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  checks: read
+  actions: read
+jobs:
+  cc-review:
+    uses: rhuss/cc-review/.github/workflows/cc-review-reusable.yml@8e882b6356077d762ac29373d205794b68a16c9f
+    with:
+      integration_ref: 8e882b6356077d762ac29373d205794b68a16c9f
+      app_id: ${{ vars.CC_REVIEW_APP_ID }}
+      anthropic_base_url: ${{ vars.CC_REVIEW_ANTHROPIC_BASE_URL }}
+    secrets:
+      anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      app_private_key: ${{ secrets.CC_REVIEW_APP_PRIVATE_KEY }}
