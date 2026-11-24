@@ -74,15 +74,15 @@ xref:user/own-branches.adoc[Rebasing your own branches] covers the rebase in det
 === A downstream product that works upstream first
 
 Red Hat builds its products from open-source projects and calls its practice upstream first.
-Its participation guidelines say that Red Hat strives to offer its changes to a project led by others before including them in a downstream Red Hat version.
-A Red Hat blog post gives the reasons: working upstream first lets you vet ideas with the larger community, and by the time a change ships downstream, the upstream code has probably changed.
+Its https://www.redhat.com/en/about/open-source/participation-guidelines[participation guidelines] say that Red Hat strives to offer its changes to a project led by others before including them in a downstream Red Hat version.
+A https://www.redhat.com/en/blog/what-open-source-upstream[Red Hat blog post] gives the reasons: working upstream first lets you vet ideas with the larger community, and by the time a change ships downstream, the upstream code has probably changed.
 Building a change downstream first and carrying the patches back to the project later, the post says, is usually more work in the long run.
 The post also sees no point in taking on more work than needed, and that is the aim of a small delta: the fewer changes the product keeps on top of upstream, the less work each new upstream release brings.
 
 Even so, some changes stay in the product.
 Some only make sense there, such as the product's own CI pipelines, build tooling, and packaging.
 Others are features the product needed before upstream had an answer.
-Red Hat writes that it saw the need to give services external access before Kubernetes introduced Ingress objects, and that it created a concept called Route for that purpose.
+Red Hat https://www.redhat.com/en/blog/kubernetes-ingress-vs-openshift-route[writes] that it saw the need to give services external access before Kubernetes introduced Ingress objects, and that it created a concept called Route for that purpose.
 OpenShift Enterprise 3 became generally available in June 2015.
 Kubernetes 1.1, announced in November 2015, listed an HTTP load balancer as a beta feature and pointed to the Ingress object for it.
 Routes did not go away when Ingress arrived.
