@@ -49,6 +49,24 @@ test("a config from a newer tool, or with a broken harness, is refused", () => {
   expect(() => load(dir)).toThrow(file);
 });
 
+test("harness.attempts must floor to at least 1", () => {
+  const dir = fresh(),
+    file = join(dir, "patches.json"),
+    up = { repo: "acme/widget", branch: "main" },
+    write = (attempts: number) =>
+      writeFileSync(file, JSON.stringify({ version: 1, upstream: up, harness: { command: ["h"], attempts } }));
+  write(0.5);
+  expect(() => load(dir)).toThrow("harness.attempts must be at least 1");
+  for (const attempts of [0, -1]) {
+    write(attempts);
+    expect(() => load(dir)).toThrow("harness.attempts must be a positive number");
+  }
+  write(1);
+  expect(load(dir)?.harness?.attempts).toBe(1);
+  write(2.7);
+  expect(load(dir)?.harness?.attempts).toBe(2);
+});
+
 test("harness.kind must be one of the registered adapters", () => {
   const dir = fresh(),
     file = join(dir, "patches.json"),

@@ -147,6 +147,8 @@ export function validate(raw: unknown, path: string): PatchList {
     const base = harnessCommand(h, `${path}: harness`),
       timeoutSeconds = positive(h.timeoutSeconds, "timeoutSeconds"),
       attempts = positive(h.attempts, "attempts");
+    // Stored floored, so a fraction below 1 would become 0 attempts.
+    if (attempts !== undefined && Math.floor(attempts) < 1) throw new Explained(`${path}: harness.attempts must be at least 1`);
     list.harness = {
       ...base,
       ...(timeoutSeconds !== undefined ? { timeoutSeconds } : {}),
