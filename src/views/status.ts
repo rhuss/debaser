@@ -10,6 +10,7 @@ export type Own =
   | { kind: "behind"; conflicts: boolean }
   | { kind: "worktree"; path: string; rebasableThere: boolean }
   | { kind: "diverged" }
+  | { kind: "checking" }
   | { kind: "other"; reason: string };
 export type Row = {
   patch: string;
@@ -91,6 +92,8 @@ function ownCell(own: Own | null, home: string): Cell {
       };
     case "diverged":
       return { text: "! diverged from origin", tone: "yellow" };
+    case "checking":
+      return { text: "· rebasing, checking", tone: null };
     case "other":
       return { text: `! ${own.reason}`, tone: "yellow" };
   }

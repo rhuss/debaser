@@ -93,6 +93,24 @@ test("status shows unknown for a PR whose state gh can't give", async () => {
   expect(shown.out).toMatch(/^mine .* not a PR /m);
 });
 
+test("status shows a branch under an in-worktree rebase check as rebasing, checking", async () => {
+  const w = world();
+  branch(w, "diverged", { "diverged.txt": "1\n" });
+  git(w.clone, "push", "-q", "origin", "diverged");
+  git(w.clone, "checkout", "-q", "diverged");
+  commit(w.clone, { "diverged.txt": "pushed\n" });
+  git(w.clone, "push", "-q", "-f", "origin", "diverged");
+  git(w.clone, "reset", "-q", "--hard", "HEAD^");
+  const local = commit(w.clone, { "diverged.txt": "local\n" });
+  git(w.clone, "checkout", "-q", "main");
+  configureOwn(w, ["diverged"]);
+  expect((await run(w, "status")).out).toContain("diverged from origin");
+  git(w.clone, "update-ref", "refs/debaser/rebase-checking/diverged", local);
+  const shown = await run(w, "status");
+  expect(shown.out).toMatch(/^diverged .*rebasing, checking/m);
+  expect(shown.out).not.toContain("diverged from origin");
+});
+
 test("status lists own branches behind, conflicting with or left alone by upstream", async () => {
   const w = world();
   branch(w, "clean", { "clean.txt": "clean\n" });

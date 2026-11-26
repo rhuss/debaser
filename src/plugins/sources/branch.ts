@@ -1,6 +1,7 @@
 import * as git from "../../git/git";
 import { refs } from "../../git/refs";
 import { pushUrl } from "../../git/remotes";
+import { pushPending } from "../../rebase/pending";
 import { slug } from "./github";
 import type { BranchSource, FetchContext, FetchedPatch, SourceKind } from "./types";
 
@@ -46,7 +47,9 @@ export const branch: SourceKind<BranchSource> = {
         notes.push(`local branch is behind origin/${s.name}; using origin/${s.name}`);
         return { commit: pushed, ref: copy, notes };
       }
-      if (!git.isAncestor(repo, pushed, local))
+      // debaser's own rebase, not pushed yet, is not a divergence (the rebase phase pushes it).
+      if (pushPending(repo, s.name, local, pushed)) notes.push("rebased earlier, push pending; using the local branch");
+      else if (!git.isAncestor(repo, pushed, local))
         notes.push(`warning: local branch and origin/${s.name} have diverged; using the local branch`);
     }
     return { commit: local, ref: `refs/heads/${s.name}`, notes };

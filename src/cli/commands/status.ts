@@ -20,10 +20,12 @@ import type { IO } from "../main";
 import type { Outcome } from "../outcome";
 import type { Options } from "./index";
 
-function ownState(r: RebaseResult): view.Own {
+function ownState(r: RebaseResult, repo: string): view.Own {
   if (r.pending) return { kind: "pending", command: pushCommand(r) };
   if (r.outcome === "current") return { kind: "current", ...(r.reason ? { reason: r.reason } : {}) };
   if (r.worktree) return { kind: "worktree", path: r.worktree, rebasableThere: !!r.rebasableThere };
+  // An in-worktree rebase still checking the branch: diverged only until its check passes.
+  if (r.diverged && git.revParse(repo, git.refs.rebaseChecking(r.branch))) return { kind: "checking" };
   if (r.diverged) return { kind: "diverged" };
   return { kind: "other", reason: r.reason ?? r.outcome };
 }
@@ -75,7 +77,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
       tips.set(t.patch, t.from);
     }
     for (const r of own.results) {
-      owns.set(r.patch, ownState(r));
+      owns.set(r.patch, ownState(r, ctx.repo));
       const at = r.to ?? r.from;
       if (at) tips.set(r.patch, at);
     }

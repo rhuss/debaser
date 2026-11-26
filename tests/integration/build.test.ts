@@ -8,6 +8,7 @@ import {
   branch,
   commit,
   configure,
+  configureOwn,
   dirOf,
   forkBranch,
   fresh,
@@ -20,11 +21,13 @@ import {
   read,
   refs,
   run,
+  runWith,
   stamped,
   state,
   stubGh,
   stubSteps,
   subjects,
+  upstreamMoves,
   write,
   world,
 } from "../support/world";
@@ -282,6 +285,33 @@ test("an own branch behind its pushed copy uses the pushed one; a diverged one u
   expect(result.out).toContain("note: behind: local branch is behind origin/behind; using origin/behind");
   expect(result.out).toContain("warning: diverged: local branch and origin/diverged have diverged; using the local branch");
   expect(stamped(w).map(p => p.commit)).toEqual([ahead, local]);
+});
+
+test("a build after a rebase whose push is pending notes it instead of warning about divergence", async () => {
+  const w = world();
+  branch(w, "mine", { "mine.txt": "mine\n" });
+  git(w.clone, "push", "-q", "origin", "mine");
+  upstreamMoves(w, { "up.txt": "up\n" });
+  configureOwn(w, ["mine"]);
+  expect((await runWith(w, { ask: () => "n" }, "rebase")).code).toBe(0);
+  const built = await runWith(w, { ask: () => "n" }, "build");
+  expect(built.out).toContain("note: mine: rebased earlier, push pending; using the local branch");
+  expect(built.out).not.toContain("have diverged");
+});
+
+test("a branch origin moved after debaser's rebase keeps the diverged warning", async () => {
+  const w = world();
+  const old = branch(w, "mine", { "mine.txt": "mine\n" });
+  git(w.clone, "push", "-q", "origin", "mine");
+  upstreamMoves(w, { "up.txt": "up\n" });
+  configureOwn(w, ["mine"]);
+  expect((await runWith(w, { ask: () => "n" }, "rebase")).code).toBe(0);
+  // Someone pushes another commit to origin/mine: no longer debaser's pending push.
+  const other = git(w.clone, "commit-tree", `${old}^{tree}`, "-p", old, "-m", "pushed elsewhere");
+  git(w.clone, "push", "-q", "-f", "origin", `${other}:refs/heads/mine`);
+  const built = await runWith(w, { ask: () => "n" }, "build");
+  expect(built.out).toContain("warning: mine: local branch and origin/mine have diverged; using the local branch");
+  expect(built.out).not.toContain("push pending; using the local branch");
 });
 
 test("an own branch known only from a stale origin copy stops instead of building the old commit", async () => {
