@@ -1,6 +1,4 @@
 import * as lock from "../../core/lock";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { Context } from "../../core/context";
 import { listOf, upstreamRemote } from "../../core/context";
 import { paths } from "../../core/paths";
@@ -8,10 +6,10 @@ import * as runstate from "../../core/runstate";
 import type { RebaseResult } from "../../core/runstate";
 import * as git from "../../git";
 import { prInfo } from "../../github/gh";
-import { display, privateRef } from "../../plugins/sources/parse";
 import { select } from "../../rebase/select";
 import { pushCommand } from "../../rebase/push";
-import { reportDirs } from "../../report/report";
+import { lastBuildResult } from "../../report/report";
+import { knownCommits } from "../../run/known";
 import { whereStopped } from "../../run/where";
 import { configInfo } from "../../core/tree";
 import { paint } from "../../live/term";
@@ -22,17 +20,6 @@ import type { IO } from "../main";
 import type { Outcome } from "../outcome";
 import type { Options } from "./index";
 
-/** Where each patch was last fetched to, without fetching. */
-function knownRefs(ctx: Context): { display: string; ref: string | null }[] {
-  return listOf(ctx).patches.map(p => {
-    const s = p.source,
-      shown = display(s);
-    if (p.pin) return { display: shown, ref: p.pin };
-    if (s.kind !== "branch") return { display: shown, ref: privateRef(s) };
-    if (git.revParse(ctx.repo, `refs/heads/${s.name}`)) return { display: shown, ref: `refs/heads/${s.name}` };
-    return { display: shown, ref: `refs/remotes/origin/${s.name}` };
-  });
-}
 function ownState(r: RebaseResult): view.Own {
   if (r.pending) return { kind: "pending", command: pushCommand(r) };
   if (r.outcome === "current") return { kind: "current", ...(r.reason ? { reason: r.reason } : {}) };
@@ -44,17 +31,7 @@ type LastResult = { command?: string; patches?: { display: string; checks?: stri
 /** The newest build's result.json, if any: a `rebase` run since then moves
  * `latest` but has no check or acceptance results to show. */
 function lastResult(ctx: Context): LastResult | null {
-  const reports = paths.reports(ctx.dir);
-  for (const name of reportDirs(reports).reverse()) {
-    const path = join(reports, name, "result.json");
-    try {
-      if (!existsSync(path)) continue;
-      const result = JSON.parse(readFileSync(path, "utf8")) as LastResult;
-      // "rebuild" is what versions before the rename wrote.
-      if (result.command === "build" || result.command === "rebuild") return result;
-    } catch {}
-  }
-  return null;
+  return lastBuildResult(paths.reports(ctx.dir)) as LastResult | null;
 }
 
 /** The command running in this checkout right now, from a lock whose process is alive. */
@@ -106,7 +83,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
     // Upstream commits since the last build: from where the integration branch meets upstream.
     const since = built ? git.git(ctx.repo, ["merge-base", built, upstream]).stdout.trim() : "";
     v.sinceBuild = since ? Number(git.git(ctx.repo, ["rev-list", "--count", "--no-merges", `${since}..${upstream}`]).stdout.trim()) || 0 : null;
-    v.rows = knownRefs(ctx).map((k, i) => {
+    v.rows = knownCommits(ctx).map((k, i) => {
       const p = list.patches[i],
         ref = tips.get(k.display) ?? k.ref,
         sha = ref ? git.revParse(ctx.repo, ref) : null,

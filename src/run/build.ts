@@ -24,6 +24,7 @@ import { forkProblem } from "./preflight";
 import * as live from "./live";
 import { configured } from "../harness/select";
 import { inProgress } from "./where";
+import { orderChanged } from "../report/order-note";
 
 export type BuildOptions = { push?: boolean; rebase?: RebaseMode; inWorktree?: boolean };
 
@@ -55,6 +56,8 @@ export async function build(ctx: Context, o: BuildOptions = {}): Promise<Outcome
   if (list.branch === list.upstream.branch || !git.validBranchName(ctx.home, list.branch))
     throw new Explained(`${list.branch} can't be the integration branch`);
   const remote = preflight(ctx, o);
+  // Recorded resolutions were made for the last successful build's order (FR-024).
+  if (orderChanged(ctx)) ctx.progress("note: the merge order changed since the last successful build; recorded conflict resolutions may not apply");
   // The run works in the build directory, never in the checkout it was started
   // from (FR-001, FR-005): checked, and created when missing, after every other
   // refusal, so none of them leaves a directory behind.

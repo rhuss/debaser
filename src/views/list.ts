@@ -1,5 +1,6 @@
 /** Renders `list` as a table of the patches in merge order, or of the retired
- * ones, with each patch linked to its page on a terminal. */
+ * ones, with each patch linked to its page on a terminal. A marked patch (one
+ * just added or moved) reads `>N` in the `#` column, bold on a terminal. */
 import type { PatchList } from "../core/patchlist";
 import { branchPath } from "../plugins/sources/github";
 import { display, link } from "../plugins/sources/parse";
@@ -20,7 +21,7 @@ const kindTone: Record<Source["kind"], Tone> = { pr: "cyan", branch: "blue", "fo
 
 export function render(
   config: Pick<PatchList, "patches" | "retired">,
-  o: { retired: boolean; verbose?: boolean; upstream: string; fork: string | null; color: boolean; columns?: number },
+  o: { retired: boolean; verbose?: boolean; upstream: string; fork: string | null; color: boolean; columns?: number; marked?: Set<number> },
 ): string[] {
   const title = toolTitle(o.color),
     name = (s: Source): Cell => ({
@@ -50,7 +51,7 @@ export function render(
     ...table(
       ["#", "PATCH", "ADDED", "DESCRIPTION"],
       config.patches.map((p, i) => [
-        dim(String(i + 1)),
+        o.marked?.has(i) ? { text: `>${i + 1}`, tone: "bold" } : dim(String(i + 1)),
         name(p.source),
         dim(p.added),
         { text: [p.description, p.pin ? `(pinned ${p.pin.slice(0, 7)})` : "", p.acceptance ? "(with check)" : ""].filter(Boolean).join(" ") },

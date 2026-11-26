@@ -1,6 +1,7 @@
 import pkg from "../../package.json" with { type: "json" };
 import { flag, noMore, option } from "./args";
 import { usage } from "./usage";
+import { lineReader } from "./lines";
 import type { Outcome } from "./outcome";
 import { Exit, Explained, Usage } from "../core/errors";
 import { acquire } from "../core/lock";
@@ -20,6 +21,9 @@ export type IO = {
   now?: () => Date;
   /** Asks for a line on a terminal; null when there is none. */
   ask?: (question: string) => string | null;
+  /** Reads one answer on a terminal without blocking signals: "" for Enter,
+   * null at the end of input; without it, `ask` answers instead. */
+  line?: (question: string) => Promise<string | null>;
   /** Whether stdout is a terminal that takes colors and hyperlinks. */
   color?: boolean;
   columns?: number;
@@ -32,7 +36,7 @@ export type IO = {
 
 export const version = pkg.version;
 /** Verbs that change the checkout or debaser's files take the run lock (contracts/cli.md). */
-const locking = new Set(["add", "remove", "build", "rebase", "continue", "rollback", "trust"]);
+const locking = new Set(["add", "remove", "move", "build", "rebase", "continue", "rollback", "trust"]);
 
 /** Runs one command and returns its exit code (contracts/cli.md). */
 export async function main(argv: string[], io: IO): Promise<number> {
@@ -71,6 +75,7 @@ export async function main(argv: string[], io: IO): Promise<number> {
         progress: line => io.err(`debaser: ${line}\n`),
         echo: chunk => io.err(new TextDecoder().decode(chunk)),
         ask: io.ask,
+        line: io.line ?? (io.ask && (async question => io.ask!(question))),
         color: io.color,
         columns: io.columns,
         sink: io.sink,
@@ -85,6 +90,8 @@ export async function main(argv: string[], io: IO): Promise<number> {
       git.requireVersion(repo);
       release = acquire(dir, command, ctx.now());
       forget = git.onInterrupt(release);
+      // Read afresh under the lock, so no other command's change is lost or reordered (FR-023).
+      ctx.list = patchlist.load(dir);
     }
     const outcome: Outcome = await handler.run(ctx, parsed, io);
     await commands.endView(session, outcome);
@@ -116,6 +123,7 @@ if (import.meta.main) {
     ["SIGHUP", Exit.sighup],
   ] as const)
     process.on(signal, () => git.interrupt(code));
+  const answers = process.stdin.isTTY ? lineReader(process.stdin, text => process.stdout.write(text)) : null;
   process.exitCode = await main(process.argv.slice(2), {
     cwd: process.cwd(),
     env: process.env,
@@ -124,8 +132,10 @@ if (import.meta.main) {
     // Off a terminal there is no one to ask: commands take the headless path
     // (FR-042's --trust-recipe hint, never pushing without --push).
     ask: process.stdin.isTTY ? question => prompt(question) : undefined,
+    line: answers?.line,
     color: !!process.stdout.isTTY && !process.env.NO_COLOR && process.env.TERM !== "dumb",
     columns: process.stdout.isTTY ? process.stdout.columns : undefined,
     rows: process.stdout.isTTY ? process.stdout.rows : undefined,
   });
+  answers?.close();
 }

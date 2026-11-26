@@ -2,15 +2,18 @@ import type { Context } from "../core/context";
 import { listOf, upstreamRemote } from "../core/context";
 import { Explained } from "../core/errors";
 import type { Patch } from "../core/patchlist";
-import type { Planned, RunState } from "../core/runstate";
+import type { Event, Planned } from "../core/runstate";
 import * as git from "../git/git";
 import { pushUrl } from "../git/remotes";
 import { display, fetchSource, githubBase, link } from "../plugins/sources/parse";
 import { event } from "./common";
 
+/** What `fetchPatch` reads and writes of a run: the upstream tip and its events. */
+export type FetchRun = { upstream: { tip: string }; events: Event[] };
+
 /** Fetches one patch into a private ref (or picks the own branch's copy) and
  * decides whether to merge it (FR-005, FR-007, FR-053). */
-export function fetchPatch(ctx: Context, patch: Patch, run: RunState): Planned {
+export function fetchPatch(ctx: Context, patch: Patch, run: FetchRun): Planned {
   const list = listOf(ctx),
     shown = display(patch.source);
   let fetched;

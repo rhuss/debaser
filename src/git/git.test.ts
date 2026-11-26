@@ -3,6 +3,7 @@ import { mkdtempSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { modifiedFiles, requireVersion } from "./git";
+import { mergeOnto } from "./merge";
 import { repositoryOf, sameRepository } from "./remotes";
 
 test("a git older than 2.38 is refused with the minimum version", () => {
@@ -61,6 +62,51 @@ test("modifiedFiles lists tracked changes, staged or not, unquoted and renamed, 
     // A git status that fails is never read as "clean".
     writeFileSync(join(dir, ".git", "index"), "not an index");
     expect(() => modifiedFiles(dir)).toThrow(/git status in .* failed/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("mergeOnto merges in the object database only: clean results become unreachable commits, refs stay", () => {
+  const dir = mkdtempSync(join(tmpdir(), "debaser-git-")),
+    run = (...args: string[]) => {
+      const r = Bun.spawnSync(["git", ...args], { cwd: dir, stdout: "pipe", stderr: "pipe" });
+      if (r.exitCode !== 0) throw Error(`git ${args.join(" ")}: ${r.stderr.toString()}`);
+      return r.stdout.toString().trim();
+    },
+    branch = (name: string, file: string, text: string) => {
+      run("checkout", "-q", "-b", name, "main");
+      writeFileSync(join(dir, file), text);
+      run("commit", "-q", "-am", name);
+    };
+  try {
+    run("init", "-q", "-b", "main");
+    run("config", "user.name", "Test");
+    run("config", "user.email", "test@example.invalid");
+    writeFileSync(join(dir, "a.txt"), "a\n");
+    writeFileSync(join(dir, "b.txt"), "b\n");
+    run("add", ".");
+    run("commit", "-q", "-m", "base");
+    branch("one", "a.txt", "one\n");
+    branch("two", "b.txt", "two\n");
+    branch("clash", "a.txt", "clash\n");
+    run("checkout", "-q", "main");
+    // No identity: commit-tree must not need one.
+    run("config", "--unset", "user.name");
+    run("config", "--unset", "user.email");
+    const refs = run("for-each-ref"),
+      status = run("status", "--porcelain");
+    const one = mergeOnto(dir, "main", "one");
+    expect(one.clean).toBe(true);
+    expect(one.commit).toMatch(/^[0-9a-f]{40}$/);
+    expect(run("rev-parse", `${one.commit}^1`, `${one.commit}^2`).split("\n")).toEqual([run("rev-parse", "main"), run("rev-parse", "one")]);
+    // Later merges build on the result.
+    const both = mergeOnto(dir, one.commit!, "two");
+    expect(both.clean).toBe(true);
+    expect(run("show", `${both.commit}:a.txt`, `${both.commit}:b.txt`)).toBe("one\ntwo");
+    expect(mergeOnto(dir, one.commit!, "clash")).toEqual({ clean: false, files: ["a.txt"] });
+    expect(run("for-each-ref")).toBe(refs);
+    expect(run("status", "--porcelain")).toBe(status);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

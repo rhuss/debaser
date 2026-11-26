@@ -64,3 +64,30 @@ Ideas captured from code reviews for future brainstorming.
 - **Summary**: Existing build directories and in-place checkouts with a recipe without an install marker install once after upgrading, because they have no install stamp yet.
 
 > One-time cost; worth a release-note line.
+
+### proposal-reasons-in-view
+
+- **Source**: deep-review
+- **Date**: 2026-11-26
+- **Reference**: 003-patch-ordering
+- **Summary**: `core/order.ts` builds the proposal's reason sentences itself; returning the constraints and rendering them in `views/propose.ts` would keep core free of wording.
+
+> Wording or styling changes to reasons currently have to be made in the pure core module, unlike every other part of the proposal.
+
+### record-fetch-merged-state
+
+- **Source**: deep-review
+- **Date**: 2026-11-26
+- **Reference**: 003-patch-ordering
+- **Summary**: `move --propose` without `--fetch` learns "merged upstream" only from the newest build report; a `--fetch` run records nothing, so two runs on the same fetched state can disagree.
+
+> FR-020 says "the last fetch"; recording fetch results outside build reports would make both paths agree.
+
+### perf-test-by-default
+
+- **Source**: deep-review
+- **Date**: 2026-11-26
+- **Reference**: 003-patch-ordering
+- **Summary**: The SC-004 timing test runs only with `DEBASER_PERF`; a scheduled run or a cheap merge-count check would guard it by default.
+
+> A slowdown in the proposal's merge testing would go unnoticed in the normal test run.

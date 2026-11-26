@@ -1,6 +1,6 @@
 import type { Context } from "../core/context";
 import { Explained } from "../core/errors";
-import type { RunState } from "../core/runstate";
+import { loadRun, type RunState } from "../core/runstate";
 
 /** Where a stopped run is, and the commands that go on from there. A run file
  * cut short (an interrupted save) still gets an answer. */
@@ -42,6 +42,12 @@ export function inProgress(ctx: Context, run: RunState): Explained {
     [`  stopped: while ${where}${ago}`, ...(run.reportDir ? [`  report: ${run.reportDir}`] : []), `  next: ${next}`],
     "a run is stopped or in progress",
   );
+}
+/** Refuses to change the merge order while a run is stopped (spec 003,
+ * FR-022): `continue` resumes against the patches that run planned. */
+export function refuseWhileRunning(ctx: Context): void {
+  const run = loadRun(ctx.dir);
+  if (run) throw inProgress(ctx, run);
 }
 /** `2h 05m`, `12m` or `40s`. */
 export function span(ms: number): string {
