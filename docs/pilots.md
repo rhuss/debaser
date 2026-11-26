@@ -30,7 +30,7 @@ pull request that closes the pilot.
 
    ```bash
    debaser build --trust-recipe --json > build.json; echo "exit=$?"
-   dist/rtk-custom --version
+   ../rtk-debaser/dist/rtk-custom --version
    ```
 
    Expected: exit 0 (or exit 2 to 6 with a stop that names its cause),

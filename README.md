@@ -9,14 +9,16 @@ stays as a fallback.
 
 When a merge conflicts or a check fails, debaser can hand the problem to an AI
 agent (claude, codex, pi, opencode or any command). It checks the agent's
-result itself, and every agent change lands as its own commit. When the agent
+result itself, and every agent change lands as its own commit (a resolved
+conflict while rebasing an own branch becomes part of that replayed commit,
+without a commit of its own). When the agent
 can't fix it, or there is none, the run stops with a clear reason, a log, a
 ready-to-run prompt, and `continue` and `rollback` to go on.
 
 ## Install
 
-Download the release binary for your platform and put it on your `PATH`, or
-build it from source with Bun 1.4 or newer:
+Build it from source with Bun 1.4.4 (the version CI tests with); release
+binaries are planned in [#12](https://github.com/rhuss/debaser/issues/12):
 
 ```bash
 bun install
@@ -24,8 +26,10 @@ bun run build          # writes dist/debaser, a single self-contained binary
 cp dist/debaser ~/.local/bin/
 ```
 
-At run time debaser needs only `git` (2.38 or newer) and, for PR sources, an
-authenticated `gh`. Agent CLIs are optional.
+At run time debaser needs only `git` (2.38 or newer). PRs are fetched and
+merged with git; an authenticated `gh` is optional and adds the PR state and
+title, merged-PR detection, and the ownership check that lets own PRs be
+rebased. Agent CLIs are optional.
 
 ## Quick start
 
@@ -52,7 +56,8 @@ Sources can be written as a PR number (`123` or `#123`), `owner/repo#12`, a PR
 URL, `owner/repo:branch`, a tree URL, `<git url>#branch=<name>`, or a local
 branch name. `add --pin <sha>` merges a patch at exactly that commit and never
 rebases it. `remove <source> --reason <text>` retires a patch; `list` shows the
-live and retired ones.
+live ones and counts the retired ones, which `list --verbose` (or `--retired`)
+lists.
 
 The order of the list is the merge order. `add <source> --after <patch>` (or
 `--before <patch>`) inserts a new patch at that place instead of the end, and
@@ -129,8 +134,8 @@ TOML and come in four layers, each extending the one below:
 
 Steps merge by name: a step with an inherited name replaces it in place, a new
 one goes `before` or `after` a named step (or at the end), and
-`steps_replace = true` drops the inherited list, and
-`after_build = []` switches an inherited after-build command off. `debaser recipe` prints the
+`steps_replace = true` drops the inherited list. `after_build = []` switches
+an inherited after-build command off. `debaser recipe` prints the
 effective recipe with the layer of every value, and where each layer came
 from (built-in, the committed file at its upstream commit, or the local
 override's path).
@@ -139,7 +144,10 @@ Steps get `DEBASER_PATCHES`, `DEBASER_FORK_URL`, `DEBASER_COMMIT` and
 `DEBASER_MANIFEST` (a JSON manifest with the same data), so a project can stamp
 its build. Placeholders in step commands: `{output}` (the build output path),
 `{root}` (the tree) and `{tests}` (the failing test files on a flaky rerun; on a
-full run, the step's `tests` list, or nothing when it has none).
+full run, the step's `tests` list, or nothing when it has none). The
+`after_build` command is different: it runs as written in the build directory,
+with no placeholders filled, no timeout, and none of the `DEBASER_*` step
+variables.
 
 ## Acceptance checks
 
@@ -186,10 +194,11 @@ or a yes on the terminal. Other people's branches are never rewritten.
 | `move <patch> --after <patch>` / `--before <patch>` | move a patch in the merge order |
 | `move` | reorder with numbered prompts on a terminal |
 | `move --propose [--fetch] [--yes]` | propose an order with fewer merge conflicts and apply it on yes |
-| `list [--json]` | show the patches |
+| `list [--verbose] [--retired] [--json]` | show the patches; `--verbose` or `--retired` lists the retired ones |
 | `build [--push] [--rebase all\|conflicting\|off] [--in-worktree] [--trust-recipe] [--verbose] [--json]` | merge the patches onto upstream, run the checks and install the artifact |
-| `rebase [--push] [--rebase all\|conflicting] [--in-worktree] [--verbose] [--json]` | only rebase own branches |
-| `continue [--skip-branch] [--verbose]` | resume a stopped run |
+| `rebase [--push] [--rebase all\|conflicting] [--in-worktree] [--trust-recipe] [--verbose] [--json]` | only rebase own branches |
+| `rebase --skip-branch [--verbose]` | give up the branch a rebase run stopped at |
+| `continue [--skip-branch] [--trust-recipe] [--verbose]` | resume a stopped run |
 | `rollback [--verbose]` | return to the last good build |
 | `status [--fetch] [--json]` | show each patch and upstream drift, read only |
 | `recipe [--json]` | print the effective recipe with each value's layer |
@@ -204,7 +213,7 @@ Only one command that changes things runs per checkout at a time; `status`,
 | Code | Meaning |
 |---|---|
 | 0 | success |
-| 1 | usage or precondition error (modified files in the build directory, a run stopped or running, git too old, fetch failure, untrusted project recipe in a headless run, no matching recipe), or a refused push of a rebased branch |
+| 1 | usage or precondition error (modified files in the build directory, a run stopped or running, git too old, fetch failure, untrusted project recipe in a headless run, no matching recipe), a refused push of a rebased branch, or a failed push of the integration branch with `build --push` (after the artifact was installed) |
 | 2 | stopped at an unresolved merge conflict, or a rebase conflict in `rebase` |
 | 3 | stopped at a step that fails only on the patched tree |
 | 4 | the step fails on plain upstream too: upstream is broken |
@@ -219,9 +228,11 @@ Only one command that changes things runs per checkout at a time; `status`,
 ├── patches.json      your patch list
 ├── recipe.toml       optional local recipe override
 ├── trust.json        trusted project-recipe fingerprints
+├── lock              held by the command that changes things
 ├── run.json          a running or stopped run
 ├── timings.json      timing history for the live view's estimates
 ├── manifest.json     the last build's manifest
+├── work/             throwaway worktrees and the saved start artifact
 └── reports/          one directory per run (report.md, result.json, logs,
                       prompts, handoffs), `latest`, the ten newest kept
 ```
