@@ -58,7 +58,7 @@ test("steps merge by name, before and after place new ones, and steps_replace dr
   const replaced = mergeLayers([base, top('steps_replace = true\n[[steps]]\nname = "only"\nrun = ["o"]\n')]);
   expect(names(replaced)).toEqual(["only"]);
   expect(() => mergeLayers([base, top('[[steps]]\nname = "q"\nrun = ["q"]\nbefore = "missing"\n')])).toThrow(
-    "step q is placed before missing, which no lower layer has",
+    "step q is placed before missing, which is not among the steps so far",
   );
 });
 

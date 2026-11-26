@@ -59,8 +59,9 @@ export async function build(ctx: Context, o: BuildOptions = {}): Promise<Outcome
   // Recorded resolutions were made for the last successful build's order (FR-024).
   if (orderChanged(ctx)) ctx.progress("note: the merge order changed since the last successful build; recorded conflict resolutions may not apply");
   // The run works in the build directory, never in the checkout it was started
-  // from (FR-001, FR-005): checked, and created when missing, after every other
-  // refusal, so none of them leaves a directory behind.
+  // from (FR-001, FR-005): checked, and created when missing, after the
+  // preflight refusals. The upstream fetch and the recipe trust check come
+  // later and can still refuse, leaving a newly created directory behind.
   ctx.repo = tree.prepare(ctx);
   const { repo } = ctx;
   ctx.progress(`build directory ${repo}; patch list ${paths.patchList(ctx.dir)}`);

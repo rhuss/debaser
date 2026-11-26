@@ -57,7 +57,7 @@ export function mergeLayers(layers: Layer[]): EffectiveRecipe {
       else if (before || after) {
         const anchor = out.steps.findIndex(s => s.name === (before ?? after));
         if (anchor < 0)
-          throw new Explained(`step ${step.name} is placed ${before ? "before" : "after"} ${before ?? after}, which no lower layer has`);
+          throw new Explained(`step ${step.name} is placed ${before ? "before" : "after"} ${before ?? after}, which is not among the steps so far`);
         out.steps.splice(before ? anchor : anchor + 1, 0, clean);
       } else out.steps.push(clean);
       out.provenance[`steps.${step.name}`] = from;
