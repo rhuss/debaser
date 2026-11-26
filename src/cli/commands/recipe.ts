@@ -4,6 +4,7 @@ import * as git from "../../git/git";
 import { loadRecipe } from "../../recipes/load";
 import { loadTrust, readRepoRecipe, repoRecipePath } from "../../recipes/trust";
 import { paths } from "../../core/paths";
+import { configInfo } from "../../core/tree";
 import { layerSource, render } from "../../views/recipe";
 import type { IO } from "../main";
 import type { Outcome } from "../outcome";
@@ -23,6 +24,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
     code: 0,
     lines: render(r, { color: !!io.color, note, localRecipe }),
     json: {
+      config: configInfo(ctx),
       layers: r.layers,
       layerSources: Object.fromEntries(r.layers.map(id => [id, layerSource(id, localRecipe)])),
       generic: r.generic,
