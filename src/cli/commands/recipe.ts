@@ -13,7 +13,6 @@ import type { Options } from "./index";
 export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
   const list = listOf(ctx),
     tip = git.revParse(ctx.repo, `refs/remotes/${upstreamRemote(ctx)}/${list.upstream.branch}`);
-  ctx.trustRecipe = false;
   // Read only: an untrusted project recipe is shown as such, never asked about.
   const r = loadRecipe(ctx, tip, { peek: true }),
     repo = tip ? readRepoRecipe(ctx.repo, tip) : null,

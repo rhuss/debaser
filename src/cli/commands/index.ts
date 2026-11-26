@@ -91,7 +91,7 @@ export const verbs: Record<string, Verb> = {
   continue: { parse: reader(["skipBranch", "verbose", "trustRecipe"], 0), run: resume.run },
   rollback: { parse: reader(["verbose"], 0), run: rollback.run },
   status: { parse: reader(["fetch", "json"], 0), run: status.run },
-  recipe: { parse: reader(["json", "trustRecipe"], 0), run: recipe.run },
+  recipe: { parse: reader(["json"], 0), run: recipe.run },
   trust: { parse: reader([], 0), run: trust.run },
 };
 

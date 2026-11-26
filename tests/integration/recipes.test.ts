@@ -141,6 +141,28 @@ test("debaser recipe prints every value with its layer", async () => {
   expect(generic.out).toMatch(/^install\.marker +node_modules +generic:bun-ts$/m);
 });
 
+test("debaser recipe refuses --trust-recipe as a usage error", async () => {
+  const w = world();
+  configure(w, []);
+  const refused = await run(w, "recipe", "--trust-recipe");
+  expect(refused.code).toBe(1);
+  expect(refused.err).toContain("usage: debaser");
+});
+
+test("a headless rollback with an untrusted project recipe offers only debaser trust", async () => {
+  const w = world(),
+    file = join(fresh("marks"), "marks");
+  upstreamRecipe(w, "first", file);
+  branch(w, "mine", { "mine.txt": "mine\n" });
+  withoutLocal(w, ["mine"]);
+  expect((await run(w, "build", "--trust-recipe")).code).toBe(0);
+  rmSync(join(dirOf(w), "trust.json"));
+  const refused = await run(w, "rollback");
+  expect(refused.code).toBe(1);
+  expect(refused.err).toContain("run `debaser trust`");
+  expect(refused.err).not.toContain("--trust-recipe");
+});
+
 test("debaser trust records the fingerprint after confirmation", async () => {
   const w = world(),
     file = join(fresh("marks"), "marks");

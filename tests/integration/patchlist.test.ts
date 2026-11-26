@@ -29,6 +29,7 @@ test("the first add creates the patch list from the upstream remote; --upstream 
   expect(refused.code).toBe(1);
   expect(refused.err).toContain("no upstream remote");
   expect(refused.err).toContain("git remote add upstream");
+  expect(refused.err).toContain("upstream commits are then fetched from origin");
   expect(existsSync(join(dirOf(u), "patches.json"))).toBe(false);
 });
 
