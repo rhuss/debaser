@@ -129,7 +129,8 @@ TOML and come in four layers, each extending the one below:
 
 Steps merge by name: a step with an inherited name replaces it in place, a new
 one goes `before` or `after` a named step (or at the end), and
-`steps_replace = true` drops the inherited list. `debaser recipe` prints the
+`steps_replace = true` drops the inherited list, and
+`after_build = []` switches an inherited after-build command off. `debaser recipe` prints the
 effective recipe with the layer of every value, and where each layer came
 from (built-in, the committed file at its upstream commit, or the local
 override's path).

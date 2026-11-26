@@ -55,7 +55,7 @@ const visible = (text: string) =>
 export function commandsOf(recipe: RecipeFile): string[] {
   return [
     ...(recipe.steps ?? []).map(s => `${s.name}: ${s.run.join(" ")}`),
-    ...(recipe.after_build ? [`after_build: ${recipe.after_build.join(" ")}`] : []),
+    ...(recipe.after_build?.length ? [`after_build: ${recipe.after_build.join(" ")}`] : []),
     ...(recipe.artifact?.install ? [`installs the build at: ${recipe.artifact.install}`] : []),
     ...promptFiles(recipe).map(path => `agent prompt from: .debaser/${path}`),
   ].map(visible);

@@ -103,10 +103,10 @@ export function replay(ctx: Context, run: RunState, command: "continue" | "rebas
     command,
     upstream: upstreamOf(ctx, run, run.upstream.tip),
     links: { ...patchLinks(ctx), ...(run.kind === "rebase" ? {} : stepLinks(ctx, run)) },
-    afterBuild: !!ctx.recipe?.afterBuild,
+    afterBuild: !!ctx.recipe?.afterBuild?.length,
     install: ctx.recipe?.install?.step ?? null,
     harness: harnessKind(ctx),
   }))
     signal(ctx, e);
 }
-export const stagesFor = (ctx: Context, run: RunState, rebasing: boolean) => liveState.stagesOf(run, !!ctx.recipe?.afterBuild, rebasing);
+export const stagesFor = (ctx: Context, run: RunState, rebasing: boolean) => liveState.stagesOf(run, !!ctx.recipe?.afterBuild?.length, rebasing);

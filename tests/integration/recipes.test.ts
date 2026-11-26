@@ -163,6 +163,33 @@ test("a headless rollback with an untrusted project recipe offers only debaser t
   expect(refused.err).not.toContain("--trust-recipe");
 });
 
+test("after_build = [] in the local override runs no after-build command and shows none", async () => {
+  const w = world(),
+    file = join(fresh("marks"), "marks");
+  commit(w.seed, { ".debaser/recipe.toml": recipeText({ afterBuild: ["sh", "-c", `echo ran >> ${file}`] }) }, "share a debaser recipe");
+  git(w.seed, "push", "-q", "origin", "main");
+  branch(w, "mine", { "mine.txt": "mine\n" });
+  configure(w, ["mine"], { afterBuild: [] });
+  const built = await run(w, "build", "--trust-recipe");
+  expect(built.code).toBe(0);
+  expect(existsSync(file)).toBe(false);
+  expect(built.out).not.toContain("after-build");
+  expect((await run(w, "recipe")).out).toMatch(/^after_build +none +local$/m);
+  expect(JSON.parse((await run(w, "recipe", "--json")).out).afterBuild).toEqual([]);
+});
+
+test("the trust question leaves out an empty after_build", async () => {
+  const w = world();
+  commit(w.seed, { ".debaser/recipe.toml": recipeText({ afterBuild: [] }) }, "share a debaser recipe");
+  git(w.seed, "push", "-q", "origin", "main");
+  withoutLocal(w, []);
+  let asked = "";
+  const trusted = await runWith(w, { ask: q => ((asked = q), "y") }, "trust");
+  expect(trusted.code).toBe(0);
+  expect(asked + trusted.out).toContain("typecheck: ");
+  expect(asked + trusted.out).not.toContain("after_build:");
+});
+
 test("debaser trust records the fingerprint after confirmation", async () => {
   const w = world(),
     file = join(fresh("marks"), "marks");

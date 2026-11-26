@@ -59,7 +59,7 @@ export async function finish(ctx: Context, run: RunState): Promise<Outcome> {
     reason: string[] = [];
   let code: Code = pushed.refused ? 1 : 0;
   if (pushed.refused) reason.push("a push of a rebased branch was refused");
-  if (recipe.afterBuild) {
+  if (recipe.afterBuild?.length) {
     startItem(ctx, run, "after-build");
     stage(ctx, "after-build", "start");
     ctx.progress(`running after-build command: ${recipe.afterBuild.join(" ")}`);

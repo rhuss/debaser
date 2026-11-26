@@ -27,7 +27,8 @@ export function validateRecipe(raw: unknown, file: string): RecipeFile {
   if (raw.extends !== undefined) out.extends = str(raw.extends, "extends");
   if (raw.project_name !== undefined) out.project_name = str(raw.project_name, "project_name");
   if (raw.detect !== undefined) out.detect = list(raw.detect, "detect");
-  if (raw.after_build !== undefined) out.after_build = command(raw.after_build, "after_build");
+  // An empty list in a higher layer switches an inherited command off.
+  if (raw.after_build !== undefined) out.after_build = list(raw.after_build, "after_build");
   if (raw.leftovers !== undefined) out.leftovers = list(raw.leftovers, "leftovers");
   if (raw.steps_replace !== undefined) {
     if (typeof raw.steps_replace !== "boolean") fail("steps_replace must be true or false");
