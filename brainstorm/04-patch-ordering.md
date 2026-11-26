@@ -1,7 +1,7 @@
 # Brainstorm: Managing the order of patches
 
 **Date:** 2026-11-26
-**Status:** active
+**Status:** spec-created (specs/003-patch-ordering, merged in 554e28d)
 
 ## Problem Framing
 

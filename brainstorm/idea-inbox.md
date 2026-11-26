@@ -74,15 +74,6 @@ Ideas captured from code reviews for future brainstorming.
 
 > Wording or styling changes to reasons currently have to be made in the pure core module, unlike every other part of the proposal.
 
-### record-fetch-merged-state
-
-- **Source**: deep-review
-- **Date**: 2026-11-26
-- **Reference**: 003-patch-ordering
-- **Summary**: `move --propose` without `--fetch` learns "merged upstream" only from the newest build report; a `--fetch` run records nothing, so two runs on the same fetched state can disagree.
-
-> FR-020 says "the last fetch"; recording fetch results outside build reports would make both paths agree.
-
 ### perf-test-by-default
 
 - **Source**: deep-review
