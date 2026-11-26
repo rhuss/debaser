@@ -19,7 +19,7 @@ export type Row = {
   own: Own | null;
   /** The patch's page (PR or branch), linked from its name on a terminal. */
   url?: string | null;
-  /** The PR's live state, or null for a patch that is no PR (or when gh can't say). */
+  /** The PR's live state, "UNKNOWN" when gh can't say, or null for a patch that is no PR. */
   pr?: string | null;
   pinned?: string | null;
   /** The last build's results for the patch: its checks and its acceptance check. */
@@ -127,7 +127,7 @@ export function render(v: View, o: { color: boolean }): string[] {
       { text: r.patch, url: r.url },
       upstreamCell(r),
       ownCell(r.own, home),
-      { text: r.pr ? r.pr.toLowerCase() : "not a PR", tone: r.pr === "MERGED" ? "green" : r.pr === "CLOSED" ? "red" : r.pr ? null : "dim" },
+      { text: r.pr ? r.pr.toLowerCase() : "not a PR", tone: r.pr === "MERGED" ? "green" : r.pr === "CLOSED" ? "red" : r.pr && r.pr !== "UNKNOWN" ? null : "dim" },
       { text: r.behind === null || r.behind === undefined ? "?" : String(r.behind), tone: "dim" },
       { text: r.checks ?? "-", tone: r.checks === "pass" ? "green" : r.checks === "fail" ? "red" : "dim" },
       { text: !r.acceptance || r.acceptance === "none" ? "-" : r.acceptance, tone: r.acceptance === "pass" || r.acceptance === "fixed" ? "green" : r.acceptance === "fail" ? "red" : "dim" },

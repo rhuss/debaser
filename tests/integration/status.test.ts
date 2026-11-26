@@ -11,6 +11,7 @@ import {
   fresh,
   git,
   latest,
+  noGh,
   ownPullRequest,
   pullRequest,
   run,
@@ -79,6 +80,17 @@ test("status checks an own PR's rebased branch against upstream, not the PR as l
   expect((await run(w, "rebase", "--push")).code).toBe(0);
   const after = await run(w, "status");
   expect(after.out).toMatch(/acme\/widget#5 +✓ clean +✓ up to date/);
+});
+
+test("status shows unknown for a PR whose state gh can't give", async () => {
+  const w = world();
+  pullRequest(w, "acme/widget", 1, { "pr1.txt": "one\n" });
+  branch(w, "mine", { "mine.txt": "mine\n" });
+  noGh(w);
+  configure(w, ["#1", "mine"]);
+  const shown = await run(w, "status");
+  expect(shown.out).toMatch(/^acme\/widget#1 .* unknown /m);
+  expect(shown.out).toMatch(/^mine .* not a PR /m);
 });
 
 test("status lists own branches behind, conflicting with or left alone by upstream", async () => {

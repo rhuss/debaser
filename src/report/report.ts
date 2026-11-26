@@ -145,7 +145,8 @@ function reportText(
   const of = (kind: string) => run.events.filter(e => e.kind === kind),
     recipe = recipeOf(ctx),
     built = recipe.artifact?.install ?? listOf(ctx).branch,
-    stopped = `Result: stopped (exit ${r.code}): ${r.reason.join("; ")}`,
+    // Worded as result.json's outcome: exit 1 after a finished run (a failed push) is "failed".
+    stopped = `Result: ${r.code === 1 ? "failed" : "stopped"} (exit ${r.code}): ${r.reason.join("; ")}`,
     rebased = run.rebased
       ? section("Rebased branches", rebaseLines(run.rebased, { current: true }).map(line => `- ${line}`), "no own branch needed a rebase")
       : [],
@@ -248,7 +249,7 @@ function result(
       source: p.source,
       display: p.display,
       state: p.skip === "merged" ? "skipped-merged" : p.skip === "contained" ? "skipped-contained" : p.merge ? "merged" : "not-merged",
-      ...(p.prLink ? { pr: { state: p.prState ?? "UNKNOWN", url: p.prLink } } : {}),
+      ...(p.prLink ? (p.source.kind === "pr" ? { pr: { state: p.prState ?? "UNKNOWN", url: p.prLink } } : { link: p.prLink }) : {}),
       ...(rebased ? { rebase: rebased.outcome } : {}),
       ...(check?.clean === false ? { merges: false } : check?.clean ? { merges: true } : {}),
       ...(p.merge ? { checks: stoppedOn.has(p.display) ? "fail" : r.code === 0 || acceptanceStop ? "pass" : "unknown" } : {}),

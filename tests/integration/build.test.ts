@@ -75,6 +75,10 @@ test("build merges an own branch, an upstream PR, a fork PR and a fork branch in
     ["other/widget#2", "merged"],
     ["other/widget:topic", "merged"],
   ]);
+  const byDisplay = (d: string) => result_.patches.find((p: { display: string }) => p.display === d);
+  expect(byDisplay("other/widget:topic").pr).toBeUndefined();
+  expect(byDisplay("other/widget:topic").link).toBe("https://github.com/other/widget/tree/topic");
+  expect(byDisplay("acme/widget#1").pr).toEqual({ state: "OPEN", url: expect.any(String) });
 });
 
 test("build refuses a dirty checkout or a stopped run and changes nothing", async () => {
@@ -405,6 +409,7 @@ test("a failed push of the integration branch ends with 1, and the result says s
   expect(result.code).toBe(1);
   expect(JSON.parse(result.out)).toMatchObject({ outcome: "failed", exitCode: 1 });
   expect(JSON.parse(read(join(latest(w), "result.json")))).toMatchObject({ outcome: "failed", exitCode: 1 });
+  expect(read(join(latest(w), "report.md"))).toContain("Result: failed (exit 1): the push of debaser to origin failed");
 });
 
 test("--push is refused when any of origin's push URLs is upstream", async () => {

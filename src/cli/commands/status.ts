@@ -89,7 +89,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
         sha = ref ? git.revParse(ctx.repo, ref) : null,
         check = sha ? git.mergeTreeCheck(ctx.repo, upstream, sha) : null,
         base = sha ? git.git(ctx.repo, ["merge-base", sha, upstream]).stdout.trim() : "",
-        prState = p.source.kind === "pr" ? (prInfo(p.source.repo, p.source.number, ctx.env)?.state ?? null) : null,
+        prState = p.source.kind === "pr" ? (prInfo(p.source.repo, p.source.number, ctx.env)?.state ?? "UNKNOWN") : null,
         known = last?.patches?.find(x => x.display === k.display);
       return {
         patch: k.display,
