@@ -10,6 +10,7 @@ import { flag, option } from "../args";
 import { rebaseModes, type RebaseMode } from "../../core/patchlist";
 import * as add from "./add";
 import * as remove from "./remove";
+import * as move from "./move";
 import * as list from "./list";
 import * as build from "./build";
 import * as rebase from "./rebase";
@@ -34,6 +35,10 @@ export type Options = {
   upstream: string | null;
   reason: string | null;
   description: string | null;
+  after: string | null;
+  before: string | null;
+  propose: boolean;
+  yes: boolean;
 };
 export type Verb = {
   parse(args: string[]): Options;
@@ -59,6 +64,10 @@ function reader(accepts: (keyof Options)[], positionals: number): Verb["parse"] 
         upstream: has("upstream") ? option(args, "upstream") : null,
         reason: has("reason") ? option(args, "reason") : null,
         description: has("description") ? option(args, "description") : null,
+        after: has("after") ? option(args, "after") : null,
+        before: has("before") ? option(args, "before") : null,
+        propose: has("propose") && flag(args, "propose"),
+        yes: has("yes") && flag(args, "yes"),
       };
     if (has("rebase")) {
       const mode = option(args, "rebase");
@@ -73,8 +82,9 @@ function reader(accepts: (keyof Options)[], positionals: number): Verb["parse"] 
 }
 
 export const verbs: Record<string, Verb> = {
-  add: { parse: reader(["pin", "upstream", "description"], 2), run: add.run },
+  add: { parse: reader(["pin", "upstream", "description", "after", "before"], 2), run: add.run },
   remove: { parse: reader(["reason"], 1), run: remove.run },
+  move: { parse: reader(["after", "before", "propose", "yes", "fetch"], 1), run: move.run },
   list: { parse: reader(["retired", "verbose", "json"], 0), run: list.run },
   build: { parse: reader(["push", "rebase", "inWorktree", "trustRecipe", "verbose", "json"], 0), run: build.run },
   rebase: { parse: reader(["push", "rebase", "inWorktree", "trustRecipe", "verbose", "json", "skipBranch"], 0), run: rebase.run },

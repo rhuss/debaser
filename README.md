@@ -54,6 +54,22 @@ branch name. `add --pin <sha>` merges a patch at exactly that commit and never
 rebases it. `remove <source> --reason <text>` retires a patch; `list` shows the
 live and retired ones.
 
+The order of the list is the merge order. `add <source> --after <patch>` (or
+`--before <patch>`) inserts a new patch at that place instead of the end, and
+`move <patch> --after <patch>` (or `--before`) moves one. A patch is named by
+its position in `list` (`3`) or by its source (`#12` is PR 12, as in `add`).
+Plain `move` on a terminal asks which patch to move and where, and saves the
+new order when you are done. `move --propose` test-merges the patches in memory,
+without touching any checkout or ref, and suggests an order with fewer
+conflicts: a patch goes after the patch it only merges cleanly on, and your own
+branches go after the patches they clash with. It shows each move with its
+reason and the conflicts no order avoids, and asks before it saves the order.
+It uses the commits of the last fetch; add `--fetch` to fetch first, or `--yes`
+to apply without asking. Reordering never resolves conflicts: the next `build`
+does that. While a run is stopped, finish it with `continue` or `rollback`
+before you reorder. After a reorder, `build` notes that recorded conflict
+resolutions may not apply to the new order.
+
 The list also holds the integration branch name (default `debaser`, with
 `debaser-prev` as the previous build), the rebase mode (`all`, `conflicting`
 or `off`), the harness settings, the build directory (`tree`), and optional
@@ -164,7 +180,11 @@ or a yes on the terminal. Other people's branches are never rewritten.
 | Command | What it does |
 |---|---|
 | `add <source> [description] [--pin <sha>] [--upstream owner/repo]` | add a patch |
+| `add <source> --after <patch>` / `--before <patch>` | add a patch at that place in the merge order |
 | `remove <source> --reason <text>` | retire a patch |
+| `move <patch> --after <patch>` / `--before <patch>` | move a patch in the merge order |
+| `move` | reorder with numbered prompts on a terminal |
+| `move --propose [--fetch] [--yes]` | propose an order with fewer merge conflicts and apply it on yes |
 | `list [--json]` | show the patches |
 | `build [--push] [--rebase all\|conflicting\|off] [--in-worktree] [--trust-recipe] [--verbose] [--json]` | merge the patches onto upstream, run the checks and install the artifact |
 | `rebase [--push] [--rebase all\|conflicting] [--in-worktree] [--verbose] [--json]` | only rebase own branches |

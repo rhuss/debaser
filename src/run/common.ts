@@ -28,7 +28,7 @@ export function save(ctx: Context, run: RunState) {
 }
 export const startItem = (ctx: Context, run: RunState, key: string) => timings.startItem(run, key, ms(ctx));
 export const endItem = (ctx: Context, run: RunState, key: string, exceptMs = 0) => timings.endItem(run, key, ms(ctx), exceptMs);
-export function event(run: RunState, kind: string, fields: Omit<Event, "kind"> = {}) {
+export function event(run: { events: Event[] }, kind: string, fields: Omit<Event, "kind"> = {}) {
   run.events.push({ kind, ...fields });
 }
 export const signal = (ctx: Context, e: LiveEvent) => send(ctx.sink, e);

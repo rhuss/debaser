@@ -2,11 +2,20 @@ export const usage = `usage: debaser [--dir <path>] <command> [options]
 
 commands:
   add <source> [description] [--pin <sha>] [--upstream owner/repo]
+      [--after <patch> | --before <patch>]
                         add a patch: 123, #123, owner/repo#12, a PR URL,
                         owner/repo:branch, a tree URL, <git url>#branch=<name>
-                        or a local branch name
+                        or a local branch name; --after/--before insert it
+                        there instead of at the end
   remove <source> --reason <text>
                         retire a patch
+  move <patch> --after <patch> | --before <patch>
+                        change the merge order; <patch> is a position as in
+                        list (3) or a source (#12 is PR 12)
+  move                  reorder with numbered prompts on a terminal
+  move --propose [--fetch] [--yes]
+                        test-merge the patches in memory and propose an order
+                        with fewer conflicts; --yes applies it without asking
   list [--verbose] [--json]
                         show the patches; --verbose adds the retired ones
   build [--verbose] [--push] [--rebase all|conflicting|off] [--in-worktree]

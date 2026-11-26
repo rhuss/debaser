@@ -7,7 +7,8 @@ import { paths } from "../core/paths";
 import type { HarnessUse, RunState } from "../core/runstate";
 import * as git from "../git/git";
 import { filesTouchedByMerge, mergeTreeCheck } from "../git/merge";
-import { display } from "../plugins/sources/parse";
+import { display, sourceKey } from "../plugins/sources/parse";
+import type { Source } from "../plugins/sources/types";
 import { attribute } from "../steps/attribute";
 import { mergedPatches, save, short } from "../run/common";
 import { writeHandoffs, type MergeCheck } from "./handoff";
@@ -276,6 +277,36 @@ function result(
 export function resultOf(reportDir: string): unknown {
   const path = join(reportDir, "result.json");
   return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : undefined;
+}
+/** A build report's result.json as later commands read it back. */
+export type BuildResult = { command?: string; outcome?: string; patches?: unknown };
+/** The newest kept build report's result that `accept` takes, or null; an
+ * unreadable report is passed over. "rebuild" is what versions before the
+ * rename wrote. */
+export function lastBuildResult(reportsDir: string, accept: (r: BuildResult) => boolean = () => true): BuildResult | null {
+  for (const name of reportDirs(reportsDir).reverse()) {
+    let result: BuildResult | undefined;
+    try {
+      result = resultOf(join(reportsDir, name)) as BuildResult | undefined;
+    } catch {
+      continue;
+    }
+    if (result && typeof result === "object" && (result.command === "build" || result.command === "rebuild") && accept(result)) return result;
+  }
+  return null;
+}
+/** The `sourceKey`s of a build result's patches in `state`, in merge order;
+ * malformed entries (from a hand-edited or foreign report) are left out. */
+export function resultKeys(result: BuildResult, state: string): string[] {
+  if (!Array.isArray(result.patches)) return [];
+  return result.patches.flatMap(p => {
+    if (!p || typeof p !== "object" || p.state !== state || !p.source || typeof p.source !== "object") return [];
+    try {
+      return [sourceKey(p.source as Source)];
+    } catch {
+      return [];
+    }
+  });
 }
 
 /** Points `reports/latest` at the newest run. */

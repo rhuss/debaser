@@ -24,6 +24,9 @@ export type Context = {
   echo: (chunk: Uint8Array) => void;
   /** Asks a question on a terminal; absent or null without one. */
   ask?: (question: string) => string | null;
+  /** Reads one answer on a terminal without blocking signals: "" for Enter,
+   * null at the end of input; absent without a terminal. */
+  line?: (question: string) => Promise<string | null>;
   color?: boolean;
   columns?: number;
   /** Receives the live events; a sink that throws never stops the run. */
