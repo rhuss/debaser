@@ -1,6 +1,6 @@
 # Brainstorm Overview
 
-Last updated: 2026-11-26
+Last updated: 2026-11-27
 
 ## Sessions
 
@@ -11,6 +11,7 @@ Last updated: 2026-11-26
 | 03 | 2026-11-23 | remote-test-runner | idea | - | - |
 | 04 | 2026-11-26 | patch-ordering | spec-created | 003 | - |
 | 05 | 2026-11-26 | propose-merged-state | active | - | - |
+| 06 | 2026-11-27 | release-pipeline | active | - | [#12](https://github.com/rhuss/debaser/issues/12), [#13](https://github.com/rhuss/debaser/issues/13) |
 
 ## Open Threads
 - Which host runs the remote suite, and may the script install Bun there? (from #03)
@@ -25,5 +26,12 @@ Last updated: 2026-11-26
 - Batch the `gh` PR-state lookups for long lists? (from #05)
 - Distinguish gh missing, not logged in and network errors in the fallback note? (from #05)
 - Hint at `--fetch` when a merged PR's merge commit is not in the last fetch? (from #05)
+- Where do the apt repository and its signing key live? (from #06)
+- Which tokens write to the tap, COPR and AUR, and how are they held? (from #06)
+- Which runner serves x64 macOS now that `macos-13` is retired? (from #06)
+- Is `brew install` on Linux in scope, or macOS only? (from #06)
+- Does the arm64 Linux build use `ubuntu-24.04-arm` like the other targets run natively? (from #06)
+- First release version: tag `0.1.0`, or bump before the first tag? (from #06)
+- Which license do the Fedora spec and the formula declare, given there is no LICENSE file? (from #06)
 
 ## Parked Ideas
