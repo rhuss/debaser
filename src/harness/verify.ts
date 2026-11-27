@@ -35,7 +35,11 @@ export function acceptConflict(repo: string, call: { files: string[]; head: stri
  * is undone with its changes kept, so debaser commits them itself. */
 export function acceptFix(repo: string, call: { head: string; snapshot: Snapshot }, exclude: string[] = []): Verdict {
   if (git.revParse(repo, "HEAD") !== call.head) git.must(repo, ["reset", "--quiet", "--soft", call.head]);
-  const files = changedSince(repo, call.snapshot, exclude).filter(path => !buildLeftover(path));
+  const changed = changedSince(repo, call.snapshot, exclude).filter(path => !buildLeftover(path)),
+    // An untracked file the harness deleted is gone without a trace in git:
+    // `git add` refuses its path, and there is nothing to commit for it.
+    indexed = changed.length ? new Set(git.must(repo, ["ls-files", "-z", "--", ...changed]).split("\0")) : new Set<string>(),
+    files = changed.filter(path => existsSync(join(repo, path)) || indexed.has(path));
   return files.length ? { ok: true, files } : { ok: false, reason: changedNothing, broken: false };
 }
 /** The verdict on a finished call: a timeout, or `accept`'s verdict on what
