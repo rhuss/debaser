@@ -135,6 +135,7 @@ function usage(): string {
     "usage: bun scripts/release/version.ts <command>",
     "",
     "  parse-tag <tag>                 print the version, or fail on a malformed tag",
+    "  matches-tag <tag> <version>     print true when the tag carries exactly that version",
     "  is-prerelease <version>         print true or false",
     "  compare <a> <b>                 print -1, 0 or 1",
     "  is-newer <candidate> <served>   exit 0 when candidate > served, 1 when not,",
@@ -149,6 +150,10 @@ function main(argv: string[]): number {
   switch (command) {
     case "parse-tag": {
       process.stdout.write(`${parseTag(args[0] ?? "")}\n`);
+      return 0;
+    }
+    case "matches-tag": {
+      process.stdout.write(`${versionMatchesTag(args[0] ?? "", args[1] ?? "")}\n`);
       return 0;
     }
     case "is-prerelease": {

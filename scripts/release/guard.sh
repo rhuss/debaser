@@ -22,7 +22,11 @@ version=$(bun "$here/version.ts" parse-tag "$TAG" 2>/dev/null) ||
 pkg_version=$(bun -e 'import { readFileSync } from "node:fs"; process.stdout.write(JSON.parse(readFileSync("package.json", "utf8")).version)') ||
   { echo "guard: cannot read package.json" >&2; exit 1; }
 
-if [ "$version" != "$pkg_version" ]; then
+# The comparison is the tested matcher, so the guard and its tests cannot drift.
+if ! matches=$(bun "$here/version.ts" matches-tag "$TAG" "$pkg_version" 2>/dev/null); then
+  matches=false
+fi
+if [ "$matches" != "true" ]; then
   echo "guard: tag '$TAG' carries $version but package.json declares $pkg_version" >&2
   exit 1
 fi

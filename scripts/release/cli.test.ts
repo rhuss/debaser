@@ -17,6 +17,12 @@ test("parse-tag prints the version and refuses a malformed tag", () => {
   expect(version("parse-tag", "1.2.3").code).not.toBe(0);
 });
 
+test("matches-tag prints true only for a tag carrying the given version", () => {
+  expect(version("matches-tag", "v1.2.3", "1.2.3").out).toBe("true\n");
+  expect(version("matches-tag", "v1.2.3", "1.2.4").out).toBe("false\n");
+  expect(version("matches-tag", "1.2.3", "1.2.3").out).toBe("false\n");
+});
+
 test("is-prerelease prints true or false", () => {
   expect(version("is-prerelease", "1.2.3").out).toBe("false\n");
   expect(version("is-prerelease", "1.2.3-rc.1").out).toBe("true\n");
