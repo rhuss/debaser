@@ -333,6 +333,9 @@ test("rebased branches are pushed with a lease after a yes or with --push, and a
   expect(existsSync(join(latest(raced.w), "rebase", "mine-push.log"))).toBe(true);
   expect(onFork(raced.w, "mine")).toBe(elsewhere);
   expect(backupOf(raced.w, "mine")).toBe(raced.old);
+  // A finished rebase run whose push was refused is "failed" in both outputs.
+  expect(read(join(latest(raced.w), "report.md"))).toContain("Result: failed (exit 1): a push of a rebased branch was refused");
+  expect(JSON.parse(read(join(latest(raced.w), "result.json"))).outcome).toBe("failed");
   // Four worlds, each rebased and checked.
 }, 180_000);
 

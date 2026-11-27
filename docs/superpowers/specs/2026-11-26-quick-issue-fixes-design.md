@@ -43,7 +43,7 @@ Close the seven open `cc-review:pursue` issues that need no design work, in one 
 **#3 diverged warning**
 - The "rebased earlier, push pending" condition from `src/rebase/rebase.ts:210-215` moves into a shared helper used by both the rebase phase and the branch source.
 - When it holds, the branch source's note becomes `rebased earlier, push pending; using the local branch` (no `warning:` prefix). A real divergence keeps the warning.
-- `status` shows `rebasing, checking` while `refs/debaser/rebase-checking/<b>` exists, instead of `! diverged from origin`.
+- `status` shows `rebasing, checking` while `refs/debaser/rebase-checking/<b>` exists and `build`, `rebase` or `continue` holds the lock, instead of `! diverged from origin` or `✓ up to date`. A marker left by a killed run is ignored.
 
 **#1 after_build = []**
 - The schema accepts an empty `after_build` array in any layer and means "no after-build command"; non-arrays and non-string items keep the current message.

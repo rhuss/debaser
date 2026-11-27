@@ -24,12 +24,13 @@ import type { Options } from "./index";
 const rebasing = new Set(["build", "rebase", "continue"]);
 /** `checking`: a command that can run an in-worktree rebase check holds the lock right now. */
 function ownState(r: RebaseResult, repo: string, checking: boolean): view.Own {
+  // An in-worktree rebase still checking the branch: it already moved the branch, which then
+  // looks up to date (never pushed), diverged from origin or push pending until the check passes.
+  // Without a rebasing command the marker is left over from a killed run, and the state as read is real.
+  if (checking && git.revParse(repo, git.refs.rebaseChecking(r.branch))) return { kind: "checking" };
   if (r.pending) return { kind: "pending", command: pushCommand(r) };
   if (r.outcome === "current") return { kind: "current", ...(r.reason ? { reason: r.reason } : {}) };
   if (r.worktree) return { kind: "worktree", path: r.worktree, rebasableThere: !!r.rebasableThere };
-  // An in-worktree rebase still checking the branch: diverged only until its check passes.
-  // Without such a command the marker is left over from a killed run, and the divergence is real.
-  if (r.diverged && checking && git.revParse(repo, git.refs.rebaseChecking(r.branch))) return { kind: "checking" };
   if (r.diverged) return { kind: "diverged" };
   return { kind: "other", reason: r.reason ?? r.outcome };
 }

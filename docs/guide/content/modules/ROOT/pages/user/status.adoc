@@ -183,8 +183,8 @@ xref:user/own-branches.adoc#modes[Rebase modes] explains the modes, such as `con
 A worktree under `.claude/worktrees/` shows by its name, and a path in your home directory starts with `~`.
 `(origin is ahead)` follows when `origin` has a newer copy of the branch than the worktree holds; `--in-worktree` then leaves the branch alone too.
 * `! diverged from origin`: the local branch and its copy on `origin` both have commits the other lacks.
-* `· rebasing, checking`: a running `rebase --in-worktree` (or `build --in-worktree`) has rebased the branch and is still running its checks, so it differs from `origin` until the check passes and the push follows.
-Without a running `build`, `rebase` or `continue`, the marker is left over from a killed run, and the branch shows `! diverged from origin` instead.
+* `· rebasing, checking`: a running `rebase --in-worktree` (or `build --in-worktree`) has rebased the branch and is still running its checks; the push, if any, follows once they pass.
+Without a running `build`, `rebase` or `continue`, the marker is left over from a killed run, and the branch shows its state as read, for example `! diverged from origin` or `✓ up to date`.
 * `! <reason>`: debaser leaves the branch alone for the reason given, for example `! no branch <branch> here or on origin`.
 
 |PR

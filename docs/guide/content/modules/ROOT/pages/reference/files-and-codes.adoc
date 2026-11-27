@@ -323,9 +323,11 @@ xref:user/headless.adoc#json[The JSON result] lists the top-level keys.
 |`merged`, `not-merged`, `skipped-merged`, `skipped-contained`, or `retired`
 
 |`pr`
-|Present when the source has a GitHub link: `url` and `state`.
-For a pull request, `state` is `OPEN`, `CLOSED`, or `MERGED`, or `UNKNOWN` when `gh` could not tell.
-For a branch of another repository that the patch list names by `owner/repo` instead of a Git URL, `url` is the branch URL and `state` is `UNKNOWN`.
+|Pull requests only: `url` and `state`.
+`state` is `OPEN`, `CLOSED`, or `MERGED`, or `UNKNOWN` when `gh` could not tell.
+
+|`link`
+|Other sources with a GitHub link: the web page of the branch, for example a branch of another repository that the patch list names by `owner/repo` instead of a Git URL.
 
 |`rebase`
 |For an own patch of the rebase phase: `rebased`, `current`, `skipped`, or `failed`

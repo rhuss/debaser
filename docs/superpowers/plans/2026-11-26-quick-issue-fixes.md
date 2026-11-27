@@ -47,7 +47,7 @@
 - Test: `tests/integration/recipes.test.ts`, `tests/integration/patchlist.test.ts` (add hint)
 
 **Interfaces:**
-- Produces: `loadRecipe(ctx, tip?, o: { peek?: boolean; trustFlag?: boolean } = {})` and `repoLayer(ctx, tip, o: { peek?: boolean; trustFlag?: boolean })`. `trustFlag` defaults to `true`; `false` drops `, or pass --trust-recipe` from the headless refusal hint.
+- Produces: each verb in `src/cli/commands/index.ts` carries its `accepts` list, and `main.ts` sets `ctx.offersTrustRecipe` when the running verb accepts `trustRecipe`. The headless refusal hint adds `, or pass --trust-recipe` only then. (An earlier draft passed a `trustFlag` option to `loadRecipe`/`repoLayer`; review replaced it with this capability field.)
 
 - [ ] **Step 1: Tests.** In `recipes.test.ts`:
   - `"debaser recipe refuses --trust-recipe as a usage error"`: `run(w, "recipe", "--trust-recipe")` gives `code` 1 and `err` containing `usage: debaser`.
@@ -56,7 +56,7 @@
 - [ ] **Step 2:** Run those tests. Expected: FAIL (the first exits 0, the second names `--trust-recipe`, the third lacks the sentence).
 - [ ] **Step 3: Implement.**
   - Verb table: `recipe: { parse: reader(["json"], 0), ... }`; remove the `ctx.trustRecipe = false;` line in `recipe.ts`.
-  - `trust.ts`: the hint reads ``"  review it, then run `debaser trust`" + (o.trustFlag === false ? "" : ", or pass --trust-recipe")``; `load.ts` passes `trustFlag` through; `rollback.ts` calls `loadRecipe(ctx, tip, { trustFlag: false })` at both lines.
+  - `trust.ts`: the hint reads ``"  review it, then run `debaser trust`" + (ctx.offersTrustRecipe ? ", or pass --trust-recipe" : "")``; `rollback.ts` needs no change, since `rollback` does not accept the flag.
   - `add.ts`: after the `or name it` line add `"    (with --upstream and no upstream remote, upstream commits are then fetched from origin; when origin is a fork, add the upstream remote instead)"`.
   - `usage.ts`: `add <source> [description] [--description <text>] [--pin <sha>] [--upstream owner/repo]`; `list [--verbose] [--retired] [--json]` with help `--verbose or --retired adds the retired ones`; `[--trust-recipe]` on the `rebase` line and on `continue [--skip-branch] [--trust-recipe] [--verbose]`.
 - [ ] **Step 4:** Run the three tests plus `tests/smoke/binary.test.ts` and `tests/integration/recipes.test.ts`. Expected: PASS (existing build hint tests still expect `or pass --trust-recipe`).
@@ -109,7 +109,7 @@
   - `build.test.ts` `"a build after a rebase whose push is pending notes it instead of warning about divergence"`: `branch(w, "mine", ...)`, push to origin, `upstreamMoves`, `configureOwn(w, ["mine"])`, `runWith(w, { ask: () => "n" }, "rebase")`, then `runWith(w, { ask: () => "n" }, "build")`: `out` contains `note: mine: rebased earlier, push pending; using the local branch` and not `have diverged`.
   - `status.test.ts` `"status shows a branch under an in-worktree rebase check as rebasing, checking"`: a diverged own branch (built as in `build.test.ts:268-274`), then `git(w.clone, "update-ref", "refs/debaser/rebase-checking/diverged", <local sha>)`, `run(w, "status")`: row matches `/rebasing, checking/`, not `diverged from origin`.
 - [ ] **Step 2:** Run them. Expected: FAIL.
-- [ ] **Step 3: Implement.** `rebase.ts` computes `pending` with `pushPending(e.repo, branch, local, pushed)`. In `branch.ts`, before the diverged warning: when `pushPending(repo, s.name, local, pushed)` push the note `rebased earlier, push pending; using the local branch` and skip the warning. In the status command, `ownState` returns `{ kind: "checking" }` when `r.diverged` and `refs/debaser/rebase-checking/<branch>` resolves (pass the repo in).
+- [ ] **Step 3: Implement.** `rebase.ts` computes `pending` with `pushPending(e.repo, branch, local, pushed)`. In `branch.ts`, before the diverged warning: when `pushPending(repo, s.name, local, pushed)` push the note `rebased earlier, push pending; using the local branch` and skip the warning. In the status command, `ownState` returns `{ kind: "checking" }` before every other state, when `build`, `rebase` or `continue` holds the lock and `refs/debaser/rebase-checking/<branch>` resolves (pass the repo and that live-lock condition in). A marker without such a command is left over from a killed run and is ignored.
 - [ ] **Step 4:** Run `tests/integration/build.test.ts`, `tests/integration/rebase.test.ts`, `tests/integration/status.test.ts`. Expected: PASS, including the real-divergence warning at `build.test.ts:279`.
 - [ ] **Step 5:** Commit `fix(sources): don't warn diverged for a rebase debaser made and has not pushed` with `Fixes #3`.
 

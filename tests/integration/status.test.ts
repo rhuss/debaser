@@ -91,6 +91,11 @@ test("status shows unknown for a PR whose state gh can't give", async () => {
   const shown = await run(w, "status");
   expect(shown.out).toMatch(/^acme\/widget#1 .* unknown /m);
   expect(shown.out).toMatch(/^mine .* not a PR /m);
+  const json = JSON.parse((await run(w, "status", "--json")).out);
+  expect(json.patches.map((p: { display: string; pr: string | null }) => [p.display, p.pr])).toEqual([
+    ["acme/widget#1", "UNKNOWN"],
+    ["mine", null],
+  ]);
 });
 
 test("status shows a branch under an in-worktree rebase check as rebasing, checking", async () => {
@@ -120,6 +125,27 @@ test("status shows a branch under an in-worktree rebase check as rebasing, check
   rmSync(join(dirOf(w), "lock"));
   const stale = await run(w, "status");
   expect(stale.out).toContain("diverged from origin");
+  expect(stale.out).not.toContain("rebasing, checking");
+});
+
+test("status shows a never-pushed branch under an in-worktree rebase check as rebasing, checking", async () => {
+  const w = world();
+  branch(w, "solo", { "solo.txt": "solo\n" });
+  upstreamMoves(w, { "upstream.txt": "moved\n" });
+  git(w.clone, "fetch", "-q", "upstream");
+  configureOwn(w, ["solo"]);
+  // The in-worktree rebase moved the branch onto upstream and is still running its checks.
+  git(w.clone, "rebase", "-q", "upstream/main", "solo");
+  git(w.clone, "checkout", "-q", "main");
+  git(w.clone, "update-ref", "refs/debaser/rebase-checking/solo", "solo");
+  writeFileSync(join(dirOf(w), "lock"), JSON.stringify({ pid: process.ppid, command: "build", startedAt: "2026-11-04T10:00:00Z" }));
+  const shown = await run(w, "status");
+  expect(shown.out).toMatch(/^solo .*rebasing, checking/m);
+  expect(JSON.parse((await run(w, "status", "--json")).out).patches[0].rebase).toBe("checking");
+  // A marker left over from a killed run: the branch reads as it is.
+  rmSync(join(dirOf(w), "lock"));
+  const stale = await run(w, "status");
+  expect(stale.out).toMatch(/^solo .*✓ up to date/m);
   expect(stale.out).not.toContain("rebasing, checking");
 });
 
