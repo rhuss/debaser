@@ -38,6 +38,7 @@ A user verifies with `sha256sum -c SHA256SUMS` after downloading the assets into
 - A published version's assets are never replaced, re-uploaded under the same name, or deleted.
 - Publishing a version that already exists is refused.
 - A moved or re-pushed tag does not republish; the existing release stands.
+- A refused release is retried for the same tag without moving it, and publishes only when every check passes.
 
 ## Release kinds
 

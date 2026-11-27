@@ -60,7 +60,7 @@ Single project: `src/`, `tests/`, `scripts/`, `packaging/`, `.github/workflows/`
 ### Implementation for User Story 1
 
 - [ ] T011 [US1] Create `.github/workflows/release.yml` with a `guard` job that runs `scripts/release/guard.sh`, a `build` matrix (`ubuntu-24.04`, `ubuntu-24.04-arm`, `macos-15`, `macos-15-intel`) that runs `bun run build` and then `DEBASER_BINARY_PREBUILT=1 bun test tests/smoke/binary.test.ts`, and uploads each `dist/debaser` as an artifact
-- [ ] T012 [US1] Add the `publish` job to `.github/workflows/release.yml`: download all four artifacts, refuse unless all four are present, generate `SHA256SUMS`, support `workflow_dispatch` inputs `dry_run` and `tag`, create the release with `gh release create` (pre-release flag from `isPrerelease`), generated notes, and no overwrite of an existing release
+- [ ] T012 [US1] Add the `publish` job to `.github/workflows/release.yml`: download all four artifacts, refuse unless all four are present, generate `SHA256SUMS`, support `workflow_dispatch` inputs `dry_run` and `tag` (the same tag also serves to retry a refused release without moving it), create the release with `gh release create` (pre-release flag from `isPrerelease`), generated notes, and no overwrite of an existing release
 - [ ] T013 [US1] Add the release workflow's least-privilege permissions (`contents: write`, `checks: read`, `actions: read`) and a concurrency group keyed by the tag in `.github/workflows/release.yml`
 - [ ] T014 [P] [US1] Rewrite the README install section for the release binaries in `README.md`: supported platforms, the download-and-verify commands, and the `git` 2.38 requirement
 - [ ] T015 [US1] Document the dry run and the real-tag flow for maintainers in `docs/release.md`

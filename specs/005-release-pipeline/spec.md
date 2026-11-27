@@ -107,7 +107,7 @@ A developer pins a debaser version in their tool configuration through mise, inc
 
 ### Functional Requirements
 
-- **FR-001**: A release MUST be triggered by pushing a tag of the form `v<version>`. No other action may be required to release.
+- **FR-001**: A release MUST be triggered by pushing a tag of the form `v<version>`. No other action may be required to release. A release refused for a missing test run, an unavailable platform machine, or an incomplete checksum file MUST be retryable for the same tag without moving it, and MUST publish once the cause is gone and every check passes.
 - **FR-002**: The project MUST declare its version in exactly one place, and the system MUST refuse to publish when the tag version differs from the version the tool reports at runtime.
 - **FR-003**: The system MUST refuse to publish when no passing automated test run exists for the tagged commit, or when the available run was produced for a different commit.
 - **FR-004**: The system MUST produce binaries for Linux amd64, Linux arm64, macOS arm64 and macOS amd64.
