@@ -8,6 +8,7 @@ import {
   branch,
   commit,
   configure,
+  configureOwn,
   dirOf,
   forkBranch,
   fresh,
@@ -20,11 +21,13 @@ import {
   read,
   refs,
   run,
+  runWith,
   stamped,
   state,
   stubGh,
   stubSteps,
   subjects,
+  upstreamMoves,
   write,
   world,
 } from "../support/world";
@@ -75,6 +78,10 @@ test("build merges an own branch, an upstream PR, a fork PR and a fork branch in
     ["other/widget#2", "merged"],
     ["other/widget:topic", "merged"],
   ]);
+  const byDisplay = (d: string) => result_.patches.find((p: { display: string }) => p.display === d);
+  expect(byDisplay("other/widget:topic").pr).toBeUndefined();
+  expect(byDisplay("other/widget:topic").link).toBe("https://github.com/other/widget/tree/topic");
+  expect(byDisplay("acme/widget#1").pr).toEqual({ state: "OPEN", url: expect.any(String) });
 });
 
 test("build refuses a dirty checkout or a stopped run and changes nothing", async () => {
@@ -280,6 +287,33 @@ test("an own branch behind its pushed copy uses the pushed one; a diverged one u
   expect(stamped(w).map(p => p.commit)).toEqual([ahead, local]);
 });
 
+test("a build after a rebase whose push is pending notes it instead of warning about divergence", async () => {
+  const w = world();
+  branch(w, "mine", { "mine.txt": "mine\n" });
+  git(w.clone, "push", "-q", "origin", "mine");
+  upstreamMoves(w, { "up.txt": "up\n" });
+  configureOwn(w, ["mine"]);
+  expect((await runWith(w, { ask: () => "n" }, "rebase")).code).toBe(0);
+  const built = await runWith(w, { ask: () => "n" }, "build");
+  expect(built.out).toContain("note: mine: rebased earlier, push pending; using the local branch");
+  expect(built.out).not.toContain("have diverged");
+});
+
+test("a branch origin moved after debaser's rebase keeps the diverged warning", async () => {
+  const w = world();
+  const old = branch(w, "mine", { "mine.txt": "mine\n" });
+  git(w.clone, "push", "-q", "origin", "mine");
+  upstreamMoves(w, { "up.txt": "up\n" });
+  configureOwn(w, ["mine"]);
+  expect((await runWith(w, { ask: () => "n" }, "rebase")).code).toBe(0);
+  // Someone pushes another commit to origin/mine: no longer debaser's pending push.
+  const other = git(w.clone, "commit-tree", `${old}^{tree}`, "-p", old, "-m", "pushed elsewhere");
+  git(w.clone, "push", "-q", "-f", "origin", `${other}:refs/heads/mine`);
+  const built = await runWith(w, { ask: () => "n" }, "build");
+  expect(built.out).toContain("warning: mine: local branch and origin/mine have diverged; using the local branch");
+  expect(built.out).not.toContain("push pending; using the local branch");
+});
+
 test("an own branch known only from a stale origin copy stops instead of building the old commit", async () => {
   const w = world();
   branch(w, "gone", { "gone.txt": "gone\n" });
@@ -405,6 +439,7 @@ test("a failed push of the integration branch ends with 1, and the result says s
   expect(result.code).toBe(1);
   expect(JSON.parse(result.out)).toMatchObject({ outcome: "failed", exitCode: 1 });
   expect(JSON.parse(read(join(latest(w), "result.json")))).toMatchObject({ outcome: "failed", exitCode: 1 });
+  expect(read(join(latest(w), "report.md"))).toContain("Result: failed (exit 1): the push of debaser to origin failed");
 });
 
 test("--push is refused when any of origin's push URLs is upstream", async () => {

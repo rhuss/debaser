@@ -41,14 +41,16 @@ export type Options = {
   yes: boolean;
 };
 export type Verb = {
+  /** The options the verb accepts, such as `trustRecipe` for `--trust-recipe`. */
+  accepts: (keyof Options)[];
   parse(args: string[]): Options;
   run(ctx: Context, o: Options, io: IO): Promise<Outcome>;
 };
 export type Session = { ctx: Context; io: IO; command: string; args: string[]; options?: Options; view?: unknown };
 
 /** Reads the options a verb accepts; anything left over is a usage error. */
-function reader(accepts: (keyof Options)[], positionals: number): Verb["parse"] {
-  return args => {
+function reader(accepts: (keyof Options)[], positionals: number): Pick<Verb, "accepts" | "parse"> {
+  return { accepts, parse: args => {
     const has = (k: keyof Options) => accepts.includes(k),
       o: Options = {
         positional: [],
@@ -78,21 +80,21 @@ function reader(accepts: (keyof Options)[], positionals: number): Verb["parse"] 
     }
     while (o.positional.length < positionals && args.length && !args[0].startsWith("--")) o.positional.push(args.shift()!);
     return o;
-  };
+  } };
 }
 
 export const verbs: Record<string, Verb> = {
-  add: { parse: reader(["pin", "upstream", "description", "after", "before"], 2), run: add.run },
-  remove: { parse: reader(["reason"], 1), run: remove.run },
-  move: { parse: reader(["after", "before", "propose", "yes", "fetch"], 1), run: move.run },
-  list: { parse: reader(["retired", "verbose", "json"], 0), run: list.run },
-  build: { parse: reader(["push", "rebase", "inWorktree", "trustRecipe", "verbose", "json"], 0), run: build.run },
-  rebase: { parse: reader(["push", "rebase", "inWorktree", "trustRecipe", "verbose", "json", "skipBranch"], 0), run: rebase.run },
-  continue: { parse: reader(["skipBranch", "verbose", "trustRecipe"], 0), run: resume.run },
-  rollback: { parse: reader(["verbose"], 0), run: rollback.run },
-  status: { parse: reader(["fetch", "json"], 0), run: status.run },
-  recipe: { parse: reader(["json", "trustRecipe"], 0), run: recipe.run },
-  trust: { parse: reader([], 0), run: trust.run },
+  add: { ...reader(["pin", "upstream", "description", "after", "before"], 2), run: add.run },
+  remove: { ...reader(["reason"], 1), run: remove.run },
+  move: { ...reader(["after", "before", "propose", "yes", "fetch"], 1), run: move.run },
+  list: { ...reader(["retired", "verbose", "json"], 0), run: list.run },
+  build: { ...reader(["push", "rebase", "inWorktree", "trustRecipe", "verbose", "json"], 0), run: build.run },
+  rebase: { ...reader(["push", "rebase", "inWorktree", "trustRecipe", "verbose", "json", "skipBranch"], 0), run: rebase.run },
+  continue: { ...reader(["skipBranch", "verbose", "trustRecipe"], 0), run: resume.run },
+  rollback: { ...reader(["verbose"], 0), run: rollback.run },
+  status: { ...reader(["fetch", "json"], 0), run: status.run },
+  recipe: { ...reader(["json"], 0), run: recipe.run },
+  trust: { ...reader([], 0), run: trust.run },
 };
 
 type End = Extract<LiveEvent, { t: "end" }>;

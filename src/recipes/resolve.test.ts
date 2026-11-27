@@ -58,7 +58,7 @@ test("steps merge by name, before and after place new ones, and steps_replace dr
   const replaced = mergeLayers([base, top('steps_replace = true\n[[steps]]\nname = "only"\nrun = ["o"]\n')]);
   expect(names(replaced)).toEqual(["only"]);
   expect(() => mergeLayers([base, top('[[steps]]\nname = "q"\nrun = ["q"]\nbefore = "missing"\n')])).toThrow(
-    "step q is placed before missing, which no lower layer has",
+    "step q is placed before missing, which is not among the steps so far",
   );
 });
 
@@ -141,4 +141,12 @@ test("a higher layer's [install] keys merge one by one over the lower layer's", 
   expect(r.install).toEqual({ step: "install", triggers: ["bun.lock", "package.json"], marker: ".installed" });
   expect(r.provenance["install.marker"]).toBe("local");
   expect(r.provenance["install.triggers"]).toBe("generic:bun-ts");
+});
+
+test("an empty after_build in a higher layer clears the inherited command", () => {
+  const cleared = resolve({ checkout: project({}), repo: "tals/corgi", local: "after_build = []\n" });
+  expect(cleared.afterBuild).toEqual([]);
+  expect(cleared.provenance.after_build).toBe("local");
+  expect(() => resolve({ checkout: project({}), repo: "tals/corgi", local: 'after_build = "x"\n' })).toThrow("after_build must be an array of strings");
+  expect(() => resolve({ checkout: project({}), repo: "tals/corgi", local: "after_build = [1]\n" })).toThrow("after_build must be an array of strings");
 });

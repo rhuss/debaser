@@ -142,7 +142,7 @@ function withoutTree(ctx: Context, run: RunState): Outcome {
  * and the installed artifact's `.prev` copy. */
 async function restorePrevious(ctx: Context): Promise<Outcome> {
   const list = listOf(ctx);
-  loadRecipe(ctx);
+  loadRecipe(ctx, null);
   // Where the artifact would be, before anything is checked or created.
   const planned = installPath(ctx, tree.treePath(ctx).path),
     prev = git.revParse(ctx.home, `refs/heads/${list.branch}-prev`),

@@ -183,6 +183,8 @@ xref:user/own-branches.adoc#modes[Rebase modes] explains the modes, such as `con
 A worktree under `.claude/worktrees/` shows by its name, and a path in your home directory starts with `~`.
 `(origin is ahead)` follows when `origin` has a newer copy of the branch than the worktree holds; `--in-worktree` then leaves the branch alone too.
 * `! diverged from origin`: the local branch and its copy on `origin` both have commits the other lacks.
+* `· rebasing, checking`: a running `rebase --in-worktree` (or `build --in-worktree`) has rebased the branch and is still running its checks; the push, if any, follows once they pass.
+Without a running `build`, `rebase` or `continue`, the marker is left over from a killed run, and the branch shows its state as read, for example `! diverged from origin` or `✓ up to date`.
 * `! <reason>`: debaser leaves the branch alone for the reason given, for example `! no branch <branch> here or on origin`.
 
 |PR
@@ -191,7 +193,8 @@ a|The pull request's state as `gh` reports it, in lowercase.
 * `open`: the pull request is open.
 * `merged`: the pull request is merged, shown in green.
 * `closed`: the pull request is closed, shown in red.
-* `not a PR`: the patch is not a pull request, or `gh` could not answer (see <<gh>>).
+* `unknown`: the patch is a pull request, but `gh` could not answer (see <<gh>>).
+* `not a PR`: the patch is not a pull request.
 
 |BEHIND
 a|The number of upstream commits since the patch's base, the point where the patch's commit meets upstream (their merge base).
@@ -337,7 +340,7 @@ Each entry of `patches` holds:
 |The patch's name, as in the PATCH column.
 
 |`pr`
-|`OPEN`, `CLOSED`, or `MERGED` as `gh` reports it, or `null`.
+|`OPEN`, `CLOSED`, or `MERGED` as `gh` reports it, `UNKNOWN` for a pull request `gh` could not answer for, or `null` for a patch that is not a pull request.
 
 |`pinned`
 |The pinned commit, or `null`.
@@ -349,7 +352,7 @@ Each entry of `patches` holds:
 |All conflicting files, not only the three that the `Conflicts` section shows.
 
 |`rebase`
-|The OWN BRANCH state as one word: `current`, `pending`, `behind`, `worktree`, `diverged`, or `other`; `null` for a patch that is not an own branch.
+|The OWN BRANCH state as one word: `current`, `pending`, `behind`, `worktree`, `diverged`, `checking`, or `other`; `null` for a patch that is not an own branch.
 
 |`rebaseDetail`
 |The same state as an object: `kind` and, as the state has them, `reason`, `command`, `conflicts`, `path`, and `rebasableThere`; or `null`.
@@ -376,7 +379,7 @@ It asks in two cases:
 * To find out whether a pull request comes from your fork, so that its branch counts as your own.
 debaser asks this only when rebasing is not off, the patch is not pinned, `origin` is a fork, and the fork is on GitHub.
 
-Without `gh` on the `PATH`, or when `gh` cannot answer (not signed in, offline, or no such pull request), the PR cell of a pull request reads `not a PR`.
+Without `gh` on the `PATH`, or when `gh` cannot answer (not signed in, offline, or no such pull request), the PR cell of a pull request reads `unknown`.
 If the failed question was the ownership one (the second case above), debaser cannot tell whose branch the pull request is from, and the hints end with a note like this:
 
 [source,text]

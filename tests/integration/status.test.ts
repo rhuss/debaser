@@ -1,5 +1,5 @@
 import { expect, setDefaultTimeout, test } from "bun:test";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   branch,
@@ -11,6 +11,7 @@ import {
   fresh,
   git,
   latest,
+  noGh,
   ownPullRequest,
   pullRequest,
   run,
@@ -79,6 +80,73 @@ test("status checks an own PR's rebased branch against upstream, not the PR as l
   expect((await run(w, "rebase", "--push")).code).toBe(0);
   const after = await run(w, "status");
   expect(after.out).toMatch(/acme\/widget#5 +✓ clean +✓ up to date/);
+});
+
+test("status shows unknown for a PR whose state gh can't give", async () => {
+  const w = world();
+  pullRequest(w, "acme/widget", 1, { "pr1.txt": "one\n" });
+  branch(w, "mine", { "mine.txt": "mine\n" });
+  noGh(w);
+  configure(w, ["#1", "mine"]);
+  const shown = await run(w, "status");
+  expect(shown.out).toMatch(/^acme\/widget#1 .* unknown /m);
+  expect(shown.out).toMatch(/^mine .* not a PR /m);
+  const json = JSON.parse((await run(w, "status", "--json")).out);
+  expect(json.patches.map((p: { display: string; pr: string | null }) => [p.display, p.pr])).toEqual([
+    ["acme/widget#1", "UNKNOWN"],
+    ["mine", null],
+  ]);
+});
+
+test("status shows a branch under an in-worktree rebase check as rebasing, checking", async () => {
+  const w = world();
+  branch(w, "diverged", { "diverged.txt": "1\n" });
+  git(w.clone, "push", "-q", "origin", "diverged");
+  git(w.clone, "checkout", "-q", "diverged");
+  commit(w.clone, { "diverged.txt": "pushed\n" });
+  git(w.clone, "push", "-q", "-f", "origin", "diverged");
+  git(w.clone, "reset", "-q", "--hard", "HEAD^");
+  const local = commit(w.clone, { "diverged.txt": "local\n" });
+  git(w.clone, "checkout", "-q", "main");
+  configureOwn(w, ["diverged"]);
+  expect((await run(w, "status")).out).toContain("diverged from origin");
+  git(w.clone, "update-ref", "refs/debaser/rebase-checking/diverged", local);
+  // Another live process (this runner's parent) holds the lock: the check is running.
+  writeFileSync(join(dirOf(w), "lock"), JSON.stringify({ pid: process.ppid, command: "rebase", startedAt: "2026-11-04T10:00:00Z" }));
+  const shown = await run(w, "status");
+  expect(shown.out).toMatch(/^diverged .*rebasing, checking/m);
+  expect(shown.out).not.toContain("diverged from origin");
+  // With no rebasing command alive the marker is left over from a killed run: the divergence shows,
+  // also while a command that runs no rebase check holds the lock.
+  writeFileSync(join(dirOf(w), "lock"), JSON.stringify({ pid: process.ppid, command: "add", startedAt: "2026-11-04T10:00:00Z" }));
+  const busy = await run(w, "status");
+  expect(busy.out).toContain("diverged from origin");
+  expect(busy.out).not.toContain("rebasing, checking");
+  rmSync(join(dirOf(w), "lock"));
+  const stale = await run(w, "status");
+  expect(stale.out).toContain("diverged from origin");
+  expect(stale.out).not.toContain("rebasing, checking");
+});
+
+test("status shows a never-pushed branch under an in-worktree rebase check as rebasing, checking", async () => {
+  const w = world();
+  branch(w, "solo", { "solo.txt": "solo\n" });
+  upstreamMoves(w, { "upstream.txt": "moved\n" });
+  git(w.clone, "fetch", "-q", "upstream");
+  configureOwn(w, ["solo"]);
+  // The in-worktree rebase moved the branch onto upstream and is still running its checks.
+  git(w.clone, "rebase", "-q", "upstream/main", "solo");
+  git(w.clone, "checkout", "-q", "main");
+  git(w.clone, "update-ref", "refs/debaser/rebase-checking/solo", "solo");
+  writeFileSync(join(dirOf(w), "lock"), JSON.stringify({ pid: process.ppid, command: "build", startedAt: "2026-11-04T10:00:00Z" }));
+  const shown = await run(w, "status");
+  expect(shown.out).toMatch(/^solo .*rebasing, checking/m);
+  expect(JSON.parse((await run(w, "status", "--json")).out).patches[0].rebase).toBe("checking");
+  // A marker left over from a killed run: the branch reads as it is.
+  rmSync(join(dirOf(w), "lock"));
+  const stale = await run(w, "status");
+  expect(stale.out).toMatch(/^solo .*✓ up to date/m);
+  expect(stale.out).not.toContain("rebasing, checking");
 });
 
 test("status lists own branches behind, conflicting with or left alone by upstream", async () => {

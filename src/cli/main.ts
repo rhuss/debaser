@@ -69,6 +69,7 @@ export async function main(argv: string[], io: IO): Promise<number> {
         repo,
         home: repo,
         dir,
+        offersTrustRecipe: handler.accepts.includes("trustRecipe"),
         list: patchlist.load(dir),
         env: io.env,
         now: io.now ?? (() => new Date()),

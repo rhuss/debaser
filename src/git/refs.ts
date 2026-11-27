@@ -1,6 +1,8 @@
 import { stopIfInterrupted } from "./git";
 
-/** Every ref debaser writes lives under `refs/debaser/` (data-model.md "Refs"). */
+/** The refs debaser fetches and its own bookkeeping live under `refs/debaser/`
+ * (data-model.md "Refs"); the integration branch and its `-prev` backup are
+ * ordinary branches under `refs/heads/`. */
 export const root = "refs/debaser";
 export const refs = {
   pull: (repo: string, n: number) => `${root}/${repo}/pull/${n}`,

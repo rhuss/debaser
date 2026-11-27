@@ -15,6 +15,7 @@ import { forStep } from "../plugins/parsers/registry";
 import { display, slug } from "../plugins/sources/parse";
 import { expand } from "../steps/commands";
 import { runWithRetry } from "../steps/run";
+import { pushPending } from "./pending";
 
 /** A harness activity callback that never throws. */
 function activity(sink: Sink | undefined, call: { stage: "rebase"; id: string; attempt: number; limit: number }) {
@@ -203,16 +204,8 @@ function assess(
     lease = (o.tracked ? tracking : null) ?? git.revParse(e.repo, forkRef(branch)) ?? tracking ?? "";
   }
   const local = git.revParse(e.repo, `refs/heads/${branch}`),
-    pushed = lease || null,
-    rebased = git.revParse(e.repo, rebasedRef(branch));
-  // Rebased by an earlier run whose push is still due: the branch still holds
-  // that rebase, and the fork is where it was then.
-  const pending =
-    !!rebased &&
-    !!local &&
-    local !== pushed &&
-    git.isAncestor(e.repo, rebased, local) &&
-    (git.revParse(e.repo, leaseRef(branch)) ?? "") === (pushed ?? "");
+    pushed = lease || null;
+  const pending = pushPending(e.repo, branch, local, pushed);
   let from: string;
   if (!local && !pushed) return result("", lease, { reason: `no branch ${branch} here or on origin` });
   if (!local) from = pushed!;

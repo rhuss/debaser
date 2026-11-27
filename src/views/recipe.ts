@@ -45,7 +45,7 @@ export function render(r: EffectiveRecipe, o: { color: boolean; note?: string | 
   const pairs: [string, string, string][] = [["project_name", r.projectName, from("project_name") || "default"]];
   if (r.install) for (const [k, v] of Object.entries(r.install)) pairs.push([`install.${k}`, Array.isArray(v) ? v.join(", ") : String(v), from(`install.${k}`)]);
   if (r.artifact) for (const [k, v] of Object.entries(r.artifact)) pairs.push([`artifact.${k}`, String(v), from(`artifact.${k}`)]);
-  if (r.afterBuild) pairs.push(["after_build", r.afterBuild.join(" "), from("after_build")]);
+  if (r.afterBuild) pairs.push(["after_build", r.afterBuild.length ? r.afterBuild.join(" ") : "none", from("after_build")]);
   if (r.leftovers.length) pairs.push(["leftovers", r.leftovers.join(", "), from("leftovers")]);
   for (const name of Object.keys(r.prompts)) pairs.push([`prompts.${name}`, "overridden", from(`prompts.${name}`)]);
   lines.push(...rows(pairs));

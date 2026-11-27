@@ -36,6 +36,8 @@ export type Context = {
   recipe?: EffectiveRecipe;
   /** `--trust-recipe`: a headless run may use an untrusted project-repo recipe. */
   trustRecipe?: boolean;
+  /** The running command accepts `--trust-recipe`, so a refusal may suggest it. */
+  offersTrustRecipe?: boolean;
 };
 
 /** Sends a live event, swallowing sink exceptions. */

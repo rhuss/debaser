@@ -4,6 +4,7 @@ import type { Context } from "../core/context";
 import { listOf, upstreamRemote } from "../core/context";
 import type { RunState } from "../core/runstate";
 import * as git from "../git/git";
+import { afterBuildOf } from "../recipes/types";
 import type { Stage, Upstream } from "../live/events";
 import * as liveState from "../live/state";
 import type { HarnessKind } from "../plugins/harness/types";
@@ -103,10 +104,10 @@ export function replay(ctx: Context, run: RunState, command: "continue" | "rebas
     command,
     upstream: upstreamOf(ctx, run, run.upstream.tip),
     links: { ...patchLinks(ctx), ...(run.kind === "rebase" ? {} : stepLinks(ctx, run)) },
-    afterBuild: !!ctx.recipe?.afterBuild,
+    afterBuild: !!afterBuildOf(ctx.recipe),
     install: ctx.recipe?.install?.step ?? null,
     harness: harnessKind(ctx),
   }))
     signal(ctx, e);
 }
-export const stagesFor = (ctx: Context, run: RunState, rebasing: boolean) => liveState.stagesOf(run, !!ctx.recipe?.afterBuild, rebasing);
+export const stagesFor = (ctx: Context, run: RunState, rebasing: boolean) => liveState.stagesOf(run, !!afterBuildOf(ctx.recipe), rebasing);

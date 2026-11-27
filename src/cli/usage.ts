@@ -1,8 +1,8 @@
 export const usage = `usage: debaser [--dir <path>] <command> [options]
 
 commands:
-  add <source> [description] [--pin <sha>] [--upstream owner/repo]
-      [--after <patch> | --before <patch>]
+  add <source> [description] [--description <text>] [--pin <sha>]
+          [--upstream owner/repo] [--after <patch> | --before <patch>]
                         add a patch: 123, #123, owner/repo#12, a PR URL,
                         owner/repo:branch, a tree URL, <git url>#branch=<name>
                         or a local branch name; --after/--before insert it
@@ -16,17 +16,19 @@ commands:
   move --propose [--fetch] [--yes]
                         test-merge the patches in memory and propose an order
                         with fewer conflicts; --yes applies it without asking
-  list [--verbose] [--json]
-                        show the patches; --verbose adds the retired ones
+  list [--verbose] [--retired] [--json]
+                        show the patches; --verbose or --retired adds the
+                        retired ones
   build [--verbose] [--push] [--rebase all|conflicting|off] [--in-worktree]
           [--trust-recipe] [--json]
                         rebase own branches, merge the patches onto upstream,
                         run the recipe's checks and install the artifact
-  rebase [--verbose] [--push] [--rebase all|conflicting] [--in-worktree] [--json]
+  rebase [--verbose] [--push] [--rebase all|conflicting] [--in-worktree]
+          [--trust-recipe] [--json]
                         only rebase own branches onto upstream
   rebase --skip-branch [--verbose]
                         give up the branch a rebase run stopped at
-  continue [--skip-branch] [--verbose]
+  continue [--skip-branch] [--trust-recipe] [--verbose]
                         resume a stopped run
   rollback [--verbose]  return to the last successful build
   status [--fetch] [--json]

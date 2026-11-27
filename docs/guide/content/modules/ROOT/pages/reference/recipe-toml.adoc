@@ -163,12 +163,13 @@ One match is enough.
 `artifact must be a table`
 
 |`after_build`
-|non-empty array of strings
+|array of strings
 |none
 |A higher layer replaces it.
+An empty array `[]` switches off a command set in a lower layer.
 |A command run in the build directory after the build has fully succeeded.
 A failure only warns.
-`after_build must be a non-empty array of strings`
+`after_build must be an array of strings`
 
 |`[prompts]`
 |table

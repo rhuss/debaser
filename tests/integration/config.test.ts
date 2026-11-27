@@ -70,6 +70,7 @@ test("recipe names each layer's source: built-in, the committed file at its upst
     [`repo:.debaser/recipe.toml@${sha}`]: { kind: "repo", path: ".debaser/recipe.toml", commit: sha },
     local: { kind: "local", path: join(dirOf(w), "recipe.toml") },
   });
+  expect(json.config).toEqual(JSON.parse((await run(w, "list", "--json")).out).config);
 });
 
 test("a build names the build directory and the patch list once, in the plain log and the live view's log", async () => {

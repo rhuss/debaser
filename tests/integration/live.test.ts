@@ -490,3 +490,24 @@ test("a rebase run records its timings, without the wait for the push answer", a
   expect(Object.keys(runs[0].items)).toEqual(["fetch", "rebase:mine", "push"]);
   expect(runs[0].activeMs).toBeLessThan(hour);
 });
+
+test("an after-build stage is planned only for a non-empty after_build, in a build and its replay", async () => {
+  const stagesOf = (events: LiveEvent[]) => events.flatMap(e => (e.t === "begin" ? e.stages : []));
+  for (const [afterBuild, planned] of [
+    [["true"], true],
+    [[], false],
+  ] as const) {
+    const w = world();
+    conflicting(w);
+    configure(w, ["left", "right"], { afterBuild: [...afterBuild] });
+    const stopped: LiveEvent[] = [];
+    expect((await runWith(w, { sink: e => void stopped.push(e) }, "build")).code).toBe(2);
+    expect(stagesOf(stopped).includes("after-build")).toBe(planned);
+    git(w.clone, "checkout", "-q", "--theirs", "base.txt");
+    git(w.clone, "add", "base.txt");
+    const resumed: LiveEvent[] = [];
+    expect((await runWith(w, { sink: e => void resumed.push(e) }, "continue")).code).toBe(0);
+    expect(resumed[0]?.t).toBe("begin");
+    expect(stagesOf(resumed).includes("after-build")).toBe(planned);
+  }
+});

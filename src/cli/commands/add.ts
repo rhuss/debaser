@@ -38,6 +38,7 @@ function bootstrap(ctx: Context, upstreamOption: string | null): patchlist.Patch
       throw new Explained("there is no upstream remote to take the upstream repository from", [
         "  add it: git remote add upstream https://github.com/<owner>/<repo>.git",
         "  or name it: debaser add <source> --upstream <owner>/<repo>",
+        "    (upstream commits are then fetched from origin; when origin is a fork, add the upstream remote instead)",
       ]);
     repo = repositoryOf(git.git(ctx.repo, ["remote", "get-url", remote]).stdout).split("/").slice(-2).join("/");
   }

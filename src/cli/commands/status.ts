@@ -20,7 +20,14 @@ import type { IO } from "../main";
 import type { Outcome } from "../outcome";
 import type { Options } from "./index";
 
-function ownState(r: RebaseResult): view.Own {
+/** The commands that can run an in-worktree rebase check. */
+const rebasing = new Set(["build", "rebase", "continue"]);
+/** `checking`: a command that can run an in-worktree rebase check holds the lock right now. */
+function ownState(r: RebaseResult, repo: string, checking: boolean): view.Own {
+  // An in-worktree rebase still checking the branch: it already moved the branch, which then
+  // looks up to date (never pushed), diverged from origin or push pending until the check passes.
+  // Without a rebasing command the marker is left over from a killed run, and the state as read is real.
+  if (checking && git.revParse(repo, git.refs.rebaseChecking(r.branch))) return { kind: "checking" };
   if (r.pending) return { kind: "pending", command: pushCommand(r) };
   if (r.outcome === "current") return { kind: "current", ...(r.reason ? { reason: r.reason } : {}) };
   if (r.worktree) return { kind: "worktree", path: r.worktree, rebasableThere: !!r.rebasableThere };
@@ -75,7 +82,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
       tips.set(t.patch, t.from);
     }
     for (const r of own.results) {
-      owns.set(r.patch, ownState(r));
+      owns.set(r.patch, ownState(r, ctx.repo, rebasing.has(v.running?.command ?? "")));
       const at = r.to ?? r.from;
       if (at) tips.set(r.patch, at);
     }
@@ -89,7 +96,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
         sha = ref ? git.revParse(ctx.repo, ref) : null,
         check = sha ? git.mergeTreeCheck(ctx.repo, upstream, sha) : null,
         base = sha ? git.git(ctx.repo, ["merge-base", sha, upstream]).stdout.trim() : "",
-        prState = p.source.kind === "pr" ? (prInfo(p.source.repo, p.source.number, ctx.env)?.state ?? null) : null,
+        prState = p.source.kind === "pr" ? (prInfo(p.source.repo, p.source.number, ctx.env)?.state ?? "UNKNOWN") : null,
         known = last?.patches?.find(x => x.display === k.display);
       return {
         patch: k.display,

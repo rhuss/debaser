@@ -55,7 +55,7 @@ const visible = (text: string) =>
 export function commandsOf(recipe: RecipeFile): string[] {
   return [
     ...(recipe.steps ?? []).map(s => `${s.name}: ${s.run.join(" ")}`),
-    ...(recipe.after_build ? [`after_build: ${recipe.after_build.join(" ")}`] : []),
+    ...(recipe.after_build?.length ? [`after_build: ${recipe.after_build.join(" ")}`] : []),
     ...(recipe.artifact?.install ? [`installs the build at: ${recipe.artifact.install}`] : []),
     ...promptFiles(recipe).map(path => `agent prompt from: .debaser/${path}`),
   ].map(visible);
@@ -69,7 +69,8 @@ export function recordTrust(ctx: Context, sha256: string) {
 /** Layer 3 at `tip`: the project's own recipe once trusted (FR-042). An
  * untrusted or changed one is shown and asked about on a terminal, taken with
  * `--trust-recipe`, and refused (exit 1) in a headless run. With `peek`, an
- * untrusted recipe is left out instead of asked about. */
+ * untrusted recipe is left out instead of asked about. A command without
+ * `--trust-recipe` (`ctx.offersTrustRecipe` false) offers only `debaser trust`. */
 export function repoLayer(ctx: Context, tip: string, o: { peek?: boolean } = {}): Layer | null {
   const found = readRepoRecipe(ctx.repo, tip);
   if (!found) return null;
@@ -102,6 +103,6 @@ export function repoLayer(ctx: Context, tip: string, o: { peek?: boolean } = {})
     throw new Explained(`the project's recipe ${repoRecipePath} was not trusted; nothing was changed`);
   }
   throw new Explained(`the project's recipe ${repoRecipePath} at ${tip.slice(0, 7)} is ${what}`, [
-    "  review it, then run `debaser trust`, or pass --trust-recipe",
+    `  review it, then run \`debaser trust\`${ctx.offersTrustRecipe ? ", or pass --trust-recipe" : ""}`,
   ]);
 }

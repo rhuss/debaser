@@ -40,7 +40,9 @@ The harness lives in the `harness` section of `patches.json`:
   stops with exit code 5 once the harness has made attempts × (steps +
   acceptance checks) fixes and a step still fails.
 - `tasks` names a different harness per task (`conflict`, `check`,
-  `acceptance`, `rebase`); each falls back to the top-level command.
+  `acceptance`, `rebase`); each falls back to the top-level command. A task
+  entry that sets `command` without its own `kind` uses the `plain` adapter,
+  not the top-level kind; limits always come from the top level.
 
 A harness command that is not executable is a warning, and the run behaves
 as without a harness (exit 2 at a conflict, 3 at a failing check). A harness
