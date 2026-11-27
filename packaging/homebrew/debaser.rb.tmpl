@@ -1,0 +1,40 @@
+# Rendered by scripts/release/render.ts for a stable release. The copy in
+# rhuss/homebrew-tap is generated; do not edit it by hand.
+class Debaser < Formula
+  desc "{{summary}}"
+  homepage "{{homepage}}"
+  version "{{version}}"
+  license "{{license}}"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "{{base_url}}/{{asset_darwin_arm64}}"
+      sha256 "{{sha256_darwin_arm64}}"
+    else
+      url "{{base_url}}/{{asset_darwin_amd64}}"
+      sha256 "{{sha256_darwin_amd64}}"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "{{base_url}}/{{asset_linux_arm64}}"
+      sha256 "{{sha256_linux_arm64}}"
+    else
+      url "{{base_url}}/{{asset_linux_amd64}}"
+      sha256 "{{sha256_linux_amd64}}"
+    end
+  end
+
+  # The release asset is already the compiled binary; nothing is built here.
+  depends_on "git"
+
+  def install
+    # The asset keeps its release name; the installed command is `debaser`.
+    bin.install Dir["debaser-*"].first => "debaser"
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/debaser --version")
+  end
+end

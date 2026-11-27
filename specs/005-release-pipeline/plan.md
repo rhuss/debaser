@@ -127,7 +127,10 @@ export function licenseOf(pkg: unknown, licenseFile: string | null): string;    
 ```bash
 # scripts/release/guard.sh
 # Env: TAG, SHA, GH_TOKEN. Exit 0 only when the tag matches package.json,
-# the commit has a successful ci.yml run, and no release exists for the version.
+# the commit is contained in origin/main, a push ci.yml run for that exact SHA
+# succeeded, and no release exists for the version.
+# The guard job checks out with fetch-depth: 0 (and fetches origin main) so
+# origin/main is present; a shallow checkout fails closed.
 ```
 
 ```yaml

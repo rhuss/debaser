@@ -1,0 +1,159 @@
+name: Channel - apt
+
+# Feeds the signed apt repository rhuss/debaser-apt from a published stable
+# release. One .deb per architecture is built with nfpm from the release asset,
+# the indexes are signed with the maintainer's key, and the public key is served
+# at the address the README names. A pre-release moves nothing and a retry never
+# moves the repository backwards.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish to the apt repository"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: channel-apt-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  repository:
+    name: repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Resolve the release
+        id: release
+        env:
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          version=$(bun scripts/release/version.ts parse-tag "$TAG")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$(bun scripts/release/version.ts is-prerelease "$version")" >> "$GITHUB_OUTPUT"
+
+      - name: Skip a pre-release
+        if: steps.release.outputs.prerelease == 'true'
+        run: echo "::notice::pre-release ${{ steps.release.outputs.version }} does not reach the apt repository"
+
+      - name: Download and verify the release assets
+        if: steps.release.outputs.prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          gh release download "v${{ steps.release.outputs.version }}" --dir assets \
+            --pattern 'debaser-*' --pattern 'SHA256SUMS'
+          (cd assets && sha256sum -c SHA256SUMS)
+
+      - name: Install the packaging tools
+        if: steps.release.outputs.prerelease == 'false'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y apt-utils gnupg
+          command -v go >/dev/null || { echo "::error::Go is needed to install nfpm"; exit 1; }
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Check out the apt repository
+        if: steps.release.outputs.prerelease == 'false'
+        env:
+          APT_REPO_TOKEN: ${{ secrets.APT_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch gh-pages https://github.com/rhuss/debaser-apt.git repo
+          auth=$(printf 'x-access-token:%s' "$APT_REPO_TOKEN" | base64 | tr -d '\n')
+          git -C repo config http.https://github.com/.extraheader "AUTHORIZATION: basic $auth"
+          git -C repo config user.name "debaser release"
+          git -C repo config user.email "release@users.noreply.github.com"
+
+      - name: Check what the repository serves
+        id: served
+        if: steps.release.outputs.prerelease == 'false'
+        run: |
+          set -uo pipefail
+          served=$(grep -h '^Version:' repo/dists/stable/main/binary-*/Packages 2>/dev/null |
+            sed 's/^Version: //' | sort -V | tail -1) || served=""
+          if [ -n "$served" ] && ! bun scripts/release/version.ts is-newer "${{ steps.release.outputs.version }}" "$served"; then
+            echo "::notice::the apt repository already serves $served; ${{ steps.release.outputs.version }} is not newer"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "served=${served:-none}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build one package per architecture
+        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          pool="$(pwd)/repo/pool/main/d/debaser"
+          mkdir -p "$pool"
+          for arch in amd64 arm64; do
+            install -d "stage/$arch"
+            cp "assets/debaser-$VERSION-linux-$arch" "stage/$arch/debaser"
+            bun scripts/release/render.ts --version "$VERSION" --sums assets --out "stage/$arch" --arch "$arch"
+            # nfpm resolves `src: ./debaser` against its own working directory.
+            (cd "stage/$arch" && nfpm package --config nfpm.yaml --packager deb --target "$pool/")
+          done
+
+      - name: Update and sign the repository indexes
+        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        env:
+          APT_GPG_KEY: ${{ secrets.APT_GPG_KEY }}
+          APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          cd repo
+          for arch in amd64 arm64; do
+            mkdir -p "dists/stable/main/binary-$arch"
+            apt-ftparchive -a "$arch" packages pool/main/d/debaser > "dists/stable/main/binary-$arch/Packages"
+            gzip -9 -kf "dists/stable/main/binary-$arch/Packages"
+          done
+          apt-ftparchive \
+            -o APT::FTPArchive::Release::Origin=debaser \
+            -o APT::FTPArchive::Release::Label=debaser \
+            -o APT::FTPArchive::Release::Suite=stable \
+            -o APT::FTPArchive::Release::Codename=stable \
+            -o APT::FTPArchive::Release::Architectures="amd64 arm64" \
+            -o APT::FTPArchive::Release::Components=main \
+            release dists/stable > dists/stable/Release
+
+          GNUPGHOME=$(mktemp -d)
+          export GNUPGHOME
+          printf '%s\n' "$APT_GPG_KEY" | gpg --batch --import
+          key=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')
+          [ -n "$key" ] || { echo "::error::APT_GPG_KEY holds no secret key"; exit 1; }
+          sign=(gpg --batch --yes --pinentry-mode loopback --passphrase "$APT_GPG_PASSPHRASE" --local-user "$key")
+          "${sign[@]}" -abs -o dists/stable/Release.gpg dists/stable/Release
+          "${sign[@]}" --clearsign -o dists/stable/InRelease dists/stable/Release
+          gpg --batch --armor --export "$key" > debaser-archive-keyring.gpg
+
+      - name: Push the repository
+        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          git -C repo add -A
+          if git -C repo diff --cached --quiet; then
+            echo "::notice::the apt repository is unchanged for ${{ steps.release.outputs.version }}"
+            exit 0
+          fi
+          git -C repo commit -m "debaser ${{ steps.release.outputs.version }}"
+          git -C repo push origin HEAD:gh-pages
+          echo "::notice::rhuss/debaser-apt now serves ${{ steps.release.outputs.version }}"

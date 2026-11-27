@@ -1,0 +1,103 @@
+name: Channel - Homebrew
+
+# Feeds rhuss/homebrew-tap from a published stable release. A pre-release moves
+# nothing, and a retry never moves the tap backwards.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish to the tap"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: channel-homebrew-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  tap:
+    name: tap
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Resolve the release
+        id: release
+        env:
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          version=$(bun scripts/release/version.ts parse-tag "$TAG")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$(bun scripts/release/version.ts is-prerelease "$version")" >> "$GITHUB_OUTPUT"
+
+      - name: Skip a pre-release
+        if: steps.release.outputs.prerelease == 'true'
+        run: echo "::notice::pre-release ${{ steps.release.outputs.version }} does not move the stable tap"
+
+      - name: Download and verify the release assets
+        if: steps.release.outputs.prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          gh release download "v${{ steps.release.outputs.version }}" --dir assets \
+            --pattern 'debaser-*' --pattern 'SHA256SUMS'
+          (cd assets && sha256sum -c SHA256SUMS)
+
+      - name: Check what the tap serves
+        id: served
+        if: steps.release.outputs.prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -uo pipefail
+          served=$(gh api repos/rhuss/homebrew-tap/contents/Formula/debaser.rb --jq .content 2>/dev/null |
+            base64 -d | sed -n 's/^  version "\([^"]*\)"/\1/p') || served=""
+          if [ -n "$served" ] && ! bun scripts/release/version.ts is-newer "$VERSION" "$served"; then
+            echo "::notice::the tap already serves $served; $VERSION is not newer"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "served=${served:-none}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Render the formula
+        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        run: bun scripts/release/render.ts --version "${{ steps.release.outputs.version }}" --sums assets --out formula
+
+      - name: Update the tap
+        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/rhuss/homebrew-tap.git tap
+          mkdir -p tap/Formula
+          cp formula/debaser.rb tap/Formula/debaser.rb
+          git -C tap config user.name "debaser release"
+          git -C tap config user.email "release@users.noreply.github.com"
+          auth=$(printf 'x-access-token:%s' "$HOMEBREW_TAP_TOKEN" | base64 | tr -d '\n')
+          git -C tap config http.https://github.com/.extraheader "AUTHORIZATION: basic $auth"
+          git -C tap add Formula/debaser.rb
+          if git -C tap diff --cached --quiet; then
+            echo "::notice::rhuss/homebrew-tap already carries $VERSION"
+            exit 0
+          fi
+          git -C tap commit -m "debaser $VERSION"
+          git -C tap push origin HEAD:main
+          echo "::notice::rhuss/homebrew-tap Formula/debaser.rb now serves $VERSION"

@@ -10,6 +10,9 @@ const root = join(import.meta.dir, "..", ".."),
   binary = join(root, "dist", "debaser");
 
 beforeAll(() => {
+  // The release workflow builds the binary it will publish and sets this flag
+  // so the check runs against that exact file instead of a second build.
+  if (process.env.DEBASER_BINARY_PREBUILT === "1") return;
   const built = Bun.spawnSync(["bun", "run", "build"], { cwd: root, stdout: "pipe", stderr: "pipe" });
   // bun build leaves temporary files beside the project while it compiles.
   for (const name of Bun.spawnSync(["sh", "-c", "ls -a | grep '\\.bun-build$' || true"], { cwd: root }).stdout.toString().split("\n").filter(Boolean))
@@ -30,7 +33,12 @@ test("the compiled binary prints its version and usage", () => {
   expect(existsSync(binary)).toBe(true);
   const version = debaser(null, "--version");
   expect(version.code).toBe(0);
-  expect(version.out).toMatch(/^debaser \d+\.\d+\.\d+\n$/);
+  // A pre-release version carries a hyphen (the tag v0.2.0-rc.1 reports 0.2.0-rc.1).
+  expect(version.out).toMatch(/^debaser \d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?\n$/);
+  // The release check pins the tag's version: a binary reporting another version
+  // must not be published (FR-002, SC-003).
+  const expected = process.env.DEBASER_EXPECTED_VERSION;
+  if (expected) expect(version.out).toBe(`debaser ${expected}\n`);
   expect(debaser(null, "help").out).toContain("usage: debaser");
 });
 

@@ -1,0 +1,99 @@
+name: Channel - AUR
+
+# Feeds the debaser-bin AUR package from a published stable release. The PKGBUILD
+# is rendered, never built here; a pre-release moves nothing and a retry never
+# moves the package backwards.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish to the AUR"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: channel-aur-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  aur:
+    name: aur
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Resolve the release
+        id: release
+        env:
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          version=$(bun scripts/release/version.ts parse-tag "$TAG")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$(bun scripts/release/version.ts is-prerelease "$version")" >> "$GITHUB_OUTPUT"
+
+      - name: Skip a pre-release
+        if: steps.release.outputs.prerelease == 'true'
+        run: echo "::notice::pre-release ${{ steps.release.outputs.version }} does not reach the AUR"
+
+      - name: Download and verify the release assets
+        if: steps.release.outputs.prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          gh release download "v${{ steps.release.outputs.version }}" --dir assets \
+            --pattern 'debaser-*' --pattern 'SHA256SUMS'
+          (cd assets && sha256sum -c SHA256SUMS)
+
+      - name: Render the AUR package
+        if: steps.release.outputs.prerelease == 'false'
+        run: bun scripts/release/render.ts --version "${{ steps.release.outputs.version }}" --sums assets --out package
+
+      - name: Update the AUR package
+        if: steps.release.outputs.prerelease == 'false'
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          install -d -m 0700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+
+          git clone ssh://aur@aur.archlinux.org/debaser-bin.git aur
+          served=$(sed -n 's/^pkgver=//p' aur/PKGBUILD 2>/dev/null || true)
+          if [ -n "$served" ] && [ "$served" = "$VERSION" ]; then
+            echo "::notice::the AUR already carries $VERSION"
+            exit 0
+          fi
+          if [ -n "$served" ] && ! bun scripts/release/version.ts is-newer "$VERSION" "$served"; then
+            echo "::notice::the AUR serves $served; $VERSION is not newer"
+            exit 0
+          fi
+
+          cp package/PKGBUILD package/.SRCINFO aur/
+          git -C aur config user.name "debaser release"
+          git -C aur config user.email "release@users.noreply.github.com"
+          git -C aur add PKGBUILD .SRCINFO
+          if git -C aur diff --cached --quiet; then
+            echo "::notice::the AUR package is unchanged for $VERSION"
+            exit 0
+          fi
+          git -C aur commit -m "debaser $VERSION"
+          git -C aur push origin HEAD:master
+          echo "::notice::AUR debaser-bin now serves $VERSION"

@@ -4,7 +4,7 @@ Each channel installs the release asset it names, declares the release version, 
 
 ## Common rules
 
-- Triggered by a published stable release, or run alone with a tag input. A pre-release triggers nothing.
+- Started by the release workflow after publication (a release created with `GITHUB_TOKEN` does not emit `release: published`, so `release.yml` dispatches each channel), or run alone with a tag input. The `release: published` trigger stays for releases made by other actors. A pre-release triggers nothing.
 - Reads the asset and its checksum from the release; never rebuilds.
 - Publishes only a version newer than the one it currently serves. A retry of an older tag is a no-op.
 - Holds one credential, as a repository secret, and never prints it.

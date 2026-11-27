@@ -60,7 +60,7 @@ All decisions below resolve the unknowns in the plan's Technical Context. Eviden
 
 ## R9: Gate on a passing test run for the tagged commit
 
-- **Decision**: The release workflow's guard job queries the CI workflow runs for the tagged commit (`gh run list --workflow ci.yml --commit <sha> --json conclusion,headSha`) and refuses unless a run for that exact SHA concluded `success`.
+- **Decision**: The release workflow's guard job requires the tagged commit to be contained in `origin/main` (`git merge-base --is-ancestor`, with a full-history checkout via `fetch-depth: 0`), then queries the CI workflow runs for that commit (`gh run list --workflow ci.yml --commit <sha> --json conclusion,headSha,event`) and refuses unless a `push` run for that exact SHA concluded `success`. Filtering on the event matters because `ci.yml` also runs on pull requests.
 - **Rationale**: `ci.yml` triggers on `main` pushes and pull requests, so a tag alone carries no result. Reusing the commit's green run satisfies FR-003 without a second full test pass, and the SHA check closes the race the edge case describes.
 - **Alternatives considered**: Re-running the suite inside the release (rejected: doubles the runtime for little gain; SC-002 has a budget). Trusting the tag (rejected: violates FR-003).
 - **Evidence**: `.github/workflows/ci.yml` triggers on `push: branches: [main]` and `pull_request` only, with the job named `test (<os>)`.

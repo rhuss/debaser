@@ -1,0 +1,235 @@
+name: Release
+
+# A v<version> tag is the only trigger a release needs. workflow_dispatch exists
+# to retry a refused release for the same tag and to run a dry run that stops
+# before publishing.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (v<semantic-version>)"
+        required: true
+        type: string
+      dry_run:
+        description: "Build and check every platform, but do not publish"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+# One release per tag. Different tags never wait on each other, and a release
+# is never cancelled halfway.
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read
+      actions: read
+    outputs:
+      version: ${{ steps.values.outputs.version }}
+      prerelease: ${{ steps.values.outputs.prerelease }}
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # A dry run may name a tag that is not pushed yet; it then stays on the
+      # dispatch ref. When the tag exists, every job works on the tag's commit.
+      - name: Check out the tag when it exists
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            git checkout --detach "$TAG"
+          fi
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Resolve the tagged commit
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Refuses a malformed tag, a version mismatch, a commit outside main, a
+      # commit without a green ci.yml run, and an existing release.
+      - name: Apply the release guard
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+          SHA: ${{ steps.commit.outputs.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/release/guard.sh
+
+      - name: Record the release values
+        id: values
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          version=$(bun scripts/release/version.ts parse-tag "$TAG")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$(bun scripts/release/version.ts is-prerelease "$version")" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build (${{ matrix.target }})
+    needs: guard
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      # One failed platform means no release at all (FR-007).
+      fail-fast: true
+      matrix:
+        include:
+          - target: linux-amd64
+            os: ubuntu-24.04
+          - target: linux-arm64
+            os: ubuntu-24.04-arm
+          - target: darwin-arm64
+            os: macos-15
+          - target: darwin-amd64
+            os: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          fetch-tags: true
+
+      - name: Check out the tag when it exists
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            git checkout --detach "$TAG"
+          fi
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      # The compiled binary's checks create temporary git repositories.
+      - name: Configure git
+        run: |
+          git config --global user.name "CI"
+          git config --global user.email "ci@example.com"
+          git config --global init.defaultBranch main
+          git config --global commit.gpgsign false
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      # The tested file is the published file: no second build here.
+      - name: Check the binary on its own platform
+        env:
+          DEBASER_BINARY_PREBUILT: "1"
+          DEBASER_EXPECTED_VERSION: ${{ needs.guard.outputs.version }}
+        run: bun test tests/smoke/binary.test.ts
+
+      - name: Keep the tested binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: debaser-${{ matrix.target }}
+          path: dist/debaser
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: publish
+    needs: [guard, build]
+    # A tag push publishes; on demand only a non-dry run does.
+    if: ${{ github.event_name == 'push' || !inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      # Starting the channel workflows after publication (workflow_dispatch).
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          fetch-tags: true
+
+      - name: Check out the tag when it exists
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            git checkout --detach "$TAG"
+          fi
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Download the four platform builds
+        uses: actions/download-artifact@v4
+        with:
+          path: builds
+
+      # Each binary is renamed to its contract asset name before hashing, and a
+      # missing platform refuses the whole release.
+      - name: Name the release assets
+        env:
+          VERSION: ${{ needs.guard.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          for target in linux-amd64 linux-arm64 darwin-arm64 darwin-amd64; do
+            binary="builds/debaser-$target/debaser"
+            if [ ! -f "$binary" ]; then
+              echo "::error::missing platform build for $target; refusing a partial release"
+              exit 1
+            fi
+            cp "$binary" "assets/debaser-$VERSION-$target"
+          done
+          bun scripts/release/version.ts sums assets "$VERSION" > assets/SHA256SUMS
+
+      - name: Verify the checksum file against the assets
+        run: |
+          set -euo pipefail
+          (cd assets && sha256sum -c SHA256SUMS)
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.guard.outputs.version }}
+          PRERELEASE: ${{ needs.guard.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "::error::release v$VERSION already exists; published assets are never replaced"
+            exit 1
+          fi
+          flags=(--verify-tag --generate-notes --title "v$VERSION")
+          if [ "$PRERELEASE" = "true" ]; then flags+=(--prerelease); fi
+          gh release create "v$VERSION" assets/* "${flags[@]}"
+
+      # A release created with GITHUB_TOKEN does not raise `release: published`
+      # for other workflows, so the channels are started explicitly.
+      # workflow_dispatch is exempt from that rule. Pre-releases move no channel.
+      - name: Start the channel workflows
+        if: ${{ needs.guard.outputs.prerelease != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.guard.outputs.version }}
+        run: |
+          set -euo pipefail
+          for workflow in channel-homebrew channel-copr channel-aur channel-apt; do
+            gh workflow run "$workflow.yml" -f "tag=v$VERSION"
+          done

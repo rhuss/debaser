@@ -17,8 +17,103 @@ ready-to-run prompt, and `continue` and `rollback` to go on.
 
 ## Install
 
-Build it from source with Bun 1.4.4 (the version CI tests with); release
-binaries are planned in [#12](https://github.com/rhuss/debaser/issues/12):
+debaser ships as a single binary for macOS and Linux, on `amd64` and `arm64`.
+It needs no language runtime.
+
+Supported platforms: Linux x86_64 (`linux-amd64`), Linux arm64
+(`linux-arm64`), macOS Apple silicon (`darwin-arm64`), macOS Intel
+(`darwin-amd64`). Windows and other architectures are not supported.
+
+### Homebrew
+
+macOS (Apple silicon and Intel) and Linux (amd64 and arm64):
+
+```bash
+brew install rhuss/tap/debaser
+```
+
+The tap serves stable releases only, and `brew upgrade` follows the next one.
+
+### Release binary
+
+Download the asset for your platform from the release, verify it against the
+published checksums, and put it on your `PATH`:
+
+```bash
+version=0.1.0
+os=linux        # or darwin
+arch=amd64      # or arm64
+base="https://github.com/rhuss/debaser/releases/download/v$version"
+
+curl -fsSLO "$base/debaser-$version-$os-$arch"
+curl -fsSLO "$base/SHA256SUMS"
+grep " debaser-$version-$os-$arch" SHA256SUMS | sha256sum -c -     # Linux
+grep " debaser-$version-$os-$arch" SHA256SUMS | shasum -a 256 -c - # macOS
+mkdir -p ~/.local/bin
+install -m 0755 "debaser-$version-$os-$arch" ~/.local/bin/debaser
+debaser --version
+```
+
+A pre-release is published under the same asset names at its own tag URL
+(`releases/download/v0.2.0-rc.1/...`).
+
+### Fedora (COPR)
+
+Linux amd64 and arm64:
+
+```bash
+sudo dnf copr enable rhuss/debaser
+sudo dnf install debaser
+```
+
+The package installs the release binary; it does not build from source.
+
+### Arch Linux (AUR)
+
+Linux amd64 and arm64:
+
+```bash
+yay -S debaser-bin        # or another AUR helper
+```
+
+`debaser-bin` repackages the release binary and verifies its published checksum.
+It needs the distribution's package build tools, not a language runtime.
+
+### Debian and Ubuntu (apt)
+
+Linux amd64 and arm64. One-time setup adds the repository's public key and its
+signed source; after that `apt install` works like any other package:
+
+```bash
+sudo install -d -m 0755 /usr/share/keyrings
+curl -fsSL https://rhuss.github.io/debaser-apt/debaser-archive-keyring.gpg \
+  | sudo gpg --dearmor -o /usr/share/keyrings/debaser.gpg
+echo "deb [signed-by=/usr/share/keyrings/debaser.gpg] https://rhuss.github.io/debaser-apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/debaser.list
+sudo apt update && sudo apt install debaser
+```
+
+### mise
+
+mise installs an exact version, stable or pre-release, straight from the release
+assets. Add the tool to `mise.toml`:
+
+```toml
+[tools."http:debaser"]
+version = "0.1.0"
+url = 'https://github.com/rhuss/debaser/releases/download/v{{ version }}/debaser-{{ version }}-{{ os(macos="darwin") }}-{{ arch(x64="amd64") }}'
+bin = "debaser"
+```
+
+Then run `mise install`. The URL is single-quoted because it contains double
+quotes; `os(macos="darwin")` and `arch(x64="amd64")` map mise's values onto the
+asset names. mise installs pre-releases by exact version and is not a stable
+channel.
+
+### From source
+
+With Bun 1.4 or newer:
+>>>>>>> d5496f8 (feat(release): add tag-triggered release pipeline and distribution channels)
 
 ```bash
 bun install

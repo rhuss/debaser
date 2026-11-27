@@ -19,7 +19,7 @@ trap 'rm -rf "$logs"' EXIT
 # Test files, the ones with the most tests first.
 files=()
 while IFS= read -r line; do files+=("${line#* }"); done < <(
-  find src tests -name '*.test.ts' -print | while IFS= read -r f; do
+  find src tests scripts -name '*.test.ts' -print | while IFS= read -r f; do
     printf '%s %s\n' "$(grep -cE '^\s*test(\.\w+)?\(' "$f")" "$f"
   done | sort -rn
 )

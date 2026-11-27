@@ -1,0 +1,114 @@
+name: Channel - Fedora COPR
+
+# Feeds the rhuss/debaser COPR project from a published stable release. COPR
+# accepts only source RPMs, so the spec is rendered and packaged into an SRPM;
+# the binary itself still comes from the release asset. A pre-release moves
+# nothing and a retry never moves the project backwards.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build in COPR"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: channel-copr-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  copr:
+    name: copr
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Resolve the release
+        id: release
+        env:
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          version=$(bun scripts/release/version.ts parse-tag "$TAG")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$(bun scripts/release/version.ts is-prerelease "$version")" >> "$GITHUB_OUTPUT"
+
+      - name: Skip a pre-release
+        if: steps.release.outputs.prerelease == 'true'
+        run: echo "::notice::pre-release ${{ steps.release.outputs.version }} does not reach COPR"
+
+      - name: Download and verify the release assets
+        if: steps.release.outputs.prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          gh release download "v${{ steps.release.outputs.version }}" --dir assets \
+            --pattern 'debaser-*' --pattern 'SHA256SUMS'
+          (cd assets && sha256sum -c SHA256SUMS)
+
+      - name: Install the RPM build tools and copr-cli
+        if: steps.release.outputs.prerelease == 'false'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y rpm pipx
+          pipx install copr-cli
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Check what COPR serves
+        id: served
+        if: steps.release.outputs.prerelease == 'false'
+        env:
+          COPR_CONFIG: ${{ secrets.COPR_CONFIG }}
+        run: |
+          set -uo pipefail
+          printf '%s\n' "$COPR_CONFIG" > "$RUNNER_TEMP/copr"
+          chmod 600 "$RUNNER_TEMP/copr"
+          served=$(copr-cli --config "$RUNNER_TEMP/copr" list-builds rhuss/debaser --output-format json 2>/dev/null |
+            jq -r '[.[] | select(.state == "succeeded") | .pkg_version] | sort_by(split(".") | map(tonumber)) | last // empty') || served=""
+          if [ -n "$served" ] && ! bun scripts/release/version.ts is-newer "${{ steps.release.outputs.version }}" "$served"; then
+            echo "::notice::COPR already serves $served; ${{ steps.release.outputs.version }} is not newer"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "served=${served:-none}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Render the RPM spec
+        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        run: bun scripts/release/render.ts --version "${{ steps.release.outputs.version }}" --sums assets --out package
+
+      - name: Build the source RPM
+        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/rpmbuild/SOURCES" "$HOME/rpmbuild/SPECS" "$HOME/rpmbuild/SRPMS"
+          cp package/debaser.spec "$HOME/rpmbuild/SPECS/"
+          # Both linux assets, the checksum file and the LICENSE travel in the
+          # SRPM: COPR then builds both architectures without network access.
+          cp assets/debaser-*-linux-* assets/SHA256SUMS LICENSE "$HOME/rpmbuild/SOURCES/"
+          rpmbuild -bs "$HOME/rpmbuild/SPECS/debaser.spec"
+
+      - name: Submit the build to COPR
+        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        env:
+          COPR_CONFIG: ${{ secrets.COPR_CONFIG }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$COPR_CONFIG" > "$RUNNER_TEMP/copr"
+          chmod 600 "$RUNNER_TEMP/copr"
+          copr-cli --config "$RUNNER_TEMP/copr" build rhuss/debaser "$HOME"/rpmbuild/SRPMS/debaser-*.src.rpm
+          echo "::notice::COPR rhuss/debaser built ${{ steps.release.outputs.version }}"
