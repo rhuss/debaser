@@ -76,7 +76,7 @@ export async function rollback(ctx: Context): Promise<Outcome> {
   if (current !== list.branch && !git.isClean(repo))
     throw new Explained(`${current ?? "the detached HEAD"} has uncommitted changes, and rollback would discard them; commit or stash them first`);
   tree.refuseRollbackIn(ctx, repo);
-  loadRecipe(ctx, run.upstream.tip, { trustFlag: false });
+  loadRecipe(ctx, run.upstream.tip);
   run.phase = "rollback";
   save(ctx, run);
   ctx.task?.("undo", "running");
@@ -142,7 +142,7 @@ function withoutTree(ctx: Context, run: RunState): Outcome {
  * and the installed artifact's `.prev` copy. */
 async function restorePrevious(ctx: Context): Promise<Outcome> {
   const list = listOf(ctx);
-  loadRecipe(ctx, null, { trustFlag: false });
+  loadRecipe(ctx, null);
   // Where the artifact would be, before anything is checked or created.
   const planned = installPath(ctx, tree.treePath(ctx).path),
     prev = git.revParse(ctx.home, `refs/heads/${list.branch}-prev`),

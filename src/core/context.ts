@@ -34,7 +34,9 @@ export type Context = {
   /** Receives `rollback`'s tasks as they start and end, for its checklist on a terminal. */
   task?: (id: string, state: "running" | "done" | "skipped" | "failed", detail?: string) => void;
   recipe?: EffectiveRecipe;
-  /** `--trust-recipe`: a headless run may use an untrusted project-repo recipe. */
+  /** `--trust-recipe`: a headless run may use an untrusted project-repo recipe.
+   * Set (true or false) only by the commands that accept the flag; unset means
+   * the running command has no `--trust-recipe` to offer. */
   trustRecipe?: boolean;
 };
 

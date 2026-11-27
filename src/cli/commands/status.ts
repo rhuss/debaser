@@ -20,12 +20,16 @@ import type { IO } from "../main";
 import type { Outcome } from "../outcome";
 import type { Options } from "./index";
 
-function ownState(r: RebaseResult, repo: string): view.Own {
+/** The commands that can run an in-worktree rebase check. */
+const rebasing = new Set(["build", "rebase", "continue"]);
+/** `checking`: a command that can run an in-worktree rebase check holds the lock right now. */
+function ownState(r: RebaseResult, repo: string, checking: boolean): view.Own {
   if (r.pending) return { kind: "pending", command: pushCommand(r) };
   if (r.outcome === "current") return { kind: "current", ...(r.reason ? { reason: r.reason } : {}) };
   if (r.worktree) return { kind: "worktree", path: r.worktree, rebasableThere: !!r.rebasableThere };
   // An in-worktree rebase still checking the branch: diverged only until its check passes.
-  if (r.diverged && git.revParse(repo, git.refs.rebaseChecking(r.branch))) return { kind: "checking" };
+  // Without such a command the marker is left over from a killed run, and the divergence is real.
+  if (r.diverged && checking && git.revParse(repo, git.refs.rebaseChecking(r.branch))) return { kind: "checking" };
   if (r.diverged) return { kind: "diverged" };
   return { kind: "other", reason: r.reason ?? r.outcome };
 }
@@ -77,7 +81,7 @@ export async function run(ctx: Context, o: Options, io: IO): Promise<Outcome> {
       tips.set(t.patch, t.from);
     }
     for (const r of own.results) {
-      owns.set(r.patch, ownState(r, ctx.repo));
+      owns.set(r.patch, ownState(r, ctx.repo, rebasing.has(v.running?.command ?? "")));
       const at = r.to ?? r.from;
       if (at) tips.set(r.patch, at);
     }

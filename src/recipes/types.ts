@@ -37,3 +37,5 @@ export type EffectiveRecipe = {
   /** The layers present, lowest first. */
   layers: string[];
 };
+/** The after-build command to run, or null: an empty `after_build` switches an inherited one off. */
+export const afterBuildOf = (r?: EffectiveRecipe | null): string[] | null => (r?.afterBuild?.length ? r.afterBuild : null);

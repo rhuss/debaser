@@ -7,6 +7,7 @@ import * as runstate from "../core/runstate";
 import type { RunState } from "../core/runstate";
 import type { Outcome } from "../cli/outcome";
 import * as git from "../git/git";
+import { afterBuildOf } from "../recipes/types";
 import { writeReport } from "../report/report";
 import { runStep } from "../steps/run";
 import * as timings from "../timings/timings";
@@ -59,11 +60,12 @@ export async function finish(ctx: Context, run: RunState): Promise<Outcome> {
     reason: string[] = [];
   let code: Code = pushed.refused ? 1 : 0;
   if (pushed.refused) reason.push("a push of a rebased branch was refused");
-  if (recipe.afterBuild?.length) {
+  const afterBuild = afterBuildOf(recipe);
+  if (afterBuild) {
     startItem(ctx, run, "after-build");
     stage(ctx, "after-build", "start");
-    ctx.progress(`running after-build command: ${recipe.afterBuild.join(" ")}`);
-    const ok = await runStep(recipe.afterBuild, { cwd: repo, log: join(run.reportDir, "steps", "after-build.log"), env: ctx.env, echo: ctx.echo });
+    ctx.progress(`running after-build command: ${afterBuild.join(" ")}`);
+    const ok = await runStep(afterBuild, { cwd: repo, log: join(run.reportDir, "steps", "after-build.log"), env: ctx.env, echo: ctx.echo });
     endItem(ctx, run, "after-build");
     stage(ctx, "after-build", "done", ok ? "passed" : "failed");
     lines.push(ok ? "after-build command: passed" : "warning: the after-build command failed; the build itself succeeded");

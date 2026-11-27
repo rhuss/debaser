@@ -163,6 +163,35 @@ test("a headless rollback with an untrusted project recipe offers only debaser t
   expect(refused.err).not.toContain("--trust-recipe");
 });
 
+test("a headless rollback of a stopped run with an untrusted project recipe offers only debaser trust", async () => {
+  const w = world(),
+    file = join(fresh("marks"), "marks");
+  upstreamRecipe(w, "first", file);
+  conflicting(w);
+  withoutLocal(w, ["left", "right"]);
+  expect((await run(w, "build", "--trust-recipe")).code).toBe(2);
+  rmSync(join(dirOf(w), "trust.json"));
+  const refused = await run(w, "rollback");
+  expect(refused.code).toBe(1);
+  expect(refused.err).toContain("run `debaser trust`");
+  expect(refused.err).not.toContain("--trust-recipe");
+});
+
+test("a headless continue with an untrusted project recipe still offers --trust-recipe", async () => {
+  const w = world(),
+    file = join(fresh("marks"), "marks");
+  upstreamRecipe(w, "first", file);
+  conflicting(w);
+  withoutLocal(w, ["left", "right"]);
+  expect((await run(w, "build", "--trust-recipe")).code).toBe(2);
+  rmSync(join(dirOf(w), "trust.json"));
+  git(w.clone, "checkout", "-q", "--theirs", "base.txt");
+  git(w.clone, "add", "base.txt");
+  const refused = await run(w, "continue");
+  expect(refused.code).toBe(1);
+  expect(refused.err).toContain("run `debaser trust`, or pass --trust-recipe");
+});
+
 test("after_build = [] in the local override runs no after-build command and shows none", async () => {
   const w = world(),
     file = join(fresh("marks"), "marks");

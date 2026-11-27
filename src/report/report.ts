@@ -137,6 +137,10 @@ export async function writeReport(
   return handoffs;
 }
 
+/** The run's outcome word, shared by report.md's result line and result.json:
+ * exit 1 after a finished run (a failed push) is "failed". */
+const outcomeOf = (code: number) => (code === 0 ? "success" : code === 1 ? "failed" : "stopped");
+
 function reportText(
   ctx: Context,
   run: RunState,
@@ -145,8 +149,7 @@ function reportText(
   const of = (kind: string) => run.events.filter(e => e.kind === kind),
     recipe = recipeOf(ctx),
     built = recipe.artifact?.install ?? listOf(ctx).branch,
-    // Worded as result.json's outcome: exit 1 after a finished run (a failed push) is "failed".
-    stopped = `Result: ${r.code === 1 ? "failed" : "stopped"} (exit ${r.code}): ${r.reason.join("; ")}`,
+    notDone = `Result: ${outcomeOf(r.code)} (exit ${r.code}): ${r.reason.join("; ")}`,
     rebased = run.rebased
       ? section("Rebased branches", rebaseLines(run.rebased, { current: true }).map(line => `- ${line}`), "no own branch needed a rebase")
       : [],
@@ -156,7 +159,7 @@ function reportText(
     return [
       `# debaser rebase report, ${run.startedAt}`,
       "",
-      r.code === 0 ? `Result: rebased own branches onto upstream ${short(run.upstream.tip)}.` : stopped,
+      r.code === 0 ? `Result: rebased own branches onto upstream ${short(run.upstream.tip)}.` : notDone,
       "",
       ...rebased,
       ...harness,
@@ -172,7 +175,7 @@ function reportText(
   return [
     `# debaser report, ${run.startedAt}`,
     "",
-    r.code === 0 ? `Result: built ${built} with ${run.merged.length} ${run.merged.length === 1 ? "patch" : "patches"}.` : stopped,
+    r.code === 0 ? `Result: built ${built} with ${run.merged.length} ${run.merged.length === 1 ? "patch" : "patches"}.` : notDone,
     "",
     ...section("Upstream", [
       `Reset to ${short(run.upstream.tip)}${run.startTip ? `; ${r.pulled.length} new upstream commits since the last build` : ""}.`,
@@ -263,7 +266,7 @@ function result(
     command: run.kind,
     // Runs from before the build directory worked where the integration branch was checked out.
     ...(run.kind === "build" ? { tree: run.tree ?? ctx.repo } : {}),
-    outcome: r.code === 0 ? "success" : r.code === 1 ? "failed" : "stopped",
+    outcome: outcomeOf(r.code),
     exitCode: r.code,
     upstream: { ref: run.upstream.ref, tip: run.upstream.tip, newCommits: r.pulled.length },
     patches,

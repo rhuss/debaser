@@ -1,5 +1,5 @@
 import { expect, setDefaultTimeout, test } from "bun:test";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   branch,
@@ -106,9 +106,21 @@ test("status shows a branch under an in-worktree rebase check as rebasing, check
   configureOwn(w, ["diverged"]);
   expect((await run(w, "status")).out).toContain("diverged from origin");
   git(w.clone, "update-ref", "refs/debaser/rebase-checking/diverged", local);
+  // Another live process (this runner's parent) holds the lock: the check is running.
+  writeFileSync(join(dirOf(w), "lock"), JSON.stringify({ pid: process.ppid, command: "rebase", startedAt: "2026-11-04T10:00:00Z" }));
   const shown = await run(w, "status");
   expect(shown.out).toMatch(/^diverged .*rebasing, checking/m);
   expect(shown.out).not.toContain("diverged from origin");
+  // With no rebasing command alive the marker is left over from a killed run: the divergence shows,
+  // also while a command that runs no rebase check holds the lock.
+  writeFileSync(join(dirOf(w), "lock"), JSON.stringify({ pid: process.ppid, command: "add", startedAt: "2026-11-04T10:00:00Z" }));
+  const busy = await run(w, "status");
+  expect(busy.out).toContain("diverged from origin");
+  expect(busy.out).not.toContain("rebasing, checking");
+  rmSync(join(dirOf(w), "lock"));
+  const stale = await run(w, "status");
+  expect(stale.out).toContain("diverged from origin");
+  expect(stale.out).not.toContain("rebasing, checking");
 });
 
 test("status lists own branches behind, conflicting with or left alone by upstream", async () => {

@@ -9,7 +9,7 @@ import { setLeftovers } from "../run/leftover";
 /** Resolves the effective recipe for this checkout and sets it on the context.
  * With the upstream tip, generic detection and the project-repo recipe read
  * that commit (FR-042); without it, the last fetched upstream, else the checkout. */
-export function loadRecipe(ctx: Context, tip?: string | null, o: { peek?: boolean; trustFlag?: boolean } = {}): EffectiveRecipe {
+export function loadRecipe(ctx: Context, tip?: string | null, o: { peek?: boolean } = {}): EffectiveRecipe {
   const list = listOf(ctx),
     at = tip ?? git.revParse(ctx.repo, `refs/remotes/${upstreamRemote(ctx)}/${list.upstream.branch}`);
   ctx.recipe = resolveRecipe({

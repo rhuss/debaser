@@ -69,9 +69,9 @@ export function recordTrust(ctx: Context, sha256: string) {
 /** Layer 3 at `tip`: the project's own recipe once trusted (FR-042). An
  * untrusted or changed one is shown and asked about on a terminal, taken with
  * `--trust-recipe`, and refused (exit 1) in a headless run. With `peek`, an
- * untrusted recipe is left out instead of asked about. With `trustFlag: false`
- * (a command without `--trust-recipe`), the refusal offers only `debaser trust`. */
-export function repoLayer(ctx: Context, tip: string, o: { peek?: boolean; trustFlag?: boolean } = {}): Layer | null {
+ * untrusted recipe is left out instead of asked about. A command without
+ * `--trust-recipe` (`ctx.trustRecipe` unset) offers only `debaser trust`. */
+export function repoLayer(ctx: Context, tip: string, o: { peek?: boolean } = {}): Layer | null {
   const found = readRepoRecipe(ctx.repo, tip);
   if (!found) return null;
   const known = loadTrust(ctx.dir).trusted[listOf(ctx).upstream.repo];
@@ -103,6 +103,6 @@ export function repoLayer(ctx: Context, tip: string, o: { peek?: boolean; trustF
     throw new Explained(`the project's recipe ${repoRecipePath} was not trusted; nothing was changed`);
   }
   throw new Explained(`the project's recipe ${repoRecipePath} at ${tip.slice(0, 7)} is ${what}`, [
-    `  review it, then run \`debaser trust\`${o.trustFlag === false ? "" : ", or pass --trust-recipe"}`,
+    `  review it, then run \`debaser trust\`${ctx.trustRecipe === undefined ? "" : ", or pass --trust-recipe"}`,
   ]);
 }
