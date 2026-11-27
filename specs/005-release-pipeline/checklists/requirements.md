@@ -33,3 +33,4 @@
 
 - Channel names (Homebrew, COPR, AUR, apt, mise) name the distribution paths a user chooses, not an implementation choice. The build and packaging tooling stays out of the spec and belongs to the plan.
 - The license choice is left to the maintainer and recorded in Assumptions; FR-019 makes it a hard prerequisite for package publication.
+- After the review-spec gate, the spec gained a Dependencies section, a named `SHA256SUMS` format, a defined pre-release tag rule, per-channel dependency expectations, a runtime `git` version check, pre-release isolation in SC-008, and edge cases for off-default-branch tags and unavailable native runners.

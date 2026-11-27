@@ -99,6 +99,9 @@ A developer pins a debaser version in their tool configuration through mise, inc
 - The version reported by a cross-built binary does not match its tag: publication is refused before channels run.
 - A tag is moved or pushed again after a release exists: the existing release for that version is not silently replaced.
 - A tag does not carry a well-formed version: publication is refused before any build.
+- A tag is pushed on a commit that is not on the default branch, or has no passing test run of its own: publication is refused.
+- No native machine is available for one of the four targets: publication is refused rather than shipping a binary no machine of its platform has run.
+- A user's `git` is older than 2.38: the tool stops with a message naming the minimum version, before touching the checkout.
 
 ## Requirements *(mandatory)*
 
@@ -106,23 +109,23 @@ A developer pins a debaser version in their tool configuration through mise, inc
 
 - **FR-001**: A release MUST be triggered by pushing a tag of the form `v<version>`. No other action may be required to release.
 - **FR-002**: The project MUST declare its version in exactly one place, and the system MUST refuse to publish when the tag version differs from the version the tool reports at runtime.
-- **FR-003**: The system MUST refuse to publish when the tagged commit's automated tests did not pass.
+- **FR-003**: The system MUST refuse to publish when no passing automated test run exists for the tagged commit, or when the available run was produced for a different commit.
 - **FR-004**: The system MUST produce binaries for Linux amd64, Linux arm64, macOS arm64 and macOS amd64.
-- **FR-005**: The system MUST publish a checksum file covering every binary, in a form a user can verify offline.
-- **FR-006**: Every binary MUST be exercised on a machine of its own platform before publication: it reports its version and completes a short live-view run in a scratch repository, with no view or worker error.
+- **FR-005**: The system MUST publish a `SHA256SUMS` file in `sha256sum -c` compatible format, with one SHA-256 line per binary, so a user can verify offline and package definitions can parse it without human input.
+- **FR-006**: Every binary MUST be exercised on a machine of its own platform before publication: it reports its version and completes a short live-view run in a scratch repository. The run passes when the view draws, the run ends with its final outcome line, no view or worker error appears, and the whole check finishes within a bounded time.
 - **FR-007**: A release MUST be published only when all four platform builds and platform checks passed. A partial release is not acceptable.
 - **FR-008**: Assets MUST follow one stable naming scheme, `debaser-<version>-<os>-<arch>`, where `<version>` has no leading `v`, `<os>` is `linux` or `darwin`, and `<arch>` is `amd64` or `arm64`, so package definitions can address them without consulting a person.
 - **FR-009**: A stable tag (a version with no pre-release suffix) MUST publish a normal release with generated release notes. A pre-release tag (a version with a hyphen and a pre-release suffix, e.g. `v1.2.3-rc.1`) MUST publish a pre-release entry with the same four platform binaries and checksum file, and MUST NOT update any stable channel.
-- **FR-010**: The Homebrew channel MUST install the matching platform binary from a tap, verify its checksum, declare the `git` dependency, and pass a version check on install.
+- **FR-010**: The Homebrew channel MUST install the matching platform binary from a tap, verify its checksum, declare the `git` dependency, and pass the formula's own test (`brew test debaser`).
 - **FR-011**: The Fedora channel MUST be installable from a COPR repository and install the release binary without building from source.
 - **FR-012**: The Arch channel MUST be installable from AUR and verify the published checksum.
-- **FR-013**: The Debian/Ubuntu channel MUST be installable from a signed apt repository, with one package per supported architecture.
+- **FR-013**: The Debian/Ubuntu channel MUST be installable from a signed apt repository, with one package per supported architecture, and MUST document the repository address and public key plus one setup step that adds both.
 - **FR-014**: The mise channel MUST let a user install an exact version, stable or pre-release, from the release assets.
 - **FR-015**: Every channel MUST install a binary byte-identical to the published release asset it names (identically for the installed file, including inside a package payload), and MUST declare the release version in its package metadata.
-- **FR-016**: Every package MUST declare `git` 2.38 or newer as a dependency.
+- **FR-016**: Every package whose format carries dependencies (Fedora, Arch, Debian/Ubuntu) MUST declare `git` 2.38 or newer, the Homebrew formula MUST declare `git`, and the tool MUST fail with a clear message when run with a `git` older than 2.38.
 - **FR-017**: A failure in one channel MUST NOT block, roll back or invalidate the release, and MUST NOT affect other channels. Each channel MUST be retryable on its own.
 - **FR-018**: A channel retry MUST NOT downgrade a channel that already serves a newer version.
-- **FR-019**: Package publication MUST be refused when the project declares no license.
+- **FR-019**: The project MUST record its license in a `LICENSE` file and in package metadata. Package publication MUST be refused when no license is recorded.
 - **FR-020**: The README install section MUST list each supported channel with its install command and state which platforms and architectures are supported.
 - **FR-021**: Releases MUST be independent of each other: a release publishes only artifacts built from its own tag, and never waits for, mixes with or overwrites another release's artifacts.
 - **FR-022**: A published version's assets MUST remain downloadable and unchanged, so pinned installs and older packages keep resolving.
@@ -131,20 +134,21 @@ A developer pins a debaser version in their tool configuration through mise, inc
 
 - **Release**: a version, the commit it was built from, its four platform artifacts, its checksum file, and whether it is stable or pre-release.
 - **Artifact**: one platform's binary for one release, with its asset name and checksum, and the platform check result that allowed its publication.
-- **Channel**: a distribution path (release assets, Homebrew tap, Fedora COPR, Arch AUR, apt repository, mise registry), with the version it currently serves and the record of the release that put it there.
+- **Channel**: a distribution path with the version it currently serves and the record of the release that put it there. A **stable channel** (Homebrew tap, Fedora COPR, Arch AUR, apt repository) serves only stable releases; **mise** serves any exact version, stable or pre-release.
 - **Package**: a channel-specific form of one artifact, carrying the release version, checksum and dependency metadata.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: On each of the four supported platforms, a user installs the current release with one documented command and sees the tagged version in `debaser --version`, with no runtime besides `git`.
+- **SC-001**: On each of the four supported platforms, a user completes the channel's one-time setup (adding the tap, enabling the COPR project, or adding the apt source and key) and then installs with one documented command, seeing the tagged version in `debaser --version`, with no runtime besides `git`.
 - **SC-002**: From tag push to binaries available on the release page: under 20 minutes.
 - **SC-003**: Across the first ten releases, no release reports a version other than its tag (zero occurrences).
 - **SC-004**: Across the first ten releases, no published binary fails its own platform check (zero occurrences).
 - **SC-005**: After a channel failure, re-running that channel alone restores it without any rebuild of the platform binaries.
 - **SC-006**: Over any ten consecutive stable releases, every channel serves either the newest stable version or the previous one, never older, and never a version no release lists.
-- **SC-007**: Every install command in the README succeeds on a machine that has never had a build toolchain installed.
+- **SC-007**: Every install command in the README succeeds on a machine that has never had a build toolchain installed, except AUR, which is documented as needing the distribution's build tools.
+- **SC-008**: Over the first ten releases, no stable channel ever serves a pre-release version (zero occurrences).
 
 ## Assumptions
 
@@ -156,3 +160,15 @@ A developer pins a debaser version in their tool configuration through mise, inc
 - Users come to the project through GitHub releases, the README, and their platform's package manager, and each has network access to the channel.
 - An existing automated test suite already gates the default branch; this feature reuses that result rather than adding a second gate.
 - Release notes are generated from the changes in the release; no manually maintained changelog is part of this feature.
+
+## Dependencies
+
+Each item is a prerequisite owned by the maintainer, and the feature is not complete until each exists.
+
+- **Homebrew tap**: the `rhuss/homebrew-tap` repository, plus a token that lets the release workflow update it.
+- **Fedora COPR**: a COPR project and its API credentials.
+- **Arch AUR**: the package name `debaser-bin` and an SSH key registered with AUR.
+- **Debian/Ubuntu apt**: a repository the maintainer controls, a signing key, and the public half published; the host is chosen in the plan.
+- **mise**: a registry entry pointing at the release assets.
+- **License**: a license choice recorded in a `LICENSE` file, owned by the maintainer.
+- **Secrets**: one credential per channel, held as repository secrets, owned by the maintainer.
