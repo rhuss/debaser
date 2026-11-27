@@ -71,10 +71,13 @@ packaging/
 └── deb/nfpm.yaml.tmpl           # NEW: deb metadata
 
 scripts/release/
-├── version.ts                   # NEW: tag/version rules, asset names, downgrade check
-├── render.ts                    # NEW: render the packaging templates
+├── version.ts                   # NEW: tag/version rules, asset names, downgrade check, sumsLine
+├── render.ts                    # NEW: render the packaging templates (also a CLI)
+├── guard.sh                     # NEW: tag, version, CI-run and default-branch guard
 ├── version.test.ts              # NEW
 └── render.test.ts               # NEW
+
+docs/release.md                  # NEW: operator guide, secrets, release audit
 
 tests/smoke/binary.test.ts       # MODIFIED: skip its own rebuild when the binary is prebuilt
 README.md                        # MODIFIED: install section per channel
@@ -109,6 +112,7 @@ export function parseTag(tag: string): string;        // version, or throws on a
 export function assetName(version: string, t: Target): string;
 export function isPrerelease(version: string): boolean;
 export function compareVersions(a: string, b: string): number; // <0, 0, >0
+export function versionMatchesTag(tag: string, pkgVersion: string): boolean;
 export function sumsLine(sha256: string, name: string): string; // "<hex>  <name>"
 ```
 
@@ -116,6 +120,8 @@ export function sumsLine(sha256: string, name: string): string; // "<hex>  <name
 // scripts/release/render.ts
 export function render(template: string, values: Record<string, string>): string; // throws on an unresolved placeholder
 export function licenseOf(pkg: unknown, licenseFile: string | null): string;      // throws when none is recorded
+// CLI: bun scripts/release/render.ts --version <v> --sums <dir|file> --out <dir>
+// Writes debaser.rb, PKGBUILD, .SRCINFO, debaser.spec and nfpm.yaml.
 ```
 
 ```bash
@@ -138,7 +144,9 @@ Failure modes the spec implies, each owned by a task with a test or a guard step
 - An asset missing from the release: the publish job refuses (T012).
 - A template rendering with a placeholder left behind: `render` refuses and is tested (T005, T006).
 - A tag that is well formed but disagrees with `package.json`: guard refuses (T008, T009).
-- A tag with no CI run for its exact SHA: guard refuses (T008).
+- A tag with no CI run for its exact SHA, or on a commit outside the default branch: guard refuses (T008).
+- A package built from an asset that no checksum verifies: each package workflow verifies against `SHA256SUMS` first (T023, T025, T026).
+- A published asset with the wrong name: the publish job renames each artifact to `assetName` before hashing (T012).
 - A pre-release reaching a stable channel: each channel workflow skips it (T018, T025, T026, T027), and `isPrerelease` is tested (T004).
 - A channel retry for an older tag: `compareVersions` refuses it (T004, T018, T025 to T027).
 - No license recorded: rendering refuses (T005, T006).

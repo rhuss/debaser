@@ -75,9 +75,11 @@ Install an exact version, stable or pre-release, by configuring debaser as an `h
 ```toml
 [tools."http:debaser"]
 version = "<version>"
-url = "https://github.com/rhuss/debaser/releases/download/v{{version}}/debaser-{{version}}-<os>-<arch>"
+url = 'https://github.com/rhuss/debaser/releases/download/v{{ version }}/debaser-{{ version }}-{{ os(macos="darwin") }}-{{ arch(x64="amd64") }}'
 bin = "debaser"
 ```
+
+The URL is single-quoted because it contains double quotes. `os(macos="darwin")` and `arch(x64="amd64")` map mise's values onto the asset names, as mise's `http` backend documentation describes.
 
 - Serves pre-releases by exact version; it is not a stable channel.
 - No per-release automation and no credential.

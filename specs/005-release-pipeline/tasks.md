@@ -35,13 +35,13 @@ Single project: `src/`, `tests/`, `scripts/`, `packaging/`, `.github/workflows/`
 
 **⚠️ CRITICAL**: No channel workflow or release workflow can be written before these exist
 
-- [ ] T003 Implement `scripts/release/version.ts`: `parseTag(tag)` (accepts `v<semver>` only, rejects a leading `v` inside the version), `assetName(version, os, arch)` (returns `debaser-<version>-<os>-<arch>` with `<os>` in `linux`/`darwin`, `<arch>` in `amd64`/`arm64`, no leading `v`), `isPrerelease(version)` (true when the version contains a hyphen), and `compareVersions(a, b)` (semantic-version ordering that understands pre-release suffixes)
-- [ ] T004 [P] Unit tests for `scripts/release/version.ts` in `scripts/release/version.test.ts` covering: well-formed and malformed tags, `0.1.0` versus `v0.1.0`, each of the four asset names, `0.2.0-rc.1` as a pre-release and `0.2.0` as stable, and `0.1.0` versus `0.10.0` versus `0.2.0` ordering
-- [ ] T005 Implement `scripts/release/render.ts`: a small placeholder renderer (`{{name}}` substitution, refusal on any unresolved placeholder) plus `licenseOf(packageJson, licenseFile)` that throws when the project records no license (FR-019) and accepts `package.json`'s `license` field or a `LICENSE` file
+- [ ] T003 Implement `scripts/release/version.ts` exporting exactly the shapes in plan.md's Interfaces: `Target` (`{ os: "linux" | "darwin"; arch: "amd64" | "arm64" }`), `TARGETS` (the four targets in asset order), `parseTag(tag)` (accepts `v<semver>` only; the characters after `v` must parse as a version, so `vv1.0.0` is refused), `assetName(version, target)` returning `debaser-<version>-<os>-<arch>` with no leading `v`, `isPrerelease(version)` (true when the version contains a hyphen), `compareVersions(a, b)`, `versionMatchesTag(tag, pkgVersion)`, and `sumsLine(sha256, name)` returning `<hex>  <name>` with two spaces
+- [ ] T004 [P] Unit tests for `scripts/release/version.ts` in `scripts/release/version.test.ts` covering: well-formed and malformed tags (including `vv1.0.0`), `0.1.0` versus `v0.1.0`, each of the four asset names via `TARGETS`, `sumsLine` output with two spaces, `versionMatchesTag` true and false cases, `0.2.0-rc.1` as a pre-release and `0.2.0` as stable, and `0.1.0` versus `0.10.0` versus `0.2.0` ordering
+- [ ] T005 Implement `scripts/release/render.ts`: `render(template, values)` (`{{name}}` substitution, refusal on any unresolved placeholder), `licenseOf(packageJson, licenseFile)` that throws when the project records no license (FR-019) and accepts `package.json`'s `license` field or a `LICENSE` file, plus a CLI entrypoint (`--version <v> --sums <dir|file> --out <dir>`) that dispatches to the five templates and writes `debaser.rb`, `PKGBUILD`, `.SRCINFO`, `debaser.spec` and `nfpm.yaml`
 - [ ] T006 [P] Unit tests for `scripts/release/render.ts` in `scripts/release/render.test.ts` covering substitution, refusal on a leftover placeholder, and refusal when no license exists
 - [ ] T007 Modify `tests/smoke/binary.test.ts` so its `beforeAll` rebuild is skipped when `DEBASER_BINARY_PREBUILT=1`, keeping the workflow's binary under test
-- [ ] T008 Implement `scripts/release/guard.sh`: checks the tag is well formed, that it equals `v` plus `package.json`'s version, that the commit's CI run (`gh run list --workflow ci.yml --commit <sha>`) concluded successfully for that exact SHA, and that no release for the version exists; exits non-zero with one clear line per failure
-- [ ] T009 Add a guard test path in `scripts/release/version.test.ts` for the version-match rule (pure part only), so the refusal is covered without network in CI
+- [ ] T008 Implement `scripts/release/guard.sh`: checks the tag is well formed, that `versionMatchesTag` holds, that the tagged commit is contained in `origin/main` (`git merge-base --is-ancestor <sha> origin/main`), that a `push` CI run for that exact SHA concluded successfully (`gh run list --workflow ci.yml --commit <sha> --json conclusion,headSha,event`), and that no release for the version exists; exits non-zero with one clear line per failure
+- [ ] T009 Add `versionMatchesTag` cases to `scripts/release/version.test.ts` (`v0.1.0` versus `0.1.0`, `v0.1.0` versus `0.2.0`, malformed tag), so the pure part of the guard is covered without network in CI
 
 **Checkpoint**: Rules and guard exist and are tested; channel work can start
 
@@ -60,7 +60,7 @@ Single project: `src/`, `tests/`, `scripts/`, `packaging/`, `.github/workflows/`
 ### Implementation for User Story 1
 
 - [ ] T011 [US1] Create `.github/workflows/release.yml` with a `guard` job that runs `scripts/release/guard.sh`, a `build` matrix (`ubuntu-24.04`, `ubuntu-24.04-arm`, `macos-15`, `macos-15-intel`) that runs `bun run build` and then `DEBASER_BINARY_PREBUILT=1 bun test tests/smoke/binary.test.ts`, and uploads each `dist/debaser` as an artifact
-- [ ] T012 [US1] Add the `publish` job to `.github/workflows/release.yml`: download all four artifacts, refuse unless all four are present, generate `SHA256SUMS`, support `workflow_dispatch` inputs `dry_run` and `tag` (the same tag also serves to retry a refused release without moving it), create the release with `gh release create` (pre-release flag from `isPrerelease`), generated notes, and no overwrite of an existing release
+- [ ] T012 [US1] Add the `publish` job to `.github/workflows/release.yml`: download all four artifacts, refuse unless all four are present, rename each downloaded `dist/debaser` to `assetName(version, target)` before hashing, generate `SHA256SUMS` with `sumsLine`, support `workflow_dispatch` inputs `dry_run` and `tag` (the same tag also serves to retry a refused release without moving it), create the release with `gh release create` (pre-release flag from `isPrerelease`), generated notes, and no overwrite of an existing release
 - [ ] T013 [US1] Add the release workflow's least-privilege permissions (`contents: write`, `checks: read`, `actions: read`) and a concurrency group keyed by the tag in `.github/workflows/release.yml`
 - [ ] T014 [P] [US1] Rewrite the README install section for the release binaries in `README.md`: supported platforms, the download-and-verify commands, and the `git` 2.38 requirement
 - [ ] T015 [US1] Document the dry run and the real-tag flow for maintainers in `docs/release.md`
@@ -103,10 +103,10 @@ Single project: `src/`, `tests/`, `scripts/`, `packaging/`, `.github/workflows/`
 ### Implementation for User Story 3
 
 - [ ] T022 [P] [US3] Create `packaging/deb/nfpm.yaml.tmpl` with name `debaser`, version, license, homepage, `depends: git (>= 2.38)`, the binary to `/usr/bin/debaser`, and the architecture mapping
-- [ ] T023 [P] [US3] Create `packaging/rpm/debaser.spec.tmpl` with `Source0` pointing at the release asset for `%{_arch}` (mapping `x86_64`/`aarch64` to `amd64`/`arm64`), `%prep` fetching it, `%install` to `%{_bindir}`, `%license`, `Requires: git >= 2.38`, and the version and license fields
+- [ ] T023 [P] [US3] Create `packaging/rpm/debaser.spec.tmpl` with `Source0` pointing at the release asset for `%{_arch}` (mapping `x86_64`/`aarch64` to `amd64`/`arm64`), `%prep` fetching it and verifying it against `SHA256SUMS`, `%install` to `%{_bindir}`, `%license`, `Requires: git >= 2.38`, and the version and license fields
 - [ ] T024 [P] [US3] Create `packaging/aur/PKGBUILD.tmpl` and `packaging/aur/SRCINFO.tmpl` for `debaser-bin` with per-architecture sources and checksums
-- [ ] T025 [P] [US3] Create `.github/workflows/channel-apt.yml`: build the two `.deb` files with nfpm, update the repository tree with `apt-ftparchive`, sign `Release` with `APT_GPG_KEY`/`APT_GPG_PASSPHRASE`, export the matching public key with `gpg --export` from the same secret to `debaser-archive-keyring.gpg` (armored), publish `rhuss/debaser-apt`, skip pre-releases, refuse downgrades
-- [ ] T026 [US3] Create `.github/workflows/channel-copr.yml`: build the SRPM with `rpmbuild -bs`, submit it with `copr-cli build` using `COPR_CONFIG`, skip pre-releases, refuse downgrades
+- [ ] T025 [P] [US3] Create `.github/workflows/channel-apt.yml`: verify both Linux assets against `SHA256SUMS` before packaging, build the two `.deb` files with nfpm, update the repository tree with `apt-ftparchive`, sign `Release` with `APT_GPG_KEY`/`APT_GPG_PASSPHRASE`, export the matching public key with `gpg --export` from the same secret to `debaser-archive-keyring.gpg` (armored), publish `rhuss/debaser-apt`, skip pre-releases, refuse downgrades
+- [ ] T026 [US3] Create `.github/workflows/channel-copr.yml`: verify the Linux assets against `SHA256SUMS` before packaging, build the SRPM with `rpmbuild -bs`, submit it with `copr-cli build` using `COPR_CONFIG`, skip pre-releases, refuse downgrades
 - [ ] T027 [US3] Create `.github/workflows/channel-aur.yml`: render the PKGBUILD and `.SRCINFO`, clone `ssh://aur@aur.archlinux.org/debaser-bin.git` with `AUR_SSH_KEY`, commit only when the version changed, push, and refuse downgrades
 - [ ] T028 [US3] Add the Fedora, Arch and Debian/Ubuntu commands, including the apt key and source setup, to `README.md`
 
@@ -122,8 +122,8 @@ Single project: `src/`, `tests/`, `scripts/`, `packaging/`, `.github/workflows/`
 
 ### Implementation for User Story 4
 
-- [ ] T029 [US4] Document the mise `http` tool definition in `README.md`, with the four platform URL variants and the `bin` name; verify the template variables and the `amd64`/`arm64` mapping against mise's documentation, and note the `ubi:` matching-regex fallback if the mapping cannot be expressed
-- [ ] T030 [US4] Add the mise entry to `contracts/channels.md`'s install list in the README and to `docs/release.md`
+- [ ] T029 [US4] Document the mise `http` tool definition in `README.md` using the documented Tera mapping: `url = 'https://github.com/rhuss/debaser/releases/download/v{{ version }}/debaser-{{ version }}-{{ os(macos="darwin") }}-{{ arch(x64="amd64") }}'` with `bin = "debaser"` (single-quoted TOML because the template contains double quotes), plus a short note that mise installs pre-releases by exact version
+- [ ] T030 [US4] Mirror the mise definition from `README.md` into `docs/release.md`, so the operator guide and the user-facing install list agree
 
 **Checkpoint**: All four stories are independently usable.
 
@@ -135,7 +135,8 @@ Single project: `src/`, `tests/`, `scripts/`, `packaging/`, `.github/workflows/`
 - [ ] T032 [P] Verify every template renders against a synthetic `SHA256SUMS` with `bun scripts/release/render.ts --version 0.1.0 --sums <dir> --out /tmp/packaging`, per `quickstart.md`
 - [ ] T033 [P] Verify the release workflow's dry run on the default branch with `gh workflow run release.yml -f dry_run=true -f tag=v0.1.0`, and record the run URL, its duration against SC-002's 20-minute budget, and the four platform job results in `docs/release.md`
 - [ ] T034 Document every required secret and repository (`HOMEBREW_TAP_TOKEN`, `COPR_CONFIG`, `AUR_SSH_KEY`, `APT_GPG_KEY`, `APT_GPG_PASSPHRASE`, `rhuss/homebrew-tap`, `rhuss/debaser-apt`, COPR project, AUR account) in `docs/release.md`, and list the maintainer-owned prerequisites still missing (LICENSE choice)
-- [ ] T035 Review the README install section against spec.md FR-020: every channel, its command, its one-time setup, and the supported platforms
+- [ ] T035 Review the README install section against spec.md FR-020: every channel, its command, its one-time setup, and the supported platforms; run the apt/deb command in a clean `debian:stable` and `ubuntu:latest` container to check SC-007, and record in `docs/release.md` which channels could not be checked locally (AUR needs Arch tooling, COPR needs Fedora, Homebrew needs a Mac)
+- [ ] T036 [P] Add a release audit checklist to `docs/release.md` with the queries for SC-003, SC-004, SC-006 and SC-008: the platform job results per release, the version each channel serves after a release, and a check that no stable channel carries a hyphenated version
 
 ---
 

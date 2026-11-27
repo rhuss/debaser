@@ -56,7 +56,7 @@ All decisions below resolve the unknowns in the plan's Technical Context. Eviden
 - **Decision**: Document a mise tool definition in the README that points at the release assets; no workflow and no registry repository.
 - **Rationale**: mise reads release assets directly, and FR-014 only requires an exact-version install. This removes a dependency and a maintenance surface.
 - **Alternatives considered**: A `ubi:` tool with a matching regex (viable, but the `http:` form states the URL explicitly). An official `mise-registry` entry (rejected: a pull request to another repository, and no functional gain for this feature).
-- **Verification**: the exact `http:` template variables (`{{version}}`, `{{os}}`, `{{arch}}`) and the arch mapping (`amd64` versus mise's `x64`) must be checked against mise's documentation while writing the README. Fallback if the mapping cannot be expressed: a `ubi:` tool with a `matching` regex.
+- **Verified**: mise's `http` backend documentation (read 2026-11-27) defines `{{ version }}`, `{{ os() }}` (`linux`/`macos`) and `{{ arch() }}` (`x64`/`arm64`), and both accept renaming arguments. The definition uses `{{ os(macos="darwin") }}` and `{{ arch(x64="amd64") }}`, which produce exactly the asset names. The URL must be a single-quoted TOML string because it contains double quotes. No fallback is needed.
 
 ## R9: Gate on a passing test run for the tagged commit
 
