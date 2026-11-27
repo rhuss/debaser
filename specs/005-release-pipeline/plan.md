@@ -140,7 +140,7 @@ dry_run: boolean    # release.yml only, default false
 
 Failure modes the spec implies, each owned by a task with a test or a guard step:
 
-- A `SHA256SUMS` line with one space or a wrong name: `sumsLine` tests (T010).
+- A `SHA256SUMS` line with one space or a wrong name: `sumsLine` tests (T004, T010).
 - An asset missing from the release: the publish job refuses (T012).
 - A template rendering with a placeholder left behind: `render` refuses and is tested (T005, T006).
 - A tag that is well formed but disagrees with `package.json`: guard refuses (T008, T009).
