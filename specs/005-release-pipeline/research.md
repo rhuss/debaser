@@ -26,10 +26,10 @@ All decisions below resolve the unknowns in the plan's Technical Context. Eviden
 
 ## R4: Fedora through COPR with a generated SRPM
 
-- **Decision**: `packaging/rpm/debaser.spec.tmpl` packages the release binary as `Source0`, mapping `%{_arch}` (`x86_64`/`aarch64`) to `amd64`/`arm64`; the workflow installs `rpm-build` and `copr-cli`, builds the SRPM with `rpmbuild -bs`, and submits it with `copr-cli build`.
+- **Decision**: `packaging/rpm/debaser.spec.tmpl` packages the release binaries and `SHA256SUMS` as sources bundled into the SRPM; `%prep` selects the asset for `%{_arch}` (`x86_64`/`aarch64` mapped to `amd64`/`arm64`) from the bundle. The workflow installs `rpm-build` and `copr-cli`, builds the SRPM with `rpmbuild -bs`, and submits it with `copr-cli build`.
 - **Rationale**: COPR accepts source RPMs only, so a binary RPM built by nfpm cannot be uploaded. The spec's `%prep` fetches the already-published asset, keeping the "repackaged binaries" decision: no Bun in the buildroot and no second build. COPR builds both architectures from the same SRPM.
 - **Alternatives considered**: Building from source in COPR (rejected: Bun is not in Fedora, and it contradicts the agreed repackaging). nfpm's RPM output uploaded somewhere other than COPR (rejected: no `dnf`-installable channel).
-- **Risks**: COPR buildroots need network access to fetch `Source0` (COPR enables network by default). The spec must declare a license, which is the maintainer dependency FR-019 guards.
+- **Risks**: The spec must declare a license, which is the maintainer dependency FR-019 guards. The SRPM embeds the assets, so the COPR buildroot needs no network.
 
 ## R5: AUR with a rendered `-bin` PKGBUILD and matching `.SRCINFO`
 

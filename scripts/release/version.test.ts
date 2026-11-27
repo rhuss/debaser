@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -43,7 +44,9 @@ test("the four targets produce the asset names in the contract's order", () => {
 });
 
 test("asset names never carry a leading v", () => {
-  expect(assetName("0.1.0", { os: "linux", arch: "amd64" })).not.toContain("debaser-v");
+  expect(assetName("0.1.0", { os: "linux", arch: "amd64" })).toBe("debaser-0.1.0-linux-amd64");
+  expect(() => assetName("v0.1.0", { os: "linux", arch: "amd64" })).toThrow("semantic version");
+  expect(() => assetName("0.1", { os: "linux", arch: "amd64" })).toThrow("semantic version");
 });
 
 test("every target gets a distinct asset name", () => {
@@ -64,10 +67,33 @@ test("a checksum line refuses a digest that is not 64 hex characters", () => {
 
 test("the checksum file covers exactly the four assets in asset order", () => {
   const dir = mkdtempSync(join(tmpdir(), "debaser-sums-"));
-  for (const target of TARGETS) writeFileSync(join(dir, assetName("0.1.0", target)), "binary\n");
-  expect(sumsFor("0.1.0", dir).trimEnd().split("\n")).toEqual(
-    TARGETS.map((target) => expect.stringMatching(new RegExp(`^[0-9a-f]{64}  ${assetName("0.1.0", target)}$`))),
-  );
+  // Distinct bytes per asset, so an implementation that hashes one file for
+  // every line cannot pass.
+  const lines = TARGETS.map((target, index) => {
+    const name = assetName("0.1.0", target);
+    const content = `binary ${index}\n`;
+    writeFileSync(join(dir, name), content);
+    return `${createHash("sha256").update(content).digest("hex")}  ${name}`;
+  });
+  expect(sumsFor("0.1.0", dir)).toBe(`${lines.join("\n")}\n`);
+});
+
+test("an asset name with whitespace is refused in a checksum line", () => {
+  expect(() => sumsLine("a".repeat(64), "debaser two")).toThrow("must not contain whitespace");
+});
+
+test("the generated checksum file is accepted by sha256sum -c", () => {
+  const dir = mkdtempSync(join(tmpdir(), "debaser-sums-"));
+  TARGETS.forEach((target, index) => {
+    writeFileSync(join(dir, assetName("0.1.0", target)), `binary ${index}\n`);
+  });
+  writeFileSync(join(dir, "SHA256SUMS"), sumsFor("0.1.0", dir));
+  const command = process.platform === "darwin" ? "shasum" : "sha256sum";
+  const args = process.platform === "darwin" ? ["-a", "256", "-c", "SHA256SUMS"] : ["-c", "SHA256SUMS"];
+  expect(Bun.spawnSync([command, ...args], { cwd: dir, stdout: "pipe", stderr: "pipe" }).exitCode).toBe(0);
+  // One changed byte must fail the same command, proving it verifies the file.
+  writeFileSync(join(dir, assetName("0.1.0", TARGETS[0]!)), "tampered\n");
+  expect(Bun.spawnSync([command, ...args], { cwd: dir, stdout: "pipe", stderr: "pipe" }).exitCode).not.toBe(0);
 });
 
 test("the checksum file refuses to cover a missing asset", () => {
@@ -99,6 +125,23 @@ test("a hyphen in the version makes it a pre-release, no hyphen makes it stable"
 
 test("build metadata with a hyphen is not a pre-release", () => {
   expect(isPrerelease("1.0.0+build-7")).toBe(false);
+  expect(isPrerelease("1.0.0-rc.1+build.7")).toBe(true);
+});
+
+test("build metadata does not change the precedence of a version", () => {
+  expect(compareVersions("1.0.0+b1", "1.0.0+b2")).toBe(0);
+  expect(compareVersions("1.0.0-rc.1+b1", "1.0.0-rc.1+b2")).toBe(0);
+});
+
+test("numeric pre-release identifiers sort numerically, not as text", () => {
+  expect(compareVersions("1.0.0-rc.2", "1.0.0-rc.10")).toBeLessThan(0);
+  expect(compareVersions("1.0.0-rc.10", "1.0.0-rc.2")).toBeGreaterThan(0);
+});
+
+test("versions compare correctly past the range a double can represent exactly", () => {
+  expect(compareVersions("9007199254740993.0.0", "9007199254740992.0.0")).toBeGreaterThan(0);
+  expect(compareVersions("9007199254740992.0.0", "9007199254740993.0.0")).toBeLessThan(0);
+  expect(compareVersions("1.0.0-rc.9007199254740993", "1.0.0-rc.9007199254740992")).toBeGreaterThan(0);
 });
 
 test("versions sort by major, then minor, then patch numerically", () => {

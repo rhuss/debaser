@@ -19,7 +19,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: channel-apt-${{ inputs.tag || github.event.release.tag_name }}
+  # Serialize updates for this channel so two tags cannot race the index push.
+  group: channel-apt
   cancel-in-progress: false
 
 jobs:
@@ -31,6 +32,9 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Render from the release's own commit, not from an advanced main.
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -40,11 +44,20 @@ jobs:
         id: release
         env:
           TAG: ${{ inputs.tag || github.event.release.tag_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           version=$(bun scripts/release/version.ts parse-tag "$TAG")
+          prerelease=$(bun scripts/release/version.ts is-prerelease "$version")
+          # A release can be flagged pre-release on GitHub even when its tag has
+          # no suffix. Treat either form as a pre-release, and fail closed when
+          # the release cannot be read.
+          flag=$(gh api "repos/{owner}/{repo}/releases/tags/v$version" \
+            --jq 'if .prerelease or .draft then "true" else "false" end' 2>/dev/null) || {
+            echo "::error::cannot read the release v$version"; exit 1; }
+          if [ "$flag" = "true" ]; then prerelease=true; fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$(bun scripts/release/version.ts is-prerelease "$version")" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
 
       - name: Skip a pre-release
         if: steps.release.outputs.prerelease == 'true'
@@ -68,7 +81,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y apt-utils gnupg
           command -v go >/dev/null || { echo "::error::Go is needed to install nfpm"; exit 1; }
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          # Pinned so a retry months later builds with the version tested here.
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.49.0
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: Check out the apt repository
@@ -90,11 +104,19 @@ jobs:
           set -uo pipefail
           served=$(grep -h '^Version:' repo/dists/stable/main/binary-*/Packages 2>/dev/null |
             sed 's/^Version: //' | sort -V | tail -1) || served=""
-          if [ -n "$served" ] && ! bun scripts/release/version.ts is-newer "${{ steps.release.outputs.version }}" "$served"; then
-            echo "::notice::the apt repository already serves $served; ${{ steps.release.outputs.version }} is not newer"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "served=${served:-none}" >> "$GITHUB_OUTPUT"
+          if [ -n "$served" ]; then
+            if bun scripts/release/version.ts is-newer "${{ steps.release.outputs.version }}" "$served"; then
+              :
+            else
+              status=$?
+              if [ "$status" -eq 1 ]; then
+                echo "::notice::the apt repository already serves $served; ${{ steps.release.outputs.version }} is not newer"
+                echo "skip=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "::error::cannot compare ${{ steps.release.outputs.version }} with the served version $served"
+                exit 1
+              fi
+            fi
           fi
 
       - name: Build one package per architecture
@@ -147,13 +169,26 @@ jobs:
 
       - name: Push the repository
         if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
           git -C repo add -A
           if git -C repo diff --cached --quiet; then
-            echo "::notice::the apt repository is unchanged for ${{ steps.release.outputs.version }}"
+            echo "::notice::the apt repository is unchanged for $VERSION"
             exit 0
           fi
-          git -C repo commit -m "debaser ${{ steps.release.outputs.version }}"
+          git -C repo commit -m "debaser $VERSION"
           git -C repo push origin HEAD:gh-pages
-          echo "::notice::rhuss/debaser-apt now serves ${{ steps.release.outputs.version }}"
+          # A push only queues a Pages build. Confirm the channel actually serves
+          # the version, so a Pages failure is not reported as success.
+          for _ in $(seq 1 30); do
+            if curl -fsS "https://rhuss.github.io/debaser-apt/dists/stable/main/binary-amd64/Packages" |
+              grep -q "^Version: $VERSION$"; then
+              echo "::notice::rhuss/debaser-apt now serves $VERSION"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::GitHub Pages does not serve $VERSION yet; retry this channel"
+          exit 1

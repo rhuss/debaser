@@ -43,17 +43,26 @@ export function isPrerelease(version: string): boolean {
   return (version.split("+")[0] ?? "").includes("-");
 }
 
-type Parsed = { major: number; minor: number; patch: number; pre: string[] };
+type Parsed = { major: string; minor: string; patch: string; pre: string[] };
 
 function parseVersion(version: string): Parsed {
   const match = VERSION.exec(version);
   if (!match) throw Error(`${JSON.stringify(version)} is not a semantic version`);
   return {
-    major: Number(match[1]),
-    minor: Number(match[2]),
-    patch: Number(match[3]),
+    major: match[1]!,
+    minor: match[2]!,
+    patch: match[3]!,
     pre: match[4] ? match[4].split(".") : [],
   };
+}
+
+/** Compares two digit strings by value without going through a Number, so
+ * identifiers past 2^53 keep their ordering. */
+function compareNumeric(a: string, b: string): number {
+  const x = a.replace(/^0+(?=\d)/, "");
+  const y = b.replace(/^0+(?=\d)/, "");
+  if (x.length !== y.length) return x.length < y.length ? -1 : 1;
+  return x === y ? 0 : x < y ? -1 : 1;
 }
 
 /** Semantic-version precedence: negative when `a` sorts before `b`, zero when
@@ -62,7 +71,8 @@ export function compareVersions(a: string, b: string): number {
   const left = parseVersion(a);
   const right = parseVersion(b);
   for (const part of ["major", "minor", "patch"] as const) {
-    if (left[part] !== right[part]) return left[part] < right[part] ? -1 : 1;
+    const order = compareNumeric(left[part], right[part]);
+    if (order !== 0) return order;
   }
   // A version without a pre-release suffix outranks one with it (1.0.0 > 1.0.0-rc.1).
   if (left.pre.length === 0 && right.pre.length === 0) return 0;
@@ -76,8 +86,8 @@ export function compareVersions(a: string, b: string): number {
     const xNumeric = /^\d+$/.test(x);
     const yNumeric = /^\d+$/.test(y);
     if (xNumeric && yNumeric) {
-      const difference = Number(x) - Number(y);
-      if (difference !== 0) return difference < 0 ? -1 : 1;
+      const order = compareNumeric(x, y);
+      if (order !== 0) return order;
     } else if (xNumeric) {
       return -1;
     } else if (yNumeric) {
@@ -127,7 +137,8 @@ function usage(): string {
     "  parse-tag <tag>                 print the version, or fail on a malformed tag",
     "  is-prerelease <version>         print true or false",
     "  compare <a> <b>                 print -1, 0 or 1",
-    "  is-newer <candidate> <served>   exit 0 only when candidate > served",
+    "  is-newer <candidate> <served>   exit 0 when candidate > served, 1 when not,",
+    "                                  and 2 when a version cannot be parsed",
     "  asset-name <version> <os> <arch>",
     "  sums <dir> <version>            print SHA256SUMS for the four assets in dir",
   ].join("\n");
@@ -150,7 +161,15 @@ function main(argv: string[]): number {
       return 0;
     }
     case "is-newer": {
-      return compareVersions(args[0] ?? "", args[1] ?? "") > 0 ? 0 : 1;
+      // 0: candidate is newer, 1: not newer, 2: a version could not be parsed.
+      // The channels must not read a parse error as "not newer" and skip a
+      // channel silently, so the two cases have distinct exit codes.
+      try {
+        return compareVersions(args[0] ?? "", args[1] ?? "") > 0 ? 0 : 1;
+      } catch (error) {
+        process.stderr.write(`version: ${(error as Error).message}\n`);
+        return 2;
+      }
     }
     case "asset-name": {
       const os = args[1];

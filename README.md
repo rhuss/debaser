@@ -40,6 +40,7 @@ Download the asset for your platform from the release, verify it against the
 published checksums, and put it on your `PATH`:
 
 ```bash
+set -e
 version=0.1.0
 os=linux        # or darwin
 arch=amd64      # or arm64
@@ -47,8 +48,9 @@ base="https://github.com/rhuss/debaser/releases/download/v$version"
 
 curl -fsSLO "$base/debaser-$version-$os-$arch"
 curl -fsSLO "$base/SHA256SUMS"
-grep " debaser-$version-$os-$arch" SHA256SUMS | sha256sum -c -     # Linux
-grep " debaser-$version-$os-$arch" SHA256SUMS | shasum -a 256 -c - # macOS
+line=$(grep " debaser-$version-$os-$arch" SHA256SUMS) || { echo "no checksum for this asset" >&2; exit 1; }
+if command -v sha256sum >/dev/null; then verify=(sha256sum -c -); else verify=(shasum -a 256 -c -); fi
+printf '%s\n' "$line" | "${verify[@]}"
 mkdir -p ~/.local/bin
 install -m 0755 "debaser-$version-$os-$arch" ~/.local/bin/debaser
 debaser --version

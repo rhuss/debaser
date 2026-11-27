@@ -16,7 +16,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: channel-homebrew-${{ inputs.tag || github.event.release.tag_name }}
+  # One update per channel at a time: two tags checking and pushing the tap
+  # concurrently could otherwise fast-forward an older version over a newer one.
+  group: channel-homebrew
   cancel-in-progress: false
 
 jobs:
@@ -28,6 +30,9 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Render from the release's own commit, not from an advanced main.
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -37,11 +42,20 @@ jobs:
         id: release
         env:
           TAG: ${{ inputs.tag || github.event.release.tag_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           version=$(bun scripts/release/version.ts parse-tag "$TAG")
+          prerelease=$(bun scripts/release/version.ts is-prerelease "$version")
+          # A release can be flagged pre-release on GitHub even when its tag has
+          # no suffix. Treat either form as a pre-release, and fail closed when
+          # the release cannot be read.
+          flag=$(gh api "repos/{owner}/{repo}/releases/tags/v$version" \
+            --jq 'if .prerelease or .draft then "true" else "false" end' 2>/dev/null) || {
+            echo "::error::cannot read the release v$version"; exit 1; }
+          if [ "$flag" = "true" ]; then prerelease=true; fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$(bun scripts/release/version.ts is-prerelease "$version")" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
 
       - name: Skip a pre-release
         if: steps.release.outputs.prerelease == 'true'
@@ -58,35 +72,44 @@ jobs:
             --pattern 'debaser-*' --pattern 'SHA256SUMS'
           (cd assets && sha256sum -c SHA256SUMS)
 
-      - name: Check what the tap serves
-        id: served
-        if: steps.release.outputs.prerelease == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          set -uo pipefail
-          served=$(gh api repos/rhuss/homebrew-tap/contents/Formula/debaser.rb --jq .content 2>/dev/null |
-            base64 -d | sed -n 's/^  version "\([^"]*\)"/\1/p') || served=""
-          if [ -n "$served" ] && ! bun scripts/release/version.ts is-newer "$VERSION" "$served"; then
-            echo "::notice::the tap already serves $served; $VERSION is not newer"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "served=${served:-none}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Render the formula
-        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        if: steps.release.outputs.prerelease == 'false'
         run: bun scripts/release/render.ts --version "${{ steps.release.outputs.version }}" --sums assets --out formula
 
       - name: Update the tap
-        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        if: steps.release.outputs.prerelease == 'false'
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
           git clone --depth 1 https://github.com/rhuss/homebrew-tap.git tap
+          # Read the version from the same commit that will be pushed, so a
+          # newer formula landing meanwhile is seen here, not missed. A formula
+          # that exists but cannot be read is an error, not "nothing served".
+          formula=tap/Formula/debaser.rb
+          if [ -f "$formula" ]; then
+            served=$(sed -n 's/^  version "\([^"]*\)"/\1/p' "$formula") || {
+              echo "::error::cannot read $formula"; exit 1; }
+            if [ -z "$served" ]; then
+              echo "::error::$formula carries no version"; exit 1
+            fi
+          else
+            served=""
+          fi
+          if [ -n "$served" ]; then
+            if bun scripts/release/version.ts is-newer "$VERSION" "$served"; then
+              :
+            else
+              status=$?
+              if [ "$status" -eq 1 ]; then
+                echo "::notice::the tap already serves $served; $VERSION is not newer"
+                exit 0
+              fi
+              echo "::error::cannot compare $VERSION with the served version $served"
+              exit 1
+            fi
+          fi
           mkdir -p tap/Formula
           cp formula/debaser.rb tap/Formula/debaser.rb
           git -C tap config user.name "debaser release"

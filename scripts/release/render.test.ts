@@ -176,8 +176,9 @@ test("the RPM spec carries both Linux assets and maps each architecture to one",
 test("the RPM spec verifies each architecture's asset against the published checksums", () => {
   const spec = renderTemplate("rpm/debaser.spec.tmpl");
   expect(spec).toContain("Source2:        https://github.com/rhuss/debaser/releases/download/v0.1.0/SHA256SUMS");
-  expect(spec).toContain('grep " debaser-0.1.0-linux-amd64$" SHA256SUMS | sha256sum -c -');
-  expect(spec).toContain('grep " debaser-0.1.0-linux-arm64$" SHA256SUMS | sha256sum -c -');
+  expect(spec).toContain('line=$(grep " debaser-0.1.0-linux-amd64$" SHA256SUMS) || exit 1');
+  expect(spec).toContain('line=$(grep " debaser-0.1.0-linux-arm64$" SHA256SUMS) || exit 1');
+  expect(spec).toContain('printf \'%s\\n\' "$line" | sha256sum -c -');
 });
 
 test("the RPM spec leaves the prebuilt binary unstripped", () => {
@@ -255,4 +256,61 @@ test("the checksum file accepts sha256sum's binary-mode marker", () => {
   ];
   writeFileSync(path, `${lines.join("\n")}\n`);
   expect(readChecksums(path, "0.1.0")["debaser-0.1.0-linux-amd64"]).toBe(DIGEST);
+});
+
+const TEMPLATES = ["homebrew/debaser.rb.tmpl", "aur/PKGBUILD.tmpl", "aur/SRCINFO.tmpl", "rpm/debaser.spec.tmpl", "deb/nfpm.yaml.tmpl"];
+
+test("every template renders the requested version, not the current package version", () => {
+  // A template that hardcoded 0.1.0 (today's package version) would pass every
+  // other test, but the next release would ship the wrong version.
+  const version = "9.8.7";
+  for (const path of TEMPLATES) {
+    const text = render(readFileSync(templatePath(path), "utf8"), valuesFor(version, checksumsFor(version), "MIT"));
+    expect(text).toContain(version);
+    expect(text).not.toContain("0.1.0");
+    expect(text).not.toContain("{{");
+    // nfpm takes the binary from the directory beside it, not from a URL.
+    if (path !== "deb/nfpm.yaml.tmpl") expect(text).toContain(`releases/download/v${version}`);
+  }
+});
+
+test("the license comes from the metadata, not from a template constant", () => {
+  const values = valuesFor("0.1.0", checksumsFor("0.1.0"), "Apache-2.0");
+  for (const path of TEMPLATES) {
+    const text = render(readFileSync(templatePath(path), "utf8"), values);
+    expect(text).toContain("Apache-2.0");
+    expect(text).not.toContain("MIT");
+  }
+});
+
+test("each Homebrew branch pairs its url with its own digest", () => {
+  const formula = renderTemplate("homebrew/debaser.rb.tmpl");
+  for (const [platform, digit] of [
+    ["darwin-arm64", "3"],
+    ["darwin-amd64", "4"],
+    ["linux-arm64", "2"],
+    ["linux-amd64", "1"],
+  ] as const) {
+    expect(formula).toMatch(
+      new RegExp(`url "[^"]*debaser-0\\.1\\.0-${platform}"\\n\\s*sha256 "${digit.repeat(64)}"`),
+    );
+  }
+});
+
+test("the packages install the downloaded asset, not another file", () => {
+  expect(renderTemplate("deb/nfpm.yaml.tmpl")).toContain("src: ./debaser");
+  const pkgbuild = renderTemplate("aur/PKGBUILD.tmpl");
+  expect(pkgbuild).toContain('asset="debaser-0.1.0-linux-amd64"');
+  expect(pkgbuild).toContain('asset="debaser-0.1.0-linux-arm64"');
+  expect(pkgbuild).toContain('install -Dm755 "${srcdir}/$asset" "${pkgdir}/usr/bin/debaser"');
+  expect(pkgbuild).not.toContain("source[0]");
+  expect(renderTemplate("homebrew/debaser.rb.tmpl")).toContain('Dir["debaser-*"]');
+});
+
+test("a license that could inject package structure is refused", () => {
+  const dir = mkdtempSync(join(tmpdir(), "debaser-license-"));
+  const file = join(dir, "LICENSE");
+  writeFileSync(file, "MIT License\n");
+  expect(() => licenseOf({ license: "MIT\n%post\nrm -rf /" }, file)).toThrow("SPDX license expression");
+  expect(() => licenseOf({ license: 'MIT"; system("x")' }, file)).toThrow("SPDX license expression");
 });

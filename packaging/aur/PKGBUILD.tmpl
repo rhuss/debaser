@@ -19,6 +19,12 @@ sha256sums_x86_64=('{{sha256_linux_amd64}}')
 sha256sums_aarch64=('{{sha256_linux_arm64}}')
 
 package() {
-  # `source` holds this architecture's entry, so the asset name comes from it.
-  install -Dm755 "${srcdir}/$(basename "${source[0]}")" "${pkgdir}/usr/bin/debaser"
+  # The arch-specific arrays do not populate `source` in package(), so select
+  # this architecture's asset explicitly.
+  if [ "$CARCH" = "x86_64" ]; then
+    asset="{{asset_linux_amd64}}"
+  else
+    asset="{{asset_linux_arm64}}"
+  fi
+  install -Dm755 "${srcdir}/$asset" "${pkgdir}/usr/bin/debaser"
 }

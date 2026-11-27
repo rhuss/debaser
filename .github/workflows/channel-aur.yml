@@ -17,7 +17,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: channel-aur-${{ inputs.tag || github.event.release.tag_name }}
+  # Serialize updates for this channel so two tags cannot race the AUR push.
+  group: channel-aur
   cancel-in-progress: false
 
 jobs:
@@ -29,6 +30,9 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Render from the release's own commit, not from an advanced main.
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -38,11 +42,20 @@ jobs:
         id: release
         env:
           TAG: ${{ inputs.tag || github.event.release.tag_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           version=$(bun scripts/release/version.ts parse-tag "$TAG")
+          prerelease=$(bun scripts/release/version.ts is-prerelease "$version")
+          # A release can be flagged pre-release on GitHub even when its tag has
+          # no suffix. Treat either form as a pre-release, and fail closed when
+          # the release cannot be read.
+          flag=$(gh api "repos/{owner}/{repo}/releases/tags/v$version" \
+            --jq 'if .prerelease or .draft then "true" else "false" end' 2>/dev/null) || {
+            echo "::error::cannot read the release v$version"; exit 1; }
+          if [ "$flag" = "true" ]; then prerelease=true; fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$(bun scripts/release/version.ts is-prerelease "$version")" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
 
       - name: Skip a pre-release
         if: steps.release.outputs.prerelease == 'true'
@@ -81,9 +94,18 @@ jobs:
             echo "::notice::the AUR already carries $VERSION"
             exit 0
           fi
-          if [ -n "$served" ] && ! bun scripts/release/version.ts is-newer "$VERSION" "$served"; then
-            echo "::notice::the AUR serves $served; $VERSION is not newer"
-            exit 0
+          if [ -n "$served" ]; then
+            if bun scripts/release/version.ts is-newer "$VERSION" "$served"; then
+              :
+            else
+              status=$?
+              if [ "$status" -eq 1 ]; then
+                echo "::notice::the AUR serves $served; $VERSION is not newer"
+                exit 0
+              fi
+              echo "::error::cannot compare $VERSION with the served version $served"
+              exit 1
+            fi
           fi
 
           cp package/PKGBUILD package/.SRCINFO aur/

@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      checks: read
+      # `gh run list` reads the Actions API.
       actions: read
     outputs:
       version: ${{ steps.values.outputs.version }}
@@ -102,18 +102,12 @@ jobs:
           - target: darwin-amd64
             os: macos-15-intel
     steps:
+      # Build the exact commit the guard validated, not whatever the tag points
+      # at now: a tag moved between jobs must not publish an unvalidated commit.
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.guard.outputs.sha }}
           fetch-depth: 1
-          fetch-tags: true
-
-      - name: Check out the tag when it exists
-        env:
-          TAG: ${{ inputs.tag || github.ref_name }}
-        run: |
-          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-            git checkout --detach "$TAG"
-          fi
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -138,6 +132,7 @@ jobs:
         env:
           DEBASER_BINARY_PREBUILT: "1"
           DEBASER_EXPECTED_VERSION: ${{ needs.guard.outputs.version }}
+          DEBASER_EXPECTED_TARGET: ${{ matrix.target }}
         run: bun test tests/smoke/binary.test.ts
 
       - name: Keep the tested binary
@@ -160,18 +155,12 @@ jobs:
       # Starting the channel workflows after publication (workflow_dispatch).
       actions: write
     steps:
+      # Publish from the guarded commit; the tag is checked against it below.
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.guard.outputs.sha }}
           fetch-depth: 1
           fetch-tags: true
-
-      - name: Check out the tag when it exists
-        env:
-          TAG: ${{ inputs.tag || github.ref_name }}
-        run: |
-          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-            git checkout --detach "$TAG"
-          fi
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -210,8 +199,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.guard.outputs.version }}
           PRERELEASE: ${{ needs.guard.outputs.prerelease }}
+          SHA: ${{ needs.guard.outputs.sha }}
         run: |
           set -euo pipefail
+          # Fail closed if the tag now points at another commit than the guarded one.
+          git fetch --no-tags --force --quiet origin "refs/tags/v$VERSION:refs/tags/v$VERSION"
+          tagged=$(git rev-parse "refs/tags/v$VERSION^{commit}")
+          if [ "$tagged" != "$SHA" ]; then
+            echo "::error::tag v$VERSION points at $tagged, but the guard validated $SHA"
+            exit 1
+          fi
           if gh release view "v$VERSION" >/dev/null 2>&1; then
             echo "::error::release v$VERSION already exists; published assets are never replaced"
             exit 1
@@ -229,7 +226,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.guard.outputs.version }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          # Try every channel: one dispatch failing must not keep the others
+          # from starting (FR-017).
+          fail=0
           for workflow in channel-homebrew channel-copr channel-aur channel-apt; do
-            gh workflow run "$workflow.yml" -f "tag=v$VERSION"
+            if ! gh workflow run "$workflow.yml" -f "tag=v$VERSION"; then
+              echo "::error::could not start $workflow.yml; run it by hand with tag v$VERSION"
+              fail=1
+            fi
           done
+          exit "$fail"

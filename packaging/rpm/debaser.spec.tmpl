@@ -29,10 +29,12 @@ cp %{SOURCE1} {{asset_linux_arm64}}
 cp %{SOURCE2} SHA256SUMS
 cp %{SOURCE3} LICENSE
 %ifarch x86_64
-grep " {{asset_linux_amd64}}$" SHA256SUMS | sha256sum -c -
+line=$(grep " {{asset_linux_amd64}}$" SHA256SUMS) || exit 1
+printf '%s\n' "$line" | sha256sum -c -
 %endif
 %ifarch aarch64
-grep " {{asset_linux_arm64}}$" SHA256SUMS | sha256sum -c -
+line=$(grep " {{asset_linux_arm64}}$" SHA256SUMS) || exit 1
+printf '%s\n' "$line" | sha256sum -c -
 %endif
 
 %install

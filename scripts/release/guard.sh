@@ -39,17 +39,24 @@ elif ! git merge-base --is-ancestor "$SHA" refs/remotes/origin/main 2>/dev/null;
 fi
 
 # The tag has no CI result of its own, so the commit's green push run is reused.
-runs=$(gh run list --workflow ci.yml --commit "$SHA" --limit 100 \
+if ! runs=$(gh run list --workflow ci.yml --commit "$SHA" --limit 100 \
   --json conclusion,headSha,event \
-  --jq "[.[] | select(.headSha == \"$SHA\" and .event == \"push\" and .conclusion == \"success\")] | length" 2>/dev/null) ||
+  --jq "[.[] | select(.headSha == \"$SHA\" and .event == \"push\" and .conclusion == \"success\")] | length" 2>/dev/null); then
   refuse "cannot read ci.yml runs for commit $SHA"
-if [ -n "${runs:-}" ] && [ "$runs" -eq 0 ]; then
+elif ! [[ "${runs:-}" =~ ^[0-9]+$ ]]; then
+  refuse "cannot read ci.yml runs for commit $SHA"
+elif [ "$runs" -eq 0 ]; then
   refuse "no successful push run of ci.yml for commit $SHA"
 fi
 
 # Published assets are immutable, so an existing release is never replaced.
-if gh release view "v$version" >/dev/null 2>&1; then
-  refuse "release v$version already exists; published assets are not replaced"
+# Only a definite 404 means "no release"; any other API failure is refused
+# rather than read as "nothing exists" (fail closed).
+if ! output=$(gh api "repos/{owner}/{repo}/releases/tags/v$version" 2>&1 >/dev/null); then
+  case "$output" in
+    *"HTTP 404"*|*"Not Found"*) ;;
+    *) refuse "cannot check for an existing release: $output" ;;
+  esac
 fi
 
 exit "$fail"

@@ -1,5 +1,8 @@
-/** The compiled single binary (FR-051, SC-005): it builds, runs from any
- * directory with only git and gh around, and starts fast. */
+/** The compiled single binary: it builds, runs from any directory with only git
+ * around, and starts fast. The release workflow runs this file on each platform
+ * as the platform check (FR-006): the version must match the tag (FR-002,
+ * SC-003), the target must match the asset name (FR-004, FR-008), and the live
+ * view must finish without a worker error (SC-004). */
 import { beforeAll, expect, setDefaultTimeout, test } from "bun:test";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,9 +39,17 @@ test("the compiled binary prints its version and usage", () => {
   // A pre-release version carries a hyphen (the tag v0.2.0-rc.1 reports 0.2.0-rc.1).
   expect(version.out).toMatch(/^debaser \d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?\n$/);
   // The release check pins the tag's version: a binary reporting another version
-  // must not be published (FR-002, SC-003).
+  // must not be published (FR-002, SC-003). A prebuilt release run must carry it.
   const expected = process.env.DEBASER_EXPECTED_VERSION;
+  if (process.env.DEBASER_BINARY_PREBUILT === "1") expect(expected).toBeTruthy();
   if (expected) expect(version.out).toBe(`debaser ${expected}\n`);
+  // The release check also pins the platform: a runner label that resolves to
+  // the wrong architecture must not produce a mislabeled asset (FR-004, FR-008).
+  const target = process.env.DEBASER_EXPECTED_TARGET;
+  if (target) {
+    const arch = process.arch === "x64" ? "amd64" : process.arch;
+    expect(`${process.platform}-${arch}`).toBe(target);
+  }
   expect(debaser(null, "help").out).toContain("usage: debaser");
 });
 
@@ -86,6 +97,8 @@ test("the live view's worker starts from the binary under a pseudo terminal", ()
   expect(out).toContain("debaser build");
   expect(out).toContain("✓ built dist/widget-custom");
   expect(out).toContain("build done · artifact");
+  // FR-006: a worker that failed must not be masked by a final success card.
+  expect(out).not.toMatch(/worker[^\n]*(error|failed|crash)/i);
 });
 
 test("off a terminal, the binary refuses an untrusted project recipe with the --trust-recipe hint", () => {

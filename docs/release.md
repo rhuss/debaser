@@ -41,8 +41,8 @@ release is never published.
 
 ## Required secrets and repositories
 
-All secrets are repository secrets owned by the maintainer. A channel job holds
-one credential each and never prints it.
+All secrets are repository secrets owned by the maintainer. Each channel holds
+only the credentials listed for it and never prints one.
 
 | Secret | Used by | Purpose |
 |---|---|---|
@@ -85,7 +85,7 @@ created by the workflows.
 run without any credential or published release:
 
 ```bash
-bun test scripts/release/version.test.ts scripts/release/render.test.ts
+bun test scripts/release/
 bun scripts/release/render.ts --version 0.1.0 --sums <dir-with-SHA256SUMS> --out /tmp/packaging
 ```
 
@@ -206,8 +206,8 @@ gh release view "v<version>" --json assets --jq '.assets[].name'
 
 # SC-006: the version each stable channel serves (newest or previous only).
 brew info --json=v2 rhuss/tap/debaser | jq -r '.formulae[0].versions.stable'
-copr-cli list-builds rhuss/debaser --output-format json |
-  jq -r '[.[] | select(.state == "succeeded") | .pkg_version] | sort_by(split(".") | map(tonumber)) | last'
+curl -fsS 'https://copr.fedorainfracloud.org/api_3/build/list?ownername=rhuss&projectname=debaser&state=succeeded&limit=1000' |
+  jq -r '[.items[].source_package.version] | map(sub("-[^-]+$"; "")) | unique | .[]' | sort -V | tail -1
 git clone --depth 1 ssh://aur@aur.archlinux.org/debaser-bin.git /tmp/aur-check
 sed -n 's/^pkgver=//p' /tmp/aur-check/PKGBUILD
 curl -fsSL https://rhuss.github.io/debaser-apt/dists/stable/main/binary-amd64/Packages | grep '^Version:'

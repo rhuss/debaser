@@ -25,12 +25,20 @@ export function render(template: string, values: Record<string, string>): string
   return rendered;
 }
 
-/** The SPDX license the project records, refused unless both the package
- * metadata and a non-empty `LICENSE` file carry it (FR-019). */
+/** The characters an SPDX license expression may use. Package metadata is
+ * interpolated into Ruby, YAML, RPM and shell-adjacent files, so a value with a
+ * newline or comment marker could inject structure into a package definition. */
+const LICENSE = /^[A-Za-z0-9.+\-() ]+$/;
+
+/** The SPDX license the project records, refused unless a `license` is declared
+ * in package.json and a non-empty `LICENSE` file exists (FR-019). The file's
+ * text is not compared with the identifier: the project records the license in
+ * both places, and this guard enforces that both are present. */
 export function licenseOf(pkg: unknown, licenseFile: string | null): string {
   const record = pkg as { license?: unknown } | null;
   const license = typeof record?.license === "string" ? record.license.trim() : "";
   if (license === "") throw Error("no license in package.json: package publication is refused (FR-019)");
+  if (!LICENSE.test(license)) throw Error(`${JSON.stringify(license)} is not an SPDX license expression`);
   const file = licenseFile !== null && existsSync(licenseFile) ? readFileSync(licenseFile, "utf8").trim() : "";
   if (file === "") throw Error("no LICENSE file: package publication is refused (FR-019)");
   return license;
