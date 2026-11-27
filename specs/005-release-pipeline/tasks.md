@@ -105,7 +105,7 @@ Single project: `src/`, `tests/`, `scripts/`, `packaging/`, `.github/workflows/`
 - [ ] T022 [P] [US3] Create `packaging/deb/nfpm.yaml.tmpl` with name `debaser`, version, license, homepage, `depends: git (>= 2.38)`, the binary to `/usr/bin/debaser`, and the architecture mapping
 - [ ] T023 [P] [US3] Create `packaging/rpm/debaser.spec.tmpl` with `Source0` pointing at the release asset for `%{_arch}` (mapping `x86_64`/`aarch64` to `amd64`/`arm64`), `%prep` fetching it, `%install` to `%{_bindir}`, `%license`, `Requires: git >= 2.38`, and the version and license fields
 - [ ] T024 [P] [US3] Create `packaging/aur/PKGBUILD.tmpl` and `packaging/aur/SRCINFO.tmpl` for `debaser-bin` with per-architecture sources and checksums
-- [ ] T025 [P] [US3] Create `.github/workflows/channel-apt.yml`: build the two `.deb` files with nfpm, update the repository tree with `apt-ftparchive`, sign `Release` with `APT_GPG_KEY`/`APT_GPG_PASSPHRASE`, publish `rhuss/debaser-apt`, skip pre-releases, refuse downgrades, and keep the public key at `debaser-archive-keyring.gpg`
+- [ ] T025 [P] [US3] Create `.github/workflows/channel-apt.yml`: build the two `.deb` files with nfpm, update the repository tree with `apt-ftparchive`, sign `Release` with `APT_GPG_KEY`/`APT_GPG_PASSPHRASE`, export the matching public key with `gpg --export` from the same secret to `debaser-archive-keyring.gpg` (armored), publish `rhuss/debaser-apt`, skip pre-releases, refuse downgrades
 - [ ] T026 [US3] Create `.github/workflows/channel-copr.yml`: build the SRPM with `rpmbuild -bs`, submit it with `copr-cli build` using `COPR_CONFIG`, skip pre-releases, refuse downgrades
 - [ ] T027 [US3] Create `.github/workflows/channel-aur.yml`: render the PKGBUILD and `.SRCINFO`, clone `ssh://aur@aur.archlinux.org/debaser-bin.git` with `AUR_SSH_KEY`, commit only when the version changed, push, and refuse downgrades
 - [ ] T028 [US3] Add the Fedora, Arch and Debian/Ubuntu commands, including the apt key and source setup, to `README.md`
@@ -133,7 +133,7 @@ Single project: `src/`, `tests/`, `scripts/`, `packaging/`, `.github/workflows/`
 
 - [ ] T031 Run the full suite with `bun run test:parallel` and `bun run typecheck`
 - [ ] T032 [P] Verify every template renders against a synthetic `SHA256SUMS` with `bun scripts/release/render.ts --version 0.1.0 --sums <dir> --out /tmp/packaging`, per `quickstart.md`
-- [ ] T033 [P] Verify the release workflow's dry run on the default branch with `gh workflow run release.yml -f dry_run=true -f tag=v0.1.0`, and record the run URL in `docs/release.md`
+- [ ] T033 [P] Verify the release workflow's dry run on the default branch with `gh workflow run release.yml -f dry_run=true -f tag=v0.1.0`, and record the run URL, its duration against SC-002's 20-minute budget, and the four platform job results in `docs/release.md`
 - [ ] T034 Document every required secret and repository (`HOMEBREW_TAP_TOKEN`, `COPR_CONFIG`, `AUR_SSH_KEY`, `APT_GPG_KEY`, `APT_GPG_PASSPHRASE`, `rhuss/homebrew-tap`, `rhuss/debaser-apt`, COPR project, AUR account) in `docs/release.md`, and list the maintainer-owned prerequisites still missing (LICENSE choice)
 - [ ] T035 Review the README install section against spec.md FR-020: every channel, its command, its one-time setup, and the supported platforms
 

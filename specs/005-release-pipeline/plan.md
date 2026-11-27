@@ -83,6 +83,66 @@ LICENSE                          # maintainer dependency; publication guard land
 
 **Structure Decision**: The pipeline is configuration plus shell, with the risky pure rules (tag parsing, asset naming, pre-release detection, downgrade comparison, template rendering) in two small TypeScript modules under `scripts/release/`, which `bun test` covers. The workflows stay thin: they call these helpers and the channel tools. Templates live under `packaging/` so a channel workflow can render them without a person.
 
+## Global Constraints
+
+Copied from the spec; every task inherits these.
+
+- Tag form `v<semantic-version>`; the version must equal `package.json`'s version; a hyphen in the version means pre-release.
+- Assets: `debaser-<version>-<os>-<arch>` with `<os>` in `linux`/`darwin` and `<arch>` in `amd64`/`arm64`, no leading `v`.
+- `SHA256SUMS`: one SHA-256 line per asset, `sha256sum -c` compatible.
+- Four targets only: `linux-amd64`, `linux-arm64`, `darwin-arm64`, `darwin-amd64`.
+- Stable channels: Homebrew, COPR, AUR, apt. mise is not a stable channel.
+- No published asset is replaced or removed; no channel moves backwards.
+- `git >= 2.38` in package metadata; the CLI already enforces it at runtime.
+- Bun pinned to 1.4.4.
+- Third-party channels only; official Fedora and Debian archives are out of scope.
+
+## Interfaces
+
+Neighbouring tasks need these names and shapes. Tasks that consume them reference this list instead of restating them.
+
+```ts
+// scripts/release/version.ts
+export type Target = { os: "linux" | "darwin"; arch: "amd64" | "arm64" };
+export const TARGETS: Target[];                       // the four targets, in asset order
+export function parseTag(tag: string): string;        // version, or throws on a malformed tag
+export function assetName(version: string, t: Target): string;
+export function isPrerelease(version: string): boolean;
+export function compareVersions(a: string, b: string): number; // <0, 0, >0
+export function sumsLine(sha256: string, name: string): string; // "<hex>  <name>"
+```
+
+```ts
+// scripts/release/render.ts
+export function render(template: string, values: Record<string, string>): string; // throws on an unresolved placeholder
+export function licenseOf(pkg: unknown, licenseFile: string | null): string;      // throws when none is recorded
+```
+
+```bash
+# scripts/release/guard.sh
+# Env: TAG, SHA, GH_TOKEN. Exit 0 only when the tag matches package.json,
+# the commit has a successful ci.yml run, and no release exists for the version.
+```
+
+```yaml
+# workflow_dispatch inputs shared by release.yml and every channel-*.yml
+tag: string        # v-prefixed; required
+dry_run: boolean    # release.yml only, default false
+```
+
+## Review Focus
+
+Failure modes the spec implies, each owned by a task with a test or a guard step:
+
+- A `SHA256SUMS` line with one space or a wrong name: `sumsLine` tests (T010).
+- An asset missing from the release: the publish job refuses (T012).
+- A template rendering with a placeholder left behind: `render` refuses and is tested (T005, T006).
+- A tag that is well formed but disagrees with `package.json`: guard refuses (T008, T009).
+- A tag with no CI run for its exact SHA: guard refuses (T008).
+- A pre-release reaching a stable channel: each channel workflow skips it (T018, T025, T026, T027), and `isPrerelease` is tested (T004).
+- A channel retry for an older tag: `compareVersions` refuses it (T004, T018, T025 to T027).
+- No license recorded: rendering refuses (T005, T006).
+
 ## Complexity Tracking
 
 No constitution violations. Two choices need a note because they carry real cost:
