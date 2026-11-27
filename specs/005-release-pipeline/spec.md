@@ -8,6 +8,16 @@
 
 **Input**: User description: "brainstorm/06-release-pipeline.md: a tag-triggered release of macOS and Linux binaries with checksums, plus Homebrew, Fedora COPR, AUR, apt and mise channels"
 
+## Clarifications
+
+### Session 2026-11-27
+
+- Q: Which tag shapes count as a pre-release? → A: A tag whose version carries a semantic-version pre-release suffix (a hyphen, e.g. `v1.2.3-rc.1`); a tag without one is stable.
+- Q: Does a pre-release carry the same four platform binaries? → A: Yes. A pre-release publishes the same four artifacts and checksum file, marked pre-release, and updates no stable channel.
+- Q: What if two releases run at the same time? → A: Each release publishes only artifacts built from its own tag; a release never mixes or waits on another.
+- Q: Are published assets ever replaced or removed? → A: No. A published version's assets stay downloadable and unchanged, so pinned installs keep working.
+- Q: Which license does the project declare? → A: Deferred to the maintainer. The pipeline must refuse package publication while the project declares none (FR-019); no license is chosen on the maintainer's behalf.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Install from a published release binary (Priority: P1)
@@ -102,7 +112,7 @@ A developer pins a debaser version in their tool configuration through mise, inc
 - **FR-006**: Every binary MUST be exercised on a machine of its own platform before publication: it reports its version and completes a short live-view run in a scratch repository, with no view or worker error.
 - **FR-007**: A release MUST be published only when all four platform builds and platform checks passed. A partial release is not acceptable.
 - **FR-008**: Assets MUST follow one stable naming scheme, `debaser-<version>-<os>-<arch>`, where `<version>` has no leading `v`, `<os>` is `linux` or `darwin`, and `<arch>` is `amd64` or `arm64`, so package definitions can address them without consulting a person.
-- **FR-009**: A stable tag MUST publish a normal release with generated release notes. A pre-release tag MUST publish a pre-release entry and MUST NOT update any stable channel.
+- **FR-009**: A stable tag (a version with no pre-release suffix) MUST publish a normal release with generated release notes. A pre-release tag (a version with a hyphen and a pre-release suffix, e.g. `v1.2.3-rc.1`) MUST publish a pre-release entry with the same four platform binaries and checksum file, and MUST NOT update any stable channel.
 - **FR-010**: The Homebrew channel MUST install the matching platform binary from a tap, verify its checksum, declare the `git` dependency, and pass a version check on install.
 - **FR-011**: The Fedora channel MUST be installable from a COPR repository and install the release binary without building from source.
 - **FR-012**: The Arch channel MUST be installable from AUR and verify the published checksum.
@@ -114,6 +124,8 @@ A developer pins a debaser version in their tool configuration through mise, inc
 - **FR-018**: A channel retry MUST NOT downgrade a channel that already serves a newer version.
 - **FR-019**: Package publication MUST be refused when the project declares no license.
 - **FR-020**: The README install section MUST list each supported channel with its install command and state which platforms and architectures are supported.
+- **FR-021**: Releases MUST be independent of each other: a release publishes only artifacts built from its own tag, and never waits for, mixes with or overwrites another release's artifacts.
+- **FR-022**: A published version's assets MUST remain downloadable and unchanged, so pinned installs and older packages keep resolving.
 
 ### Key Entities
 
