@@ -82,3 +82,39 @@ Ideas captured from code reviews for future brainstorming.
 - **Summary**: The SC-004 timing test runs only with `DEBASER_PERF`; a scheduled run or a cheap merge-count check would guard it by default.
 
 > A slowdown in the proposal's merge testing would go unnoticed in the normal test run.
+
+### channel-workflow-dedup
+
+- **Source**: deep-review
+- **Date**: 2026-11-27
+- **Reference**: 005-release-pipeline
+- **Summary**: The four channel workflows repeat the same resolve, pre-release skip and download-and-verify prologue, so an asset naming or checksum change needs four coordinated edits.
+
+> A reusable workflow or composite action would remove the divergence risk that actionlint cannot detect.
+
+### release-trust-anchors
+
+- **Source**: deep-review
+- **Date**: 2026-11-27
+- **Reference**: 005-release-pipeline
+- **Summary**: Publication runs workflow and guard code from the tagged commit, actions are pinned to major tags, and `SHA256SUMS` is unsigned, so the trust anchors are GitHub account security and tag protection.
+
+> Protect `v*` tags and add an approval environment, pin actions to commit SHAs, and sign `SHA256SUMS` with an out-of-band key to move from corruption detection to release verification.
+
+### single-sourced-package-metadata
+
+- **Source**: deep-review
+- **Date**: 2026-11-27
+- **Reference**: 005-release-pipeline
+- **Summary**: The git floor 2.38, the `SHA256SUMS` grammar and the AUR `.SRCINFO` are each written in more than one place, and `versionMatchesTag` is tested but unused by the release path.
+
+> Inject a `{{git_min}}` value, share one sums parser, generate `.SRCINFO` with `makepkg --printsrcinfo`, and make guard.sh call the tested matcher.
+
+### release-docs-staleness
+
+- **Source**: deep-review
+- **Date**: 2026-11-27
+- **Reference**: 005-release-pipeline
+- **Summary**: docs/release.md keeps a one-time verification status section and research.md still says COPR fetches sources over the network, while the SRPM now embeds them.
+
+> Move one-time verification notes to the PR, and align the research document with the implemented no-network SRPM.

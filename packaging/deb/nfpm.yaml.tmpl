@@ -1,0 +1,24 @@
+# Rendered by scripts/release/render.ts once per architecture (--arch amd64 or
+# --arch arm64). The binary is copied next to this file as ./debaser after it
+# has been verified against the release's SHA256SUMS; nfpm resolves `src`
+# against its own working directory, so run it in the directory holding this
+# file.
+name: debaser
+arch: {{arch}}
+platform: linux
+version: {{version}}
+section: default
+priority: optional
+maintainer: rhuss <rhuss@users.noreply.github.com>
+vendor: debaser
+homepage: {{homepage}}
+license: {{license}}
+description: |
+  {{summary}}
+depends:
+  - git (>= 2.38)
+contents:
+  - src: ./debaser
+    dst: /usr/bin/debaser
+    file_info:
+      mode: 0755

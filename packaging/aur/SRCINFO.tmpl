@@ -1,0 +1,19 @@
+pkgbase = debaser-bin
+	pkgdesc = {{summary}}
+	pkgver = {{pkgver}}
+	pkgrel = 1
+	url = {{homepage}}
+	arch = x86_64
+	arch = aarch64
+	license = {{license}}
+	depends = git>=2.38
+	provides = debaser
+	conflicts = debaser
+	options = !strip
+	options = !debug
+	source_x86_64 = {{base_url}}/{{asset_linux_amd64}}
+	sha256sums_x86_64 = {{sha256_linux_amd64}}
+	source_aarch64 = {{base_url}}/{{asset_linux_arm64}}
+	sha256sums_aarch64 = {{sha256_linux_arm64}}
+
+pkgname = debaser-bin

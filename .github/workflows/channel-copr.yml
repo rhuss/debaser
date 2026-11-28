@@ -1,0 +1,150 @@
+name: Channel - Fedora COPR
+
+# Feeds the rhuss/debaser COPR project from a published stable release. COPR
+# accepts only source RPMs, so the spec is rendered and packaged into an SRPM;
+# the binary itself still comes from the release asset. A pre-release moves
+# nothing and a retry never moves the project backwards.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build in COPR"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # Serialize updates for this channel so two tags cannot check then submit
+  # concurrently and leave an older build newer than a newer one.
+  group: channel-copr
+  cancel-in-progress: false
+
+jobs:
+  copr:
+    name: copr
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Render from the release's own commit, not from an advanced main.
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Resolve the release
+        id: release
+        env:
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(bun scripts/release/version.ts parse-tag "$TAG")
+          prerelease=$(bun scripts/release/version.ts is-prerelease "$version")
+          # A release can be flagged pre-release on GitHub even when its tag has
+          # no suffix. Treat either form as a pre-release, and fail closed when
+          # the release cannot be read.
+          flag=$(gh api "repos/{owner}/{repo}/releases/tags/v$version" \
+            --jq 'if .prerelease or .draft then "true" else "false" end' 2>/dev/null) || {
+            echo "::error::cannot read the release v$version"; exit 1; }
+          if [ "$flag" = "true" ]; then prerelease=true; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+
+      - name: Skip a pre-release
+        if: steps.release.outputs.prerelease == 'true'
+        run: echo "::notice::pre-release ${{ steps.release.outputs.version }} does not reach COPR"
+
+      - name: Download and verify the release assets
+        if: steps.release.outputs.prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          gh release download "v${{ steps.release.outputs.version }}" --dir assets \
+            --pattern 'debaser-*' --pattern 'SHA256SUMS'
+          (cd assets && sha256sum -c SHA256SUMS)
+
+      - name: Install the RPM build tools and copr-cli
+        if: steps.release.outputs.prerelease == 'false'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y rpm pipx
+          # Pinned so a retry months later builds with the version tested here.
+          pipx install copr-cli==2.9
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Check what COPR serves
+        id: served
+        if: steps.release.outputs.prerelease == 'false'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -uo pipefail
+          # The build list carries source_package.version ("<version>-<release>");
+          # list-builds does not expose the version, so read the API directly.
+          builds=$(curl -fsS "https://copr.fedorainfracloud.org/api_3/build/list?ownername=rhuss&projectname=debaser&limit=1000") || {
+            echo "::error::cannot read the COPR build list"; exit 1; }
+          # A source upload is an active build before COPR assigns its package
+          # identity. Fail closed rather than filter it out and miss a newer one.
+          unresolved=$(printf '%s' "$builds" |
+            jq '[.items[] | select((.state == "running" or .state == "pending" or .state == "starting" or .state == "importing") and (.source_package.name == null))] | length')
+          if [ "${unresolved:-0}" -gt 0 ]; then
+            echo "::error::an active COPR build has no package identity yet; retry when it resolves"; exit 1
+          fi
+          # Count in-flight builds too: a newer build that is still running must
+          # not let an older retry submit on top of it.
+          served=$(printf '%s' "$builds" |
+            jq -r '[.items[] | select(.source_package.name == "debaser") | select(.state == "succeeded" or .state == "running" or .state == "pending" or .state == "starting" or .state == "importing") | .source_package.version] | map(sub("-[^-]+$"; "")) | unique | .[]' |
+            sort -V | tail -1) || {
+            echo "::error::cannot parse the COPR build list"; exit 1; }
+          if [ -n "$served" ]; then
+            if bun scripts/release/version.ts is-newer "$VERSION" "$served"; then
+              :
+            else
+              status=$?
+              if [ "$status" -eq 1 ]; then
+                echo "::notice::COPR already serves $served; $VERSION is not newer"
+                echo "skip=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "::error::cannot compare $VERSION with the served version $served"
+                exit 1
+              fi
+            fi
+          fi
+
+      - name: Render the RPM spec
+        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        run: bun scripts/release/render.ts --version "${{ steps.release.outputs.version }}" --sums assets --out package
+
+      - name: Build the source RPM
+        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/rpmbuild/SOURCES" "$HOME/rpmbuild/SPECS" "$HOME/rpmbuild/SRPMS"
+          cp package/debaser.spec "$HOME/rpmbuild/SPECS/"
+          # Both linux assets, the checksum file and the LICENSE travel in the
+          # SRPM: COPR then builds both architectures without network access.
+          cp assets/debaser-*-linux-* assets/SHA256SUMS LICENSE "$HOME/rpmbuild/SOURCES/"
+          rpmbuild -bs "$HOME/rpmbuild/SPECS/debaser.spec"
+
+      - name: Submit the build to COPR
+        if: steps.release.outputs.prerelease == 'false' && steps.served.outputs.skip != 'true'
+        env:
+          COPR_CONFIG: ${{ secrets.COPR_CONFIG }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$COPR_CONFIG" > "$RUNNER_TEMP/copr"
+          chmod 600 "$RUNNER_TEMP/copr"
+          copr-cli --config "$RUNNER_TEMP/copr" build rhuss/debaser "$HOME"/rpmbuild/SRPMS/debaser-*.src.rpm
+          echo "::notice::COPR rhuss/debaser built ${{ steps.release.outputs.version }}"

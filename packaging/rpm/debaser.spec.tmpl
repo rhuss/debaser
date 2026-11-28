@@ -1,0 +1,51 @@
+# Rendered by scripts/release/render.ts for a stable release; pre-releases never
+# reach COPR. Both Linux assets travel inside the SRPM, so one SRPM builds
+# x86_64 and aarch64 in the COPR buildroot without fetching anything.
+%global debug_package %{nil}
+# The release binary is already compiled and its checksum was verified in %prep.
+# Stripping it would change the packaged file and its reported version (FR-015).
+%global __strip /bin/true
+
+Name:           debaser
+Version:        {{version}}
+Release:        1%{?dist}
+Summary:        {{summary}}
+License:        {{license}}
+URL:            {{homepage}}
+Source0:        {{base_url}}/{{asset_linux_amd64}}
+Source1:        {{base_url}}/{{asset_linux_arm64}}
+Source2:        {{base_url}}/SHA256SUMS
+Source3:        LICENSE
+ExclusiveArch:  x86_64 aarch64
+Requires:       git >= 2.38
+
+%description
+{{summary}}
+
+%prep
+%setup -q -c -T
+cp %{SOURCE0} {{asset_linux_amd64}}
+cp %{SOURCE1} {{asset_linux_arm64}}
+cp %{SOURCE2} SHA256SUMS
+cp %{SOURCE3} LICENSE
+%ifarch x86_64
+line=$(grep " {{asset_linux_amd64}}$" SHA256SUMS) || exit 1
+printf '%s\n' "$line" | sha256sum -c -
+%endif
+%ifarch aarch64
+line=$(grep " {{asset_linux_arm64}}$" SHA256SUMS) || exit 1
+printf '%s\n' "$line" | sha256sum -c -
+%endif
+
+%install
+%ifarch x86_64
+install -D -m 0755 %{SOURCE0} %{buildroot}%{_bindir}/debaser
+%endif
+%ifarch aarch64
+install -D -m 0755 %{SOURCE1} %{buildroot}%{_bindir}/debaser
+%endif
+install -D -m 0644 %{SOURCE3} %{buildroot}/usr/share/licenses/debaser/LICENSE
+
+%files
+%license /usr/share/licenses/debaser/LICENSE
+%{_bindir}/debaser
