@@ -38,7 +38,7 @@
     "sweep": 10,
     "turns": 30,
     "timeout_minutes": 15,
-    "diff_bytes": 100000,
+    "diff_bytes": 400000,
     "fix_bytes": 200000
   }
 }
