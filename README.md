@@ -56,6 +56,8 @@ install -m 0755 "debaser-$version-$os-$arch" ~/.local/bin/debaser
 debaser --version
 ```
 
+If `~/.local/bin` is not already on your `PATH`, add it to your shell configuration before running `debaser`.
+
 A pre-release is published under the same asset names at its own tag URL
 (`releases/download/v0.2.0-rc.1/...`).
 

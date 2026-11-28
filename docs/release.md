@@ -105,8 +105,19 @@ gh run watch
 ```
 
 A tag push publishes automatically. A manual dispatch with `dry_run=false`
-publishes too: that is how a refused or failed release is retried for the same
-tag without moving it.
+publishes too: that is how a release refused before it existed (the guard, a
+missing test run, a failed build, a failed platform check) is retried for the
+same tag without moving it.
+
+Once `gh release create` has made the release, a retry stops at the
+existing-release check, because published assets are never replaced. If a
+release exists but is incomplete (asset upload failed), delete it first and
+rerun for the same tag:
+
+```bash
+gh release delete v0.1.0 --yes
+gh workflow run release.yml -f dry_run=false -f tag=v0.1.0
+```
 
 ```bash
 git tag v0.1.0
@@ -208,12 +219,14 @@ gh release view "v<version>" --json assets --jq '.assets[].name'
 brew info --json=v2 rhuss/tap/debaser | jq -r '.formulae[0].versions.stable'
 curl -fsS 'https://copr.fedorainfracloud.org/api_3/build/list?ownername=rhuss&projectname=debaser&state=succeeded&limit=1000' |
   jq -r '[.items[].source_package.version] | map(sub("-[^-]+$"; "")) | unique | .[]' | sort -V | tail -1
+rm -rf /tmp/aur-check
 git clone --depth 1 ssh://aur@aur.archlinux.org/debaser-bin.git /tmp/aur-check
 sed -n 's/^pkgver=//p' /tmp/aur-check/PKGBUILD
 curl -fsSL https://rhuss.github.io/debaser-apt/dists/stable/main/binary-amd64/Packages | grep '^Version:'
 
-# SC-008: no stable channel may carry a hyphenated (pre-release) version.
-# Any output above containing "-" fails the audit.
+# SC-008: no stable channel may carry a pre-release version. Test each served
+# version rather than looking for a hyphen: build metadata may contain one.
+bun scripts/release/version.ts is-prerelease "<version>"   # must print false
 ```
 
 Also check the release run's wall time against SC-002's 20-minute budget, and

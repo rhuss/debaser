@@ -8,7 +8,7 @@
 
 ## Assets
 
-Exactly four per release:
+Four binaries and one checksum file per release:
 
 ```text
 debaser-<version>-linux-amd64
@@ -31,7 +31,7 @@ SHA256SUMS
 ...
 ```
 
-A user verifies with `sha256sum -c SHA256SUMS` after downloading the assets into one directory. The file covers all four binaries and contains no other entries.
+A user verifies with `sha256sum -c SHA256SUMS` on Linux or `shasum -a 256 -c SHA256SUMS` on macOS after downloading the assets into one directory. The file covers all four binaries and contains no other entries.
 
 ## Immutability
 

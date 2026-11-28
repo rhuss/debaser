@@ -102,16 +102,32 @@ jobs:
         if: steps.release.outputs.prerelease == 'false'
         run: |
           set -uo pipefail
-          served=$(grep -h '^Version:' repo/dists/stable/main/binary-*/Packages 2>/dev/null |
-            sed 's/^Version: //' | sort -V | tail -1) || served=""
+          # Only a missing index is a bootstrap. An index that exists but carries
+          # no readable Version means the repository state is damaged: stop.
+          indexes=(repo/dists/stable/main/binary-*/Packages)
+          if [ ! -e "${indexes[0]}" ]; then
+            served=""
+          else
+            versions=$(grep -h '^Version:' "${indexes[@]}" | sed 's/^Version: //')
+            if [ -z "$versions" ]; then
+              echo "::error::existing apt indexes carry no readable Version"; exit 1
+            fi
+            served=$(printf '%s\n' "$versions" | sort -V | tail -1)
+          fi
           if [ -n "$served" ]; then
             if bun scripts/release/version.ts is-newer "${{ steps.release.outputs.version }}" "$served"; then
               :
             else
               status=$?
               if [ "$status" -eq 1 ]; then
-                echo "::notice::the apt repository already serves $served; ${{ steps.release.outputs.version }} is not newer"
-                echo "skip=true" >> "$GITHUB_OUTPUT"
+                if [ "$served" = "${{ steps.release.outputs.version }}" ]; then
+                  # Same version: rebuild and let the Pages poll below prove the
+                  # published copy is there, so a retry can finish a failed deploy.
+                  echo "::notice::the apt repository already carries $served; verifying the published copy"
+                else
+                  echo "::notice::the apt repository already serves $served; ${{ steps.release.outputs.version }} is not newer"
+                  echo "skip=true" >> "$GITHUB_OUTPUT"
+                fi
               else
                 echo "::error::cannot compare ${{ steps.release.outputs.version }} with the served version $served"
                 exit 1

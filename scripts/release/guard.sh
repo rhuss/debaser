@@ -56,7 +56,9 @@ fi
 # Published assets are immutable, so an existing release is never replaced.
 # Only a definite 404 means "no release"; any other API failure is refused
 # rather than read as "nothing exists" (fail closed).
-if ! output=$(gh api "repos/{owner}/{repo}/releases/tags/v$version" 2>&1 >/dev/null); then
+if output=$(gh api "repos/{owner}/{repo}/releases/tags/v$version" 2>&1 >/dev/null); then
+  refuse "release v$version already exists; published assets are not replaced"
+else
   case "$output" in
     *"HTTP 404"*|*"Not Found"*) ;;
     *) refuse "cannot check for an existing release: $output" ;;

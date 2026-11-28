@@ -89,8 +89,17 @@ jobs:
           export GIT_SSH_COMMAND="ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 
           git clone ssh://aur@aur.archlinux.org/debaser-bin.git aur
-          served=$(sed -n 's/^pkgver=//p' aur/PKGBUILD 2>/dev/null || true)
-          if [ -n "$served" ] && [ "$served" = "$VERSION" ]; then
+          # Only a missing PKGBUILD is a bootstrap. A file that exists but has no
+          # readable pkgver is damaged state: stop rather than overwrite it.
+          if [ -f aur/PKGBUILD ]; then
+            served=$(sed -n 's/^pkgver=//p' aur/PKGBUILD)
+            if [ -z "$served" ]; then
+              echo "::error::aur/PKGBUILD carries no readable pkgver"; exit 1
+            fi
+          else
+            served=""
+          fi
+          if [ -n "$served" ] && [ "$served" = "${VERSION%%+*}" ]; then
             echo "::notice::the AUR already carries $VERSION"
             exit 0
           fi

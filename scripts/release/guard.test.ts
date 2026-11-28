@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const root = join(import.meta.dir, "..", "..");
@@ -31,6 +32,44 @@ test("a malformed tag is refused before any build", () => {
   const result = guard({ TAG: "release-1.0.0", SHA: "deadbeef", GH_TOKEN: "x" });
   expect(result.exitCode).not.toBe(0);
   expect(result.stderr.toString()).toContain("not v<semantic-version>");
+});
+
+/** Runs guard.sh with stubbed git and gh so the release-exists check is
+ * reachable without a repository or network. */
+function guardWithStubs(release: "exists" | "missing") {
+  const bin = mkdtempSync(join(tmpdir(), "debaser-guard-bin-"));
+  writeFileSync(join(bin, "git"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  writeFileSync(
+    join(bin, "gh"),
+    [
+      "#!/bin/sh",
+      'if [ "$1" = "run" ] && [ "$2" = "list" ]; then echo 1; exit 0; fi',
+      'if [ "$1" = "api" ]; then',
+      release === "exists" ? "  exit 0" : '  echo "HTTP 404: Not Found" >&2; exit 1',
+      "fi",
+      "exit 0",
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+  return Bun.spawnSync(["bash", join(root, "scripts/release/guard.sh")], {
+    cwd: root,
+    env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, TAG: `v${pkgVersion}`, SHA: "deadbeef", GH_TOKEN: "x" },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+}
+
+test("an existing release is refused instead of passing the guard", () => {
+  const result = guardWithStubs("exists");
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("already exists");
+});
+
+test("a missing release passes the guard when every other check is green", () => {
+  const result = guardWithStubs("missing");
+  expect(result.stderr.toString()).not.toContain("already exists");
+  expect(result.exitCode).toBe(0);
 });
 
 test("a missing input refuses the release instead of proceeding", () => {

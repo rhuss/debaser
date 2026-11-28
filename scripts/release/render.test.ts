@@ -196,6 +196,18 @@ test("the RPM spec carries the release version, license and git floor", () => {
   expect(spec).not.toContain("{{");
 });
 
+test("the AUR package drops build metadata from pkgver but keeps it in the asset URLs", () => {
+  const version = "1.2.3+build-7";
+  const pkgbuild = renderTemplate("aur/PKGBUILD.tmpl", version);
+  const srcinfo = renderTemplate("aur/SRCINFO.tmpl", version);
+  // Arch pkgver may not carry a hyphen, and build metadata has no Arch meaning.
+  expect(pkgbuild).toContain("pkgver=1.2.3\n");
+  expect(pkgbuild).not.toContain("pkgver=1.2.3+build-7");
+  expect(pkgbuild).toContain("debaser-1.2.3+build-7-linux-amd64");
+  expect(srcinfo).toContain("pkgver = 1.2.3\n");
+  expect(srcinfo).toContain("debaser-1.2.3+build-7-linux-arm64");
+});
+
 test("the PKGBUILD downloads each architecture's asset with its checksum", () => {
   const pkgbuild = renderTemplate("aur/PKGBUILD.tmpl");
   expect(pkgbuild).toContain(

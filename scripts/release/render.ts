@@ -55,6 +55,10 @@ export function valuesFor(
 ): Record<string, string> {
   const values: Record<string, string> = {
     version,
+    // Arch forbids a hyphen in pkgver and has no notion of SemVer build
+    // metadata, so the package version drops `+build` while the asset URLs
+    // keep the full release version.
+    pkgver: version.split("+")[0]!,
     license,
     arch,
     homepage: HOMEPAGE,

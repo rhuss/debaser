@@ -98,7 +98,7 @@ jobs:
           # Count in-flight builds too: a newer build that is still running must
           # not let an older retry submit on top of it.
           served=$(printf '%s' "$builds" |
-            jq -r '[.items[] | select(.source_package.name == "debaser") | select(.state == "succeeded" or .state == "running" or .state == "pending") | .source_package.version] | map(sub("-[^-]+$"; "")) | unique | .[]' |
+            jq -r '[.items[] | select(.source_package.name == "debaser") | select(.state == "succeeded" or .state == "running" or .state == "pending" or .state == "starting" or .state == "importing") | .source_package.version] | map(sub("-[^-]+$"; "")) | unique | .[]' |
             sort -V | tail -1) || {
             echo "::error::cannot parse the COPR build list"; exit 1; }
           if [ -n "$served" ]; then

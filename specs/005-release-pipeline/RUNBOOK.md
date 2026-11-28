@@ -45,7 +45,7 @@ for target in linux-amd64 linux-arm64 darwin-arm64 darwin-amd64; do printf 'deba
 cat /tmp/debaser-walkthrough/assets/SHA256SUMS
 ```
 
-**What you should see:** Five lines from `cat`: four `debaser-0.1.0-<os>-<arch>` names in the order `linux-amd64`, `linux-arm64`, `darwin-arm64`, `darwin-amd64`, and a `SHA256SUMS` file with one 64-hex digest, two spaces and the asset name per line.
+**What you should see:** Four lines from `cat`, in glob order: `debaser-0.1.0-darwin-amd64`, `debaser-0.1.0-darwin-arm64`, `debaser-0.1.0-linux-amd64`, `debaser-0.1.0-linux-arm64`, one per line, each with a 64-hex digest, two spaces and the asset name.
 
 **If you see something else:** A line with a single space or a path like `./debaser-...` means the checksum tool differs; `sha256sum -c` rejects that form, and the renderer will too.
 
@@ -82,7 +82,7 @@ mkdir -p /tmp/debaser-walkthrough/project
 printf '{"name":"debaser-demo","version":"0.1.0","license":"Apache-2.0"}\n' > /tmp/debaser-walkthrough/project/package.json
 printf 'Apache License 2.0\n' > /tmp/debaser-walkthrough/project/LICENSE
 (cd /tmp/debaser-walkthrough/project && bun "$OLDPWD/scripts/release/render.ts" --version 0.1.0 --sums /tmp/debaser-walkthrough/assets --out /tmp/debaser-walkthrough/out)
-ls /tmp/debaser-walkthrough/out
+ls -a /tmp/debaser-walkthrough/out
 ```
 
 **What you should see:** Five `rendered ...` lines on stderr and then five files: `debaser.rb`, `PKGBUILD`, `.SRCINFO`, `debaser.spec`, `nfpm.yaml`.
