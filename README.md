@@ -115,7 +115,6 @@ channel.
 ### From source
 
 With Bun 1.4 or newer:
->>>>>>> d5496f8 (feat(release): add tag-triggered release pipeline and distribution channels)
 
 ```bash
 bun install
