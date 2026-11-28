@@ -147,6 +147,12 @@ jobs:
           pool="$(pwd)/repo/pool/main/d/debaser"
           mkdir -p "$pool"
           for arch in amd64 arm64; do
+            # A retry of an already published version must not rewrite its
+            # package: clients holding a cached index would see a new checksum.
+            if [ -f "$pool/debaser_${VERSION}_${arch}.deb" ]; then
+              echo "::notice::reusing the published debaser_${VERSION}_${arch}.deb"
+              continue
+            fi
             install -d "stage/$arch"
             cp "assets/debaser-$VERSION-linux-$arch" "stage/$arch/debaser"
             bun scripts/release/render.ts --version "$VERSION" --sums assets --out "stage/$arch" --arch "$arch"

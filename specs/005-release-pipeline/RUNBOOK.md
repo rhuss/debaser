@@ -26,7 +26,7 @@ The journey runs in this order: build a synthetic release, watch the license gua
 
 ## Test environment
 
-No fixtures. Every command writes under `/tmp/debaser-walkthrough`; delete that directory to undo everything. No network, no GitHub, no containers.
+No fixtures. Every command writes under `/tmp/debaser-walkthrough`; delete that directory to undo everything. Step 7 also writes `dist/debaser` in the checkout, replacing any existing build there; `bun run build` recreates it. No network, no GitHub, no containers.
 
 ## Steps
 
@@ -100,10 +100,10 @@ ls -a /tmp/debaser-walkthrough/out
 **Run:**
 
 ```bash
-grep -E 'version |license |on_macos|on_linux|Hardware::CPU|url |sha256 |depends_on|system ' /tmp/debaser-walkthrough/out/debaser.rb
+grep -E 'version |license |on_macos|on_linux|Hardware::CPU|url |sha256 |depends_on|shell_output' /tmp/debaser-walkthrough/out/debaser.rb
 ```
 
-**What you should see:** `version "0.1.0"`, `license "Apache-2.0"`, macOS and Linux blocks split by `Hardware::CPU.arm?`, four `url` lines naming the four assets, four `sha256` values that also appear in `SHA256SUMS`, `depends_on "git"`, and a `system` line running `debaser --version`.
+**What you should see:** `version "0.1.0"`, `license "Apache-2.0"`, macOS and Linux blocks split by `Hardware::CPU.arm?`, four `url` lines naming the four assets, four `sha256` values that also appear in `SHA256SUMS`, `depends_on "git"`, and a `shell_output` line running `debaser --version`.
 
 **If you see something else:** A `url` and `sha256` that disagree, or an `on_linux` block missing, would install the wrong binary on that platform; note which line, and this is a real defect.
 

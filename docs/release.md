@@ -11,9 +11,10 @@ reads the release assets directly and needs no automation.
 - The version after `v` must be a semantic version and must equal the
   `version` field in `package.json`. `package.json` is the single source: the
   binary prints that value for `debaser --version`.
-- A version with a hyphen (`v0.2.0-rc.1`) is a pre-release. It publishes the
-  same four binaries and checksums as a pre-release entry, and no stable
-  channel moves.
+- A version with a hyphen before any build metadata (`v0.2.0-rc.1`) is a
+  pre-release. A hyphen only inside build metadata (`v0.2.0+ci-1`) is stable.
+  A pre-release publishes the same four binaries and checksums as a pre-release
+  entry, and no stable channel moves.
 - The tagged commit must be contained in `origin/main` and must have a
   successful `ci.yml` push run for exactly that commit. A refused release is
   retried for the same tag without moving it.

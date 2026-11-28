@@ -38,7 +38,8 @@ Rendering refuses until the project records a license (FR-019), so add a `LICENS
 ## 4. Debian package locally (Linux)
 
 ```bash
-nfpm package --config /tmp/packaging/nfpm.yaml --packager deb --target /tmp/packages/
+cp dist/debaser /tmp/packaging/debaser
+(cd /tmp/packaging && nfpm package --config nfpm.yaml --packager deb --target /tmp/packages/)
 dpkg-deb --info /tmp/packages/debaser_0.1.0_amd64.deb
 dpkg-deb --contents /tmp/packages/debaser_0.1.0_amd64.deb | grep usr/bin/debaser
 ```

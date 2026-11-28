@@ -4,7 +4,7 @@
 
 - Form: `v<semantic-version>`, for example `v0.1.0` or `v0.2.0-rc.1`.
 - The version after `v` must equal `package.json`'s `version`. A mismatch refuses publication.
-- A version containing a hyphen is a pre-release.
+- A hyphen before the build metadata (`v0.2.0-rc.1`) marks a pre-release. A hyphen only inside build metadata (`v0.2.0+ci-1`) does not.
 
 ## Assets
 

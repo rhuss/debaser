@@ -95,6 +95,13 @@ jobs:
           # list-builds does not expose the version, so read the API directly.
           builds=$(curl -fsS "https://copr.fedorainfracloud.org/api_3/build/list?ownername=rhuss&projectname=debaser&limit=1000") || {
             echo "::error::cannot read the COPR build list"; exit 1; }
+          # A source upload is an active build before COPR assigns its package
+          # identity. Fail closed rather than filter it out and miss a newer one.
+          unresolved=$(printf '%s' "$builds" |
+            jq '[.items[] | select((.state == "running" or .state == "pending" or .state == "starting" or .state == "importing") and (.source_package.name == null))] | length')
+          if [ "${unresolved:-0}" -gt 0 ]; then
+            echo "::error::an active COPR build has no package identity yet; retry when it resolves"; exit 1
+          fi
           # Count in-flight builds too: a newer build that is still running must
           # not let an older retry submit on top of it.
           served=$(printf '%s' "$builds" |
