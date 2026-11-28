@@ -60,7 +60,7 @@ if output=$(gh api "repos/{owner}/{repo}/releases/tags/v$version" 2>&1 >/dev/nul
   refuse "release v$version already exists; published assets are not replaced"
 else
   case "$output" in
-    *"HTTP 404"*|*"Not Found"*) ;;
+    *"HTTP 404"*) ;;
     *) refuse "cannot check for an existing release: $output" ;;
   esac
 fi

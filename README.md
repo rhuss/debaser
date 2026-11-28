@@ -53,10 +53,11 @@ if command -v sha256sum >/dev/null; then verify=(sha256sum -c -); else verify=(s
 printf '%s\n' "$line" | "${verify[@]}"
 mkdir -p ~/.local/bin
 install -m 0755 "debaser-$version-$os-$arch" ~/.local/bin/debaser
+export PATH="$HOME/.local/bin:$PATH"
 debaser --version
 ```
 
-If `~/.local/bin` is not already on your `PATH`, add it to your shell configuration before running `debaser`.
+The `export` affects only this shell. Add `~/.local/bin` to your shell configuration to keep `debaser` on your `PATH`.
 
 A pre-release is published under the same asset names at its own tag URL
 (`releases/download/v0.2.0-rc.1/...`).

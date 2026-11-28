@@ -54,7 +54,7 @@ rpmbuild -ba /tmp/packaging/debaser.spec
 rpm -qp --requires ~/rpmbuild/RPMS/*/debaser-0.1.0-*.rpm | grep git
 ```
 
-The spec reads its three sources from `~/rpmbuild/SOURCES`, so the build needs no network.
+The spec reads its four sources (both Linux binaries, `SHA256SUMS` and `LICENSE`) from `~/rpmbuild/SOURCES`, so the build needs no network.
 
 ## 6. Dry run of the release workflow (no tag)
 

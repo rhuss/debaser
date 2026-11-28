@@ -105,14 +105,17 @@ jobs:
           # Only a missing index is a bootstrap. An index that exists but carries
           # no readable Version means the repository state is damaged: stop.
           indexes=(repo/dists/stable/main/binary-*/Packages)
-          if [ ! -e "${indexes[0]}" ]; then
-            served=""
-          else
-            versions=$(grep -h '^Version:' "${indexes[@]}" | sed 's/^Version: //')
-            if [ -z "$versions" ]; then
-              echo "::error::existing apt indexes carry no readable Version"; exit 1
-            fi
-            served=$(printf '%s\n' "$versions" | sort -V | tail -1)
+          served=""
+          if [ -e "${indexes[0]}" ]; then
+            all=""
+            for index in "${indexes[@]}"; do
+              versions=$(grep '^Version:' "$index" | sed 's/^Version: //')
+              if [ -z "$versions" ]; then
+                echo "::error::$index carries no readable Version"; exit 1
+              fi
+              all=$(printf '%s\n%s' "$all" "$versions")
+            done
+            served=$(printf '%s\n' "$all" | sed '/^$/d' | sort -V | tail -1)
           fi
           if [ -n "$served" ]; then
             if bun scripts/release/version.ts is-newer "${{ steps.release.outputs.version }}" "$served"; then
@@ -191,11 +194,13 @@ jobs:
           set -euo pipefail
           git -C repo add -A
           if git -C repo diff --cached --quiet; then
-            echo "::notice::the apt repository is unchanged for $VERSION"
-            exit 0
+            # No commit needed, but a retry may still be finishing a deploy that
+            # failed last time, so the availability poll below still has to run.
+            echo "::notice::the apt repository is unchanged for $VERSION; verifying Pages"
+          else
+            git -C repo commit -m "debaser $VERSION"
+            git -C repo push origin HEAD:gh-pages
           fi
-          git -C repo commit -m "debaser $VERSION"
-          git -C repo push origin HEAD:gh-pages
           # A push only queues a Pages build. Confirm the channel actually serves
           # the version, so a Pages failure is not reported as success.
           for _ in $(seq 1 30); do
